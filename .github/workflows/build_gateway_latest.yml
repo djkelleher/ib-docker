@@ -63,5 +63,6 @@ jobs:
                 ${{ secrets.DOCKERHUB_USERNAME }}/ib-gateway:latest
                 ${{ secrets.DOCKERHUB_USERNAME }}/ib-gateway:${{ steps.parse_release_name.outputs.version }}
                 ${{ secrets.DOCKERHUB_USERNAME }}/ib-gateway:${{ steps.parse_release_name.outputs.major_minor_version }}
+                ${{ secrets.DOCKERHUB_USERNAME }}/ib-gateway:${{ steps.parse_release_name.outputs.major_version }}
 
 

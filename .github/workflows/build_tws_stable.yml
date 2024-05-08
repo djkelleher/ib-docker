@@ -27,10 +27,6 @@ jobs:
             major_minor_version=$(echo "$version" | grep -oP '^\d+\.\d+')
             echo "Extracted major+minor version: $major_minor_version"
             echo "major_minor_version=$major_minor_version" >> $GITHUB_OUTPUT
-
-            major_version=$(echo "$major_minor_version" | grep -oP '^[0-9]+')
-            echo "Extracted major version: $major_version"
-            echo "major_version=$major_version" >> $GITHUB_OUTPUT
           shell: bash
 
         - name: Checkout
