@@ -8,6 +8,9 @@ on:
           required: false
     release:
       types: [created]
+    workflow_run:
+      workflows: ["Daily Release Check"]
+      types: [completed]
 
 jobs:
   build_gateway_latest_release:
