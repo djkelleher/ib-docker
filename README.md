@@ -5,6 +5,9 @@
 </p>
 
 [![Daily Release Check](https://github.com/djkelleher/ib-docker/actions/workflows/release.yml/badge.svg)](https://github.com/djkelleher/ib-docker/actions/workflows/release.yml)
+[![Gateway Build](https://github.com/djkelleher/ib-docker/actions/workflows/build_gateway.yml/badge.svg)](https://github.com/djkelleher/ib-docker/actions/workflows/build_gateway.yml)
+[![TWS Build](https://github.com/djkelleher/ib-docker/actions/workflows/build_tws.yml/badge.svg)](https://github.com/djkelleher/ib-docker/actions/workflows/build_tws.yml)
+
 
 Reliable high-performance docker images to run Interactive Brokers Gateway and TWS without any human interaction.
 
