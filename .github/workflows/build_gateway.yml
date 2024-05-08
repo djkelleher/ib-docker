@@ -1,4 +1,4 @@
-name: Gateway Stable Build
+name: Gateway Build
 
 on:
     workflow_dispatch:
@@ -8,22 +8,20 @@ on:
           required: false
     release:
       types: [created]
-    #workflow_run:
-    #  workflows: ["Daily Release Check"]
-    #  types: [completed]
 
 jobs:
-  build_gateway_stable_release:
+  build_gateway_release:
     runs-on: ubuntu-latest
-    if: startsWith(${{ github.event.release.tag_name}}${{ github.event.inputs.tag_name}}, 'stable-')
     steps:
         - name: Parse Release Name
           id: parse_release_name
           run: |
             release_name="${{ github.event.release.tag_name }}${{ github.event.inputs.tag_name }}"
-            echo "Building Gateway stable for release: $release_name"
+            release_type="${release_name%%-*}"
+            echo "Building Gateway $release_type for release: $release_name"
+            echo "release_type=$release_type" >> $GITHUB_OUTPUT
+
             version="${release_name#*-}"
-    
             echo "version=$version" >> $GITHUB_OUTPUT
             echo "Extracted version: $version"
 
@@ -47,7 +45,7 @@ jobs:
             username: ${{ secrets.DOCKERHUB_USERNAME }}
             password: ${{ secrets.DOCKERHUB_TOKEN }}
         
-        - name: Build and push Gateway stable
+        - name: Build and push Gateway
           uses: docker/build-push-action@v5
           with:
             context: .
@@ -56,10 +54,10 @@ jobs:
             push: true
             build-args: |
                 PROGRAM=ibgateway
-                RELEASE=stable
+                RELEASE=${{ steps.parse_release_name.outputs.release_type }}
                 VERSION=${{ steps.parse_release_name.outputs.version }}
             tags: |
-                ${{ secrets.DOCKERHUB_USERNAME }}/ib-gateway:stable
+                ${{ secrets.DOCKERHUB_USERNAME }}/ib-gateway:${{ steps.parse_release_name.outputs.release_type }}
                 ${{ secrets.DOCKERHUB_USERNAME }}/ib-gateway:${{ steps.parse_release_name.outputs.version }}
                 ${{ secrets.DOCKERHUB_USERNAME }}/ib-gateway:${{ steps.parse_release_name.outputs.major_minor_version }}
 

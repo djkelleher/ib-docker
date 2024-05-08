@@ -1,4 +1,4 @@
-name: TWS Latest Build
+name: TWS Build
 
 on:
     workflow_dispatch:
@@ -10,27 +10,24 @@ on:
       types: [created]
 
 jobs:
-  build_tws_latest_release:
+  build_tws_release:
     runs-on: ubuntu-latest
-    if: startsWith(${{ github.event.release.tag_name}}${{ github.event.inputs.tag_name}}, 'latest-')
     steps:
         - name: Parse Release Name
           id: parse_release_name
           run: |
             release_name="${{ github.event.release.tag_name }}${{ github.event.inputs.tag_name }}"
-            echo "Building TWS latest for release: $release_name"
+            release_type="${release_name%%-*}"
+            echo "Building TWS $release_type for release: $release_name"
+            echo "release_type=$release_type" >> $GITHUB_OUTPUT
+
             version="${release_name#*-}"
-    
             echo "version=$version" >> $GITHUB_OUTPUT
             echo "Extracted version: $version"
 
             major_minor_version=$(echo "$version" | grep -oP '^\d+\.\d+')
             echo "Extracted major+minor version: $major_minor_version"
             echo "major_minor_version=$major_minor_version" >> $GITHUB_OUTPUT
-
-            major_version=$(echo "$major_minor_version" | grep -oP '^[0-9]+')
-            echo "Extracted major version: $major_version"
-            echo "major_version=$major_version" >> $GITHUB_OUTPUT
           shell: bash
 
         - name: Checkout
@@ -48,7 +45,7 @@ jobs:
             username: ${{ secrets.DOCKERHUB_USERNAME }}
             password: ${{ secrets.DOCKERHUB_TOKEN }}
         
-        - name: Build and push TWS latest
+        - name: Build and push TWS
           uses: docker/build-push-action@v5
           with:
             context: .
@@ -57,12 +54,11 @@ jobs:
             push: true
             build-args: |
                 PROGRAM=tws
-                RELEASE=latest
+                RELEASE=${{ steps.parse_release_name.outputs.release_type }}
                 VERSION=${{ steps.parse_release_name.outputs.version }}
             tags: |
-                ${{ secrets.DOCKERHUB_USERNAME }}/ib-tws:latest
+                ${{ secrets.DOCKERHUB_USERNAME }}/ib-tws:${{ steps.parse_release_name.outputs.release_type }}
                 ${{ secrets.DOCKERHUB_USERNAME }}/ib-tws:${{ steps.parse_release_name.outputs.version }}
                 ${{ secrets.DOCKERHUB_USERNAME }}/ib-tws:${{ steps.parse_release_name.outputs.major_minor_version }}
-                ${{ secrets.DOCKERHUB_USERNAME }}/ib-tws:${{ steps.parse_release_name.outputs.major_version }}
 
 
