@@ -55,7 +55,7 @@ jobs:
             file: ./Dockerfile
             push: true
             build-args: |
-                PROGRAM=gateway
+                PROGRAM=ibgateway
                 RELEASE=stable
                 VERSION=${{ steps.parse_release_name.outputs.version }}
             tags: |
