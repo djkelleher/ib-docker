@@ -179,7 +179,9 @@ def create_github_releases(gh_repo) -> List[IBRelease]:
             logger.info("Uploading %s", file)
             gh_release.upload_asset(path=str(file), label=file.name, name=file.name)
             hash_file = file.with_suffix(file.suffix + ".sha256")
-            hash_file.write_text(hashlib.sha256(file.read_bytes()).hexdigest())
+            hash_file.write_text(
+                f"{hashlib.sha256(file.read_bytes()).hexdigest()} {file.name}"
+            )
             logger.info("Uploading %s", hash_file)
             gh_release.upload_asset(
                 path=str(hash_file), label=hash_file.name, name=hash_file.name
