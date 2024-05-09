@@ -2,11 +2,15 @@ version: "3.4"
 
 services:
   ib-gateway:
-    image: ib-gateway:stable
+    image: ib-gateway:latest
     restart: always
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - PROGRAM=ibgateway
+        - RELEASE=latest
+        - VERSION=10.29.1f
     network_mode: host
     command: "ibc_ibgateway"
     environment:
@@ -54,6 +58,7 @@ services:
       dockerfile: Dockerfile
       args:
         - PROGRAM=tws
+        - RELEASE=latest
     network_mode: host
     init: true
     command: "ibc_tws"
