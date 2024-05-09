@@ -4,7 +4,7 @@ ENV LC_ALL C.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US.UTF-8
 
-ARG VERSION=1
+ARG VERSION=NULL
 # program can be tws or ibgateway.
 ARG PROGRAM=ibgateway
 # release can be stable, latest, or beta; 
@@ -53,7 +53,18 @@ RUN apt-get -y update && \
     update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 && \
     # Install Gateway or TWS.
     echo "Installing ${PROGRAM}" && \
-    wget -q -O /ib.sh https://download2.interactivebrokers.com/installers/${PROGRAM}/${IB_RELEASE}-standalone/${PROGRAM}-${IB_RELEASE}-standalone-linux-${ARCH}.sh && \
+    if [ ${VERSION} = "NULL" ]; then \
+    PROG_FILE_URL=https://download2.interactivebrokers.com/installers/${PROGRAM}/${IB_RELEASE}-standalone/${PROGRAM}-${IB_RELEASE}-standalone-linux-${ARCH}.sh; \
+    echo "Downloading ${PROG_FILE_URL}"; \
+    wget -q -O /ib.sh $PROG_FILE_URL; \
+    else \
+    PROG_FILE_NAME=ibgateway-${IB_RELEASE}-${VERSION}-standalone-linux-x64.sh ; \
+    PROG_FILE_URL=https://github.com/djkelleher/ib-docker/releases/download/${IB_RELEASE}-${VERSION}/$PROG_FILE_NAME ; \
+    wget -q -O /$PROG_FILE_NAME $PROG_FILE_URL ; \
+    wget -q -O /$PROG_FILE_NAME.sha256 $PROG_FILE_URL.sha256 ; \
+    sha256sum --check /$PROG_FILE_NAME.sha256 ; \
+    mv /$PROG_FILE_NAME /ib.sh ; \
+    fi && \
     chmod +x /ib.sh && \ 
     if [ "$(uname -m)" = "aarch64" ]; then \
     wget -q -O bellsoft.tar.gz "https://download.bell-sw.com/java/11.0.22+12/bellsoft-jre11.0.22+12-linux-aarch64-full.tar.gz" ; \
