@@ -43,6 +43,10 @@ services:
       AUTO_RESTART_TIME: ${AUTO_RESTART_TIME:-}
       # Auto-Logoff: at a specified time, TWS shuts down tidily, without restarting
       AUTO_LOGOFF_TIME: ${AUTO_LOGOFF_TIME:-}
+      # a time (specified in your local timeframe) that is after 01:00 US/Eastern. When
+      # this time is reached on Sundays, IBC tidily closes TWS, and the script then
+      # reloads IBC thus starting a new instance of TWS and initiating the usual full logon.
+      COLD_RESTART_TIME: ${COLD_RESTART_TIME:-}
       # Settings relate to the corresponding 'Precautions' checkboxes in the API section of the Global Configuration dialog. Accepted values `yes`, `no` if not set, the existing TWS/Gateway configuration is unchanged
       BYPASS_WARNING: ${BYPASS_WARNING:-yes}
       # automatically save its settings on a schedule of your choosing. You can specify one or more specific times, ex `SaveTwsSettingsAt=08:00   12:30 17:30`
@@ -92,6 +96,10 @@ services:
       AUTO_RESTART_TIME: ${AUTO_RESTART_TIME:-}
       # Auto-Logoff: at a specified time, TWS shuts down tidily, without restarting
       AUTO_LOGOFF_TIME: ${AUTO_LOGOFF_TIME:-}
+      # a time (specified in your local timeframe) that is after 01:00 US/Eastern. When
+      # this time is reached on Sundays, IBC tidily closes TWS, and the script then
+      # reloads IBC thus starting a new instance of TWS and initiating the usual full logon.
+      COLD_RESTART_TIME: ${COLD_RESTART_TIME:-}
       # Settings relate to the corresponding 'Precautions' checkboxes in the API section of the Global Configuration dialog. Accepted values `yes`, `no` if not set, the existing TWS/Gateway configuration is unchanged
       BYPASS_WARNING: ${BYPASS_WARNING:-yes}
       # automatically save its settings on a schedule of your choosing. You can specify one or more specific times, ex `SaveTwsSettingsAt=08:00   12:30 17:30`
