@@ -94,7 +94,7 @@ start_ibc() {
     echo ".>		ibc-init: ${IBC_INI}"
     echo ".>		tws-settings-path: ${TWS_SETTINGS_PATH}"
     echo ".>		on2fatimeout: ${TWOFA_TIMEOUT_ACTION}"
-    if [ $1 = "-g" ]; then
+    if [ "$1" = "-g" ]; then
         IB_BASE_DIR=/opt
     else
         IB_BASE_DIR=/Jts
