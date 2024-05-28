@@ -1,5 +1,3 @@
-version: "3.4"
-
 services:
   ib-gateway:
     image: ib-gateway:latest

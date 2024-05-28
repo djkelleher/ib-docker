@@ -3,10 +3,9 @@
 apt-get -y update
 apt-get -y dist-upgrade
 DEBIAN_FRONTEND=noninteractive apt-get -y install --no-install-recommends \
-    wget ca-certificates unzip software-properties-common locales nano gettext-base xvfb x11vnc
-# X11 forwarding for running on local machine.
-#libx11-6 libxext-dev libxtst-dev libxrender1 libfontconfig1 \
-# X server, VNC server, window manager for server deployments.
+    wget ca-certificates unzip software-properties-common locales nano gettext-base xvfb x11vnc \
+    # X11 forwarding for running on local machine.
+    libx11-6 libxext-dev libxtst-dev libxrender1 libfontconfig1 
 
 if [ ${PROGRAM} = "ibgateway" ]; then
     IB_RELEASE_DIR=/opt/ibgateway/${IB_RELEASE}
