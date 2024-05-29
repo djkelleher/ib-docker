@@ -5,7 +5,7 @@ apt-get -y dist-upgrade
 DEBIAN_FRONTEND=noninteractive apt-get -y install --no-install-recommends \
     wget ca-certificates unzip software-properties-common locales nano gettext-base xvfb x11vnc \
     # X11 forwarding for running on local machine.
-    libx11-6 libxext-dev libxtst-dev libxrender1 libfontconfig1 
+    libx11-6 libxext-dev libxtst-dev libxrender1 libfontconfig1 ttf-mscorefonts-installer
 
 if [ ${PROGRAM} = "ibgateway" ]; then
     IB_RELEASE_DIR=/opt/ibgateway/${IB_RELEASE}
@@ -31,7 +31,7 @@ if [ ${VERSION} = "NULL" ]; then
     echo "Downloading ${PROG_FILE_URL}"
     wget -q -O /ib.sh $PROG_FILE_URL
 else
-    PROG_FILE_NAME=ibgateway-${IB_RELEASE}-${VERSION}-standalone-linux-x64.sh
+    PROG_FILE_NAME=${PROGRAM}-${IB_RELEASE}-${VERSION}-standalone-linux-x64.sh
     PROG_FILE_URL=https://github.com/djkelleher/ib-docker/releases/download/${IB_RELEASE}-${VERSION}/$PROG_FILE_NAME
     wget -q -O /$PROG_FILE_NAME $PROG_FILE_URL
     wget -q -O /$PROG_FILE_NAME.sha256 $PROG_FILE_URL.sha256
@@ -51,8 +51,8 @@ if [ "$(uname -m)" = "aarch64" ]; then
     app_java_home=/opt/java /ib.sh -q -dir ${IB_RELEASE_DIR}
 else
     /ib.sh -q -dir ${IB_RELEASE_DIR}
-#rm /ib.sh; \
 fi
+rm /ib.sh
 # Install IBC
 echo "Installing IBC"
 wget -q -O /tmp/IBC.zip ${IBC_RELEASE}

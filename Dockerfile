@@ -22,6 +22,9 @@ ENV IBC_INI=${IBC_PATH}/ibc.ini
 
 ENV SCRIPT_PATH=/scripts
 
+# Accept license for Microsoft fonts
+RUN echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections
+
 # this will get moved depending on PROGRAM argument
 COPY jts.ini /jts.ini
 COPY setup.sh /setup.sh
@@ -37,6 +40,12 @@ RUN chmod +x /setup.sh && /setup.sh
 #-XX:+UnlockExperimentalVMOptions \n\
 #-XX:+UseCGroupMemoryLimitForHeap \n\
 #" >> ${IB_RELEASE_DIR}/${PROGRAM}.vmoptions
+
+# Bundle the Google Noto Sans Mono Medium font
+# https://www.google.com/get/noto/
+# SIL Open Font License, Version 1.1
+COPY fonts/* /.fonts/
+RUN fc-cache
 
 # create a file to signal that the env vars need to be set.
 RUN touch /process_env_vars
