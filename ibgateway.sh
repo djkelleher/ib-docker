@@ -1,4 +1,4 @@
 #!/bin/bash
 
-echo "Starting Gateway (without IB Controller)"
+echo "Starting Gateway"
 $IB_PATH/ibgateway

@@ -8,9 +8,7 @@ services:
       args:
         - PROGRAM=ibgateway
         - RELEASE=latest
-        - VERSION=10.29.1f
     network_mode: host
-    command: "ibc_ibgateway"
     environment:
       # User `uid` to run the container as (1000 is host user)
       PUID: 1000
@@ -53,7 +51,7 @@ services:
       RELOGIN_AFTER_TWOFA_TIMEOUT: ${RELOGIN_AFTER_TWOFA_TIMEOUT:-no}
       TWOFA_EXIT_INTERVAL: ${TWOFA_EXIT_INTERVAL:-60}
   ib-tws:
-    image: ib-tws:stable
+    image: ib-tws:latest
     restart: always
     build:
       context: .
@@ -63,7 +61,7 @@ services:
         - RELEASE=latest
     network_mode: host
     init: true
-    command: "ibc_tws"
+    shm_size: "1gb" #recomended
     environment:
       # User `uid` to run the container as (1000 is host user)
       PUID: 1000

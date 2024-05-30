@@ -18,6 +18,7 @@ else
     DEBIAN_FRONTEND=noninteractive apt-get -y install --no-install-recommends libavcodec-dev \
         libavformat-dev libgtk-3-dev libasound2 libnss3 libnspr4
 fi
+echo "Created installation directory ${IB_RELEASE_DIR}"
 apt-get autoremove -y --purge
 apt-get clean -y
 rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*

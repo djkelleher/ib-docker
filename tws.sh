@@ -1,4 +1,4 @@
 #!/bin/bash
 
-echo "Starting TWS (without IB Controller)"
+echo "Starting TWS"
 $IB_PATH/tws
