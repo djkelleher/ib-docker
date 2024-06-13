@@ -11,6 +11,11 @@
 
 Reliable high-performance docker images to run Interactive Brokers Gateway and TWS without any human interaction.
 
+**Gateway:**
+`docker pull danklabs/ib-gateway`   
+**TWS:**
+`docker pull danklabs/ib-tws`
+
 There are two Docker images here, one for IB Gateway ([stable](https://www.interactivebrokers.com/en/trading/ibgateway-stable.php) and [latest](https://www.interactivebrokers.com/en/trading/ibgateway-latest.php)), and the other for Trader Workstation ([stable](https://www.interactivebrokers.com/en/trading/tws-offline-stable.php) and [latest](https://www.interactivebrokers.com/en/trading/tws-offline-latest.php)).    
 Both images include:
 - [IBC](https://github.com/IbcAlpha/IBC) - to control IB Gateway (simulates user input).
