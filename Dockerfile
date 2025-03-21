@@ -12,7 +12,7 @@ ARG RELEASE=stable
 # arch can be x64 or x86.
 ARG ARCH=x64
 
-ARG IBC_RELEASE=https://github.com/IbcAlpha/IBC/releases/download/3.19.0/IBCLinux-3.19.0.zip
+ARG IBC_RELEASE=https://github.com/IbcAlpha/IBC/releases/download/3.21.2/IBCLinux-3.21.2.zip
 
 ENV PROGRAM=${PROGRAM}
 ENV IB_RELEASE=${RELEASE}
