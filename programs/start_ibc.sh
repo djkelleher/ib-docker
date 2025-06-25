@@ -1,19 +1,23 @@
 #!/bin/bash
 
-source /common.sh
+log() {
+	#local timestamp
+	timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+	echo "$timestamp  $1"
+}
 
 start_ibc() {
 	# use arg -g or -gateway to start gateway.
 	# extract major version from desktop file.
 	#major_v=$(ls $IB_PATH/*.desktop | sed -E 's/[^0-9]+//g')
 	if [ "$PROGRAM" = "ibgateway" ]; then
-		PROGRAM_FLAG="-gateway"
+		PROGRAM_FLAG="-g"
 		IB_BASE_DIR=/opt
 	else
 		PROGRAM_FLAG=""
 		IB_BASE_DIR=/Jts
 	fi
-	TWS_SETTINGS_PATH=/var/lib/tws_settings
+	TWS_SETTINGS_PATH=${HOME}/tws_settings
 	mkdir -p $TWS_SETTINGS_PATH
 	log ".> Starting IBC in ${TRADING_MODE} mode, with params:"
 	echo ".>		Version: ${IB_RELEASE}"
@@ -30,5 +34,6 @@ start_ibc() {
 		"--ibc-path=${IBC_PATH}" \
 		"--on2fatimeout=${TWOFA_TIMEOUT_ACTION}" \
 		"--tws-settings-path=${TWS_SETTINGS_PATH:-}"
-	log "IBC started."
 }
+
+start_ibc

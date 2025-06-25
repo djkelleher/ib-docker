@@ -1,6 +1,13 @@
 #!/bin/bash
 
-source /common.sh
+DISPLAY=${DISPLAY:-:0}
+export DISPLAY
+
+log() {
+	#local timestamp
+	timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+	echo "$timestamp  $1"
+}
 
 start_xvfb() {
 	echo "Starting Xvfb server"
@@ -11,6 +18,7 @@ start_xvfb() {
 	log "Starting virtual frame buffer. Display $DISPLAY. Screen dimension: $VNC_SCREEN_DIMENSION"
 	## start virtual frame buffer.
 	# creates screen screennum and sets its width, height, and depth to W, H, and D respectively. By default, only screen 0 exists and has the dimensions 1280x1024x8.
-	/usr/bin/Xvfb $DISPLAY -ac -screen 0 $VNC_SCREEN_DIMENSION &
-	log "Virtual frame buffer started."
+	/usr/bin/Xvfb $DISPLAY -ac -screen 0 $VNC_SCREEN_DIMENSION
 }
+
+start_xvfb

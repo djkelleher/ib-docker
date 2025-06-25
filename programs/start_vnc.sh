@@ -1,6 +1,13 @@
 #!/bin/bash
 
-source /common.sh
+DISPLAY=${DISPLAY:-:0}
+export DISPLAY
+
+log() {
+	#local timestamp
+	timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+	echo "$timestamp  $1"
+}
 
 start_vnc() {
 	if [[ -z $VNC_PWD ]]; then
@@ -18,3 +25,5 @@ start_vnc() {
 	# logappend: Write stderr messages to file logfile instead of to the terminal.
 	/usr/bin/x11vnc -ncache 10 -ncache_cr -passwd $VNC_PWD -display $DISPLAY -forever -shared -noipv6
 }
+
+start_vnc

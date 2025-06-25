@@ -10,23 +10,19 @@ vars_reg = re.compile(r"\$\{([a-zA-Z_][\w]*)(?::-(.*?))?\}")
 def sub_env_vars(txt: str) -> str:
     for match in vars_reg.finditer(txt):
         var_name = match.group(1)
-        default = match.group(2)
-        txt = txt.replace(match.group(), os.getenv(var_name, default))
+        default = match.group(2) or ""
+        var_value = os.getenv(var_name, default)
+        txt = txt.replace(match.group(), var_value)
     return txt
 
 
 def check_container_settings_initialized():
-    flag_file = Path("/init_container_vars")
+    flag_file = Path.home() / "init_container_vars"
     if not flag_file.exists():
+        print("Container settings already initialized (flag file not found)")
         return
-    program = os.getenv("PROGRAM")
-    if program == "ibgateway":
-        ib_ini_file = Path(f"/opt/ibgateway/{os.environ['IB_RELEASE']}/jts.ini")
-    elif program == "tws":
-        ib_ini_file = Path("/Jts/stable/jts.ini")
-    else:
-        raise RuntimeError(f"Unknown program: {program}. Valid options: ibgateway, tws")
-    ib_ini_file.write_text(sub_env_vars(ib_ini_file.read_text()))
+    ibc_ini_file = Path(os.environ["IBC_PATH"]) / "ibc.ini"
+    ibc_ini_file.write_text(sub_env_vars(ibc_ini_file.read_text()))
     # --- handle JAVA_HEAP_SIZE in VM options ---
     # TODO: include IB_VMOPTIONS
     ib_vmoptions = os.getenv("IB_VMOPTIONS")

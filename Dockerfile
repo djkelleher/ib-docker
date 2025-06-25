@@ -25,10 +25,21 @@ ENV LC_ALL=C.UTF-8 \
     IB_RELEASE=${RELEASE} \
     IBC_PATH=/opt/ibc \
     IBC_INI=/opt/ibc/ibc.ini \
-    ARCH=${ARCH}
+    ARCH=${ARCH} \
+    IB_RELEASE_DIR="" \
+    HOME=/home/ibuser \
+    TWS_SETTINGS_PATH=/home/ibuser/tws_settings
 
 # Copy installation script first (changes less frequently)
 COPY install.sh /install.sh
+# Copy configuration files
+COPY config/jts.ini ${HOME}/tws_settings/jts.ini
+COPY config/ibc.ini ${IBC_INI}
+
+# Create non-root user for security
+RUN groupadd -r ibuser && \
+    useradd -r -g ibuser -s /bin/bash ibuser && \
+    mkdir -p ${HOME}
 
 # Install system dependencies and IB software
 RUN chmod +x /install.sh && \
@@ -36,43 +47,40 @@ RUN chmod +x /install.sh && \
     # Clean up installation script
     rm -f /install.sh && \
     # Create flag file for settings initialization
-    touch /init_container_vars
+    touch ${HOME}/init_container_vars
 
-# Create non-root user for security
-RUN groupadd -r ibuser && \
-    useradd -r -g ibuser -s /bin/bash ibuser && \
-    mkdir -p /home/ibuser
-
-# Copy configuration files
-COPY config/jts.ini /jts.ini
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY config/ibc.ini ${IBC_INI}
+# Set permissions for non-root user
+RUN chown -R ibuser:ibuser ${HOME} ${IBC_PATH} && \
+    # Set ownership for IB installation directories
+    if [ "${PROGRAM}" = "ibgateway" ]; then \
+        chown -R ibuser:ibuser /opt/ibgateway || true; \
+    else \
+        chown -R ibuser:ibuser /Jts || true; \
+    fi
 
 # Copy and set up program scripts
-COPY programs/common.sh /common.sh
 COPY programs/init_container_settings.py /usr/local/bin/init_container_settings
 COPY programs/start_xvfb.sh /usr/local/bin/start_xvfb
 COPY programs/start_vnc.sh /usr/local/bin/start_vnc
 COPY programs/start_ibc.sh /usr/local/bin/start_ibc
+# supervisord config
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Make all scripts executable
-RUN chmod +x /usr/local/bin/{init_container_settings,start_ibc,start_vnc,start_xvfb}
+RUN /bin/bash -c "chmod +x /usr/local/bin/{init_container_settings,start_ibc,start_vnc,start_xvfb}"
 
-# Set permissions for non-root user
-RUN chown -R ibuser:ibuser /home/ibuser /opt/ibc /jts.ini
+# Improved health check that works with non-root user
+HEALTHCHECK --interval=15s --timeout=10s --start-period=45s --retries=3 \
+    CMD pgrep -f supervisord >/dev/null 2>&1 || exit 1
 
 # Switch to the non-root user
 USER ibuser
 
 # Set working directory for the user
-WORKDIR /home/ibuser
+WORKDIR ${HOME}
 
 # Expose VNC port for remote access
 EXPOSE 5900
-
-# Improved health check that works with non-root user
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD pgrep -f supervisord >/dev/null 2>&1 || exit 1
 
 # Run supervisord in foreground (non-daemon mode)
 CMD ["/usr/bin/supervisord", "-n"]

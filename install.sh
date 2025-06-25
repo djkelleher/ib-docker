@@ -14,12 +14,8 @@ apt-get -y update &&
 
 if [ ${PROGRAM} = "ibgateway" ]; then
 	IB_RELEASE_DIR=/opt/ibgateway/${IB_RELEASE}
-	mkdir -p $IB_RELEASE_DIR
-	mv /jts.ini $IB_RELEASE_DIR/jts.ini
 else
 	IB_RELEASE_DIR=/Jts/$IB_RELEASE
-	mkdir /Jts
-	mv /jts.ini /Jts/jts.ini
 	DEBIAN_FRONTEND=noninteractive apt-get update &&
 		apt-get -y install --no-install-recommends libavcodec-dev \
 			libavformat-dev libgtk-3-dev libasound2 libnss3 libnspr4 &&
@@ -27,6 +23,7 @@ else
 		apt-get clean -y &&
 		rm -rf /var/lib/apt/lists/*
 fi
+mkdir -p $IB_RELEASE_DIR
 echo "Created installation directory ${IB_RELEASE_DIR}"
 sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
 locale-gen
