@@ -19,7 +19,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install Python dependencies
-        run: pip install pygithub quicklogs docker click
+        run: pip install pygithub docker
 
       - name: Run release check script
         run: python ci.py release

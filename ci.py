@@ -1,22 +1,26 @@
+import argparse
 import hashlib
 import json
+import logging
 import os
 import re
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
-from functools import cached_property
+from functools import cache, cached_property
 from pathlib import Path
 from subprocess import run
 from typing import List, Literal, Union
 from urllib.request import urlopen, urlretrieve
 
-import click
 from github import Github
-from quicklogs import get_logger
 
-logger = get_logger("CI")
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="[%(asctime)s][%(levelname)s] %(message)s"
+)
+logger = logging.getLogger("CI")
 
 downloads_dir = Path(__file__).parent / "downloads"
 downloads_dir.mkdir(exist_ok=True)
@@ -78,6 +82,12 @@ class GitHubRelease:
     build_version: str
 
 
+@cache
+def get_gh_repo():
+    gh = Github(github_token)
+    return gh.get_repo("DankLabDev/ib-docker")
+
+
 def fetch(url: str, as_text: str = True):
     try:
         with urlopen(url, timeout=300) as response:
@@ -114,8 +124,9 @@ def download_release_file(ib_release: IBRelease):
     return file
 
 
-def find_latest_github_releases(gh_repo) -> List[GitHubRelease]:
+def find_latest_github_releases() -> List[GitHubRelease]:
     """Find latest 'latest' and 'stable' releases."""
+    gh_repo = get_gh_repo()
     releases = {}
     for release in gh_repo.get_releases():
         release, version = release.tag_name.split("-")
@@ -135,11 +146,10 @@ def find_latest_github_releases(gh_repo) -> List[GitHubRelease]:
     ]
 
 
-def create_github_releases(gh_repo) -> List[IBRelease]:
+def create_github_releases() -> List[IBRelease]:
     """Create GitHub releases for new stable/latest releases."""
-    last_releases = {
-        r.release: r.build_version for r in find_latest_github_releases(gh_repo)
-    }
+    gh_repo = get_gh_repo()
+    last_releases = {r.release: r.build_version for r in find_latest_github_releases()}
     new_releases = []
     for program in ("ibgateway", "tws"):
         for release in ("latest", "stable"):
@@ -238,23 +248,7 @@ def build_images(
     logger.info("Finished building images.")
 
 
-def gh_repo():
-    gh = Github(github_token)
-    return gh.get_repo("djkelleher/ib-docker")
-
-
-cli = click.Group()
-
-
-@cli.command
-def release():
-    """Create GitHub releases for any new IB releases."""
-    create_github_releases(gh_repo())
-
-
-@cli.command
-@click.argument("tag", type=str, required=False)
-def build(tag):
+def build_release_images(tag: str):
     """Build image for release with provided tag, or most recent 'latest' and 'stable' releases if no tag is provided GitHub."""
     if tag:
         logger.info("Building images for provided release: %s", tag)
@@ -262,9 +256,29 @@ def build(tag):
         releases = [GitHubRelease(release=release, build_version=build_version)]
     else:
         logger.info("No release provided. Finding latest GitHub releases.")
-        releases = find_latest_github_releases(gh_repo())
+        releases = find_latest_github_releases()
     build_images(releases)
 
 
+def main():
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    # Release subcommand
+    subparsers.add_parser("release", help="Create GitHub releases.")
+    # Build subcommand
+    parser_build = subparsers.add_parser(
+        "build", help="Build release image from tag or latest."
+    )
+    parser_build.add_argument(
+        "tag", nargs="?", help="Tag in format <release>-<build_version>"
+    )
+
+    args = parser.parse_args()
+    if args.command == "release":
+        create_github_releases()
+    elif args.command == "build":
+        build_release_images(args.tag)
+
+
 if __name__ == "__main__":
-    cli()
+    main()

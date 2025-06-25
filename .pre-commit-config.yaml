@@ -1,0 +1,49 @@
+# .pre-commit-config.yaml
+fail_fast: false
+
+repos:
+  # 1. Basic pre-commit-hooks (unchanged—v5.0.0 is still the latest)
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-added-large-files
+      - id: check-ast
+
+  # 2. detect-secrets (unchanged—v1.5.0 is still the latest)
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+
+  # 3. Black formatter
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+        language_version: python3.12
+
+  # 4. isort (with Black profile)
+  - repo: https://github.com/pycqa/isort
+    rev: 6.0.1
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+        language_version: python3.12
+
+  # 5. Pylint linting
+  - repo: https://github.com/PyCQA/pylint
+    rev: v3.3.7
+    hooks:
+      - id: pylint
+        args: ["--enable=duplicate-code"]
+        language_version: python3.12
+
+  # 6. shfmt - Shell script formatter
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.11.0-1
+    hooks:
+      # Choose one of:
+      - id: shfmt         # prebuilt upstream executable
