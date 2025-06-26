@@ -68,7 +68,7 @@ COPY programs/run_socat.sh /usr/local/bin/run_socat
 COPY programs/start_ssh.sh /usr/local/bin/start_ssh
 COPY programs/start_socat.sh /usr/local/bin/start_socat
 # supervisord config
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Make all scripts executable
 RUN /bin/bash -c "chmod +x /usr/local/bin/{init_container_settings,start_ibc,start_vnc,start_xvfb,run_socat,start_ssh,start_socat} /usr/local/lib/ssh_utils"

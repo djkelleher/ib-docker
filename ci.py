@@ -212,6 +212,7 @@ def build_image(params):
     if release == "latest":
         tags.append(major)
     img_tags = " -t ".join([f"{image_name}:{tag}" for tag in tags])
+    os.chdir("build")
     cmd = (
         f"docker buildx build --platform linux/amd64,linux/arm64 "
         f"--build-arg PROGRAM={program} --build-arg RELEASE={release} --build-arg VERSION={version} "
