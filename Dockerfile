@@ -32,14 +32,14 @@ ENV LC_ALL=C.UTF-8 \
 
 # Copy installation script first (changes less frequently)
 COPY install.sh /install.sh
-# Copy configuration files
-COPY config/jts.ini ${HOME}/tws_settings/jts.ini
-COPY config/ibc.ini ${IBC_INI}
 
 # Create non-root user for security
 RUN groupadd -r ibuser && \
-    useradd -r -g ibuser -s /bin/bash ibuser && \
-    mkdir -p ${HOME}
+    useradd -r -g ibuser -s /bin/bash ibuser
+
+# Copy configuration files
+COPY config/jts.ini ${HOME}/tws_settings/jts.ini
+COPY config/ibc.ini ${IBC_INI}
 
 # Install system dependencies and IB software
 RUN chmod +x /install.sh && \
@@ -53,9 +53,9 @@ RUN chmod +x /install.sh && \
 RUN chown -R ibuser:ibuser ${HOME} ${IBC_PATH} && \
     # Set ownership for IB installation directories
     if [ "${PROGRAM}" = "ibgateway" ]; then \
-        chown -R ibuser:ibuser /opt/ibgateway || true; \
+        chown -R ibuser:ibuser /opt/ibgateway; \
     else \
-        chown -R ibuser:ibuser /Jts || true; \
+        chown -R ibuser:ibuser /Jts; \
     fi
 
 # Copy and set up program scripts
@@ -63,11 +63,15 @@ COPY programs/init_container_settings.py /usr/local/bin/init_container_settings
 COPY programs/start_xvfb.sh /usr/local/bin/start_xvfb
 COPY programs/start_vnc.sh /usr/local/bin/start_vnc
 COPY programs/start_ibc.sh /usr/local/bin/start_ibc
+COPY programs/ssh_utils.sh /usr/local/lib/ssh_utils
+COPY programs/run_socat.sh /usr/local/bin/run_socat
+COPY programs/start_ssh.sh /usr/local/bin/start_ssh
+COPY programs/start_socat.sh /usr/local/bin/start_socat
 # supervisord config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Make all scripts executable
-RUN /bin/bash -c "chmod +x /usr/local/bin/{init_container_settings,start_ibc,start_vnc,start_xvfb}"
+RUN /bin/bash -c "chmod +x /usr/local/bin/{init_container_settings,start_ibc,start_vnc,start_xvfb,run_socat,start_ssh,start_socat} /usr/local/lib/ssh_utils"
 
 # Improved health check that works with non-root user
 HEALTHCHECK --interval=15s --timeout=10s --start-period=45s --retries=3 \

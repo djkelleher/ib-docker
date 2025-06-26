@@ -8,96 +8,352 @@
 [![Gateway Build](https://github.com/DankLabDev/ib-docker/actions/workflows/build_gateway.yml/badge.svg)](https://github.com/DankLabDev/ib-docker/actions/workflows/build_gateway.yml)
 [![TWS Build](https://github.com/DankLabDev/ib-docker/actions/workflows/build_tws.yml/badge.svg)](https://github.com/DankLabDev/ib-docker/actions/workflows/build_tws.yml)
 
+Reliable, high-performance Docker images for running Interactive Brokers Gateway and TWS with full automation, SSH tunnel support, and robust process management.
 
-Reliable high-performance docker images to run Interactive Brokers Gateway and TWS without any human interaction.
+## 🚀 Quick Start
 
-**Gateway:**
-`docker pull danklabs/ib-gateway`
-**TWS:**
-`docker pull danklabs/ib-tws`
+**Images:** `danklabs/ib-gateway` • `danklabs/ib-tws`
 
-There are two Docker images here, one for IB Gateway ([stable](https://www.interactivebrokers.com/en/trading/ibgateway-stable.php) and [latest](https://www.interactivebrokers.com/en/trading/ibgateway-latest.php)), and the other for Trader Workstation ([stable](https://www.interactivebrokers.com/en/trading/tws-offline-stable.php) and [latest](https://www.interactivebrokers.com/en/trading/tws-offline-latest.php)).
-Both images include:
-- [IBC](https://github.com/IbcAlpha/IBC) - to control IB Gateway (simulates user input).
-- [Xvfb](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml) - an X11 virtual framebuffer to run graphics applications without graphics hardware.
-- [x11vnc](https://wiki.archlinux.org/title/x11vnc) - a VNC server to interact with TWS or IB Gateway user interface.
-
-## Usage
-The sample [docker-compose.yml](./docker-compose.yml) file documents the environmental variables that can be used to configure containers.
-
-For practical purposes, you should be able to configure containers with the provided environmental variables, but if needed/desired you can mount a volume with a custom config file for [Interactive Brokers Controller (IBC)](https://github.com/IbcAlpha/IBC). The file should be mounted to `/opt/ibc/ibc.ini`
-e.g.
 ```bash
-volumes:
-    - $HOME/ibc.ini:/opt/ibc/ibc.ini
+# 1. Get the project
+git clone https://github.com/your-repo/ib-docker.git
+cd ib-docker
+
+# 2. Configure credentials
+cp .env.example .env
+# Edit .env with your IB username and password
+
+# 3. Start container
+docker-compose up -d
+
+# 4. Connect your trading app to localhost:4002 (paper) or localhost:4001 (live)
 ```
-The [ibc.empty.ini](./ibc.empty.ini) is an empty template configuration file that you can use for this purpose.
 
-If desired, you can also mount volumes for custom TWS/Gateway jts.ini files:
+## ✨ Features
 
-Program | Release    | Mount to |
--------- | -------- | ------- |
-Gateway | Stable  | /opt/ibgateway/latest/jts.ini    |
-Gateway | Latest | /opt/ibgateway/stable/jts.ini     |
-TWS | Stable | /Jts/stable/jts.ini |
-TWS | Latest | /Jts/latest/jts.ini |
+- **🔄 Full Automation** - [IBC](https://github.com/IbcAlpha/IBC) handles login and session management
+- **🖥️ Headless Operation** - [Xvfb](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml) virtual display + [x11vnc](https://wiki.archlinux.org/title/x11vnc) for remote GUI access
+- **🔒 Secure Access** - SSH tunneling for encrypted remote API connections
+- **📊 Process Management** - [Supervisord](http://supervisord.org/) with auto-recovery and web monitoring
+- **🌐 Flexible Networking** - Host networking, bridge mode, or SSH-only configurations
+- **📈 Production Ready** - Health checks, logging, and high-availability patterns
 
+## 📖 Documentation
 
-## Setup
+| Guide | Description |
+|-------|-------------|
+| **[📚 Documentation Index](./docs/README.md)** | Complete documentation overview |
+| **[🚀 Getting Started](./docs/GETTING_STARTED.md)** | Quick setup and installation |
+| **[⚙️ Configuration](./docs/CONFIGURATION.md)** | Environment variables and settings |
+| **[🔒 SSH Setup](./docs/SSH_SETUP.md)** | Secure remote access configuration |
+| **[🌐 Networking](./docs/NETWORKING.md)** | Network architecture and patterns |
+| **[🚢 Deployment](./docs/DEPLOYMENT.md)** | Production deployment scenarios |
+| **[🔌 API Integration](./docs/API_INTEGRATION.md)** | Connect your trading applications |
+| **[🛠 Troubleshooting](./docs/TROUBLESHOOTING.md)** | Diagnose and fix common issues |
 
+## 🏗 Architecture
+
+### Process Management with Supervisord
+
+```
+├── [settings] - Initialize IBC configuration
+├── [xvfb] - Virtual display server
+├── [x11vnc] - VNC server (optional)
+├── [ibc] - IB Gateway/TWS
+├── [socat] - Port forwarding (conditional)
+└── [ssh-tunnel] - SSH tunnel (conditional)
+```
+
+**Benefits:**
+- Auto-recovery of failed processes
+- Web interface at `http://localhost:9001` (optional)
+- Independent logging for each service
+- Proper startup dependencies
+
+## 🔗 Quick Configuration Examples
+
+### Local Development
 ```yaml
 services:
   ib-gateway:
-    # ib-gateway or ib-tws. latest or stable.
     image: ib-gateway:latest
-    restart: always
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - PROGRAM=ibgateway # or tws
-        - RELEASE=latest # or stable
     network_mode: host
     environment:
-      # User `uid` to run the container as (1000 is host user)
-      PUID: 1000
-      # User `gid` to run the container as (1000 is host user)
-      PGID: 1000
-      # VNC server password. If not defined, then VNC server will NOT start.
-      VNC_PWD: ${VNC_PWD}
-      VNC_SCREEN_DIMENSION: ${VNC_SCREEN_DIMENSION:-1600x1200x16}
-      DISPLAY: :1
-      TZ: ${TIME_ZONE:-America/New_York}
-      TIME_ZONE: ${TIME_ZONE:-America/New_York}
-      # Set Java heap, default 768MB, TWS might need more. Proposed value 1024. Enter just the number, don't enter units, ex mb. See [Increase Memory Size for TWS](https://ibkrguides.com/tws/usersguidebook/priceriskanalytics/custommemory.htm)
-      JAVA_HEAP_SIZE: ${JAVA_HEAP_SIZE:-}
-      ## IBC variables ##
-      # The TWS username.
-      IB_USER: ${IB_USER}
-      # The TWS password.
-      IB_PASSWORD: ${IB_PASSWORD}
-      # live or paper.
-      TRADING_MODE: ${TRADING_MODE:-paper}
-      # TWS_SETTINGS_PATH` is set and stored in a volume, jts.ini will already exists so this will not be used. Examples `Europe/Paris`, `America/New_York`, `Asia/Tokyo`
-      TWS_SETTINGS_PATH: ${TWS_SETTINGS_PATH:-}
-      # yes or no. See https://github.com/IbcAlpha/IBC/blob/master/userguide.md
-      READ_ONLY_API: ${READ_ONLY_API:-no}
-      # 'exit' or 'restart', set to 'restart if you set `AUTO_RESTART_TIME`. See IBC [documentation](https://github.com/IbcAlpha/IBC/blob/master/userguide.md#second-factor-authentication)
-      TWOFA_TIMEOUT_ACTION: ${TWOFA_TIMEOUT_ACTION:-exit}
-      # time to restart IB Gateway, does not require daily 2FA validation. format hh:mm AM/PM. See IBC [documentation](https://github.com/IbcAlpha/IBC/blob/master/userguide.md#ibc-user-guide)
-      AUTO_RESTART_TIME: ${AUTO_RESTART_TIME:-}
-      # Auto-Logoff: at a specified time, TWS shuts down tidily, without restarting
-      AUTO_LOGOFF_TIME: ${AUTO_LOGOFF_TIME:-}
-      # a time (specified in your local timeframe) that is after 01:00 US/Eastern. When
-      # this time is reached on Sundays, IBC tidily closes TWS, and the script then
-      # reloads IBC thus starting a new instance of TWS and initiating the usual full logon.
-      COLD_RESTART_TIME: ${COLD_RESTART_TIME:-}
-      # Settings relate to the corresponding 'Precautions' checkboxes in the API section of the Global Configuration dialog. Accepted values `yes`, `no` if not set, the existing TWS/Gateway configuration is unchanged
-      BYPASS_WARNING: ${BYPASS_WARNING:-yes}
-      # automatically save its settings on a schedule of your choosing. You can specify one or more specific times, ex `SaveTwsSettingsAt=08:00   12:30 17:30`
-      SAVE_TWS_SETTINGS: ${SAVE_TWS_SETTINGS:-Every 30 mins}
-      # support relogin after timeout. See IBC [documentation](https://github.com/IbcAlpha/IBC/blob/master/userguide.md#second-factor-authentication)
-      RELOGIN_AFTER_TWOFA_TIMEOUT: ${RELOGIN_AFTER_TWOFA_TIMEOUT:-no}
-      TWOFA_EXIT_INTERVAL: ${TWOFA_EXIT_INTERVAL:-60}
-
+      TRADING_MODE: paper
+      ENABLE_SOCAT: "no"
+      VNC_PWD: "password123"
 ```
+
+### Remote Server (Secure)
+```yaml
+services:
+  ib-gateway:
+    image: ib-gateway:latest
+    network_mode: host
+    environment:
+      SSH_TUNNEL: "yes"
+      SSH_USER_TUNNEL: "trader@client.example.com"
+      ENABLE_SOCAT: "no"
+    volumes:
+      - ~/.ssh:/home/ibuser/.ssh:ro
+```
+
+### External Access
+```yaml
+services:
+  ib-gateway:
+    image: ib-gateway:latest
+    ports:
+      - "4001:4003"
+      - "4002:4004"
+    environment:
+      ENABLE_SOCAT: "yes"
+```
+
+## 🔌 API Access
+
+| Program | Mode | Port | Description |
+|---------|------|------|-------------|
+| Gateway | Live | 4001 | Live trading API |
+| Gateway | Paper | 4002 | Paper trading API |
+| TWS | Live | 7496 | Live trading API |
+| TWS | Paper | 7497 | Paper trading API |
+
+## 🆘 Quick Help
+
+### Check Status
+```bash
+# Container status
+docker-compose ps
+
+# Service status
+docker-compose exec ib-gateway supervisorctl status
+
+# Test connectivity
+telnet localhost 4002
+```
+
+### Common Issues
+- **API connection refused**: Check [Troubleshooting Guide](./docs/TROUBLESHOOTING.md)
+- **SSH tunnel not working**: See [SSH Setup Guide](./docs/SSH_SETUP.md)
+- **Container won't start**: Review [Getting Started](./docs/GETTING_STARTED.md)
+
+### Useful Commands
+```bash
+# View logs
+docker-compose logs -f ib-gateway
+
+# Restart services
+docker-compose exec ib-gateway supervisorctl restart ibc
+
+# Run diagnostic test
+./tests/test_ssh_tunnel.sh
+```
+
+## 🤝 Contributing
+
+1. Review the [Documentation Index](./docs/README.md)
+2. Test your changes thoroughly
+3. Update relevant documentation
+4. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## ⚠️ Disclaimer
+
+This software is for educational and research purposes. Users are responsible for compliance with Interactive Brokers' terms of service and applicable regulations. Always test with paper trading before using with real money.
+
+Control container behavior through environment variables:
+
+| Variable | Effect | Use Case |
+|----------|--------|----------|
+| `ENABLE_SOCAT=no` | Disables port forwarding | Host networking + localhost-only |
+| `SSH_TUNNEL=yes` | SSH tunnel only | Maximum security |
+| `SSH_TUNNEL=both` | SSH + local access | Hybrid deployment |
+| `HTTP_SERVER_PORT=9001` | Enable supervisord web UI | Process monitoring |
+
+## Network Access Patterns
+
+Understanding when you need socat vs SSH tunnels:
+
+### ✅ **No Socat Needed** (`ENABLE_SOCAT=no`)
+- Host networking + localhost access only
+- SSH tunnels for remote access
+- Single-machine deployments
+
+### ✅ **Socat Required** (`ENABLE_SOCAT=yes`)
+- External machine access without SSH
+- Bridge networking mode
+- Port mapping requirements
+## Configuration Examples
+
+### 1. Local Development (Simplest)
+```yaml
+services:
+  ib-gateway:
+    network_mode: host
+    environment:
+      ENABLE_SOCAT: "no"
+      IB_USER: ${IB_USER}
+      IB_PASSWORD: ${IB_PASSWORD}
+```
+**Access:** `localhost:4001` (paper: `localhost:4002`)
+
+### 2. Remote Server with SSH Tunnel (Most Secure)
+```yaml
+services:
+  ib-gateway:
+    network_mode: host
+    environment:
+      ENABLE_SOCAT: "no"
+      SSH_TUNNEL: "yes"
+      SSH_USER_TUNNEL: "user@client-machine.com"
+      SSH_REMOTE_PORT: "4001"
+    volumes:
+      - ~/.ssh:/home/ibuser/.ssh:ro
+```
+**Access:** `localhost:4001` (on client machine via tunnel)
+
+### 3. External Network Access
+```yaml
+services:
+  ib-gateway:
+    network_mode: host
+    environment:
+      ENABLE_SOCAT: "yes"
+      # Exposes API on ports 4003/4004 for external access
+```
+**Access:** `server-ip:4003` (paper: `server-ip:4004`)
+
+### 4. Bridge Networking (Docker Standard)
+```yaml
+services:
+  ib-gateway:
+    ports:
+      - "4001:4003"
+      - "4002:4004"
+      - "5900:5900"
+    environment:
+      ENABLE_SOCAT: "yes"  # Required for bridge mode
+```
+**Access:** `localhost:4001` (Docker port mapping)
+
+## SSH Tunnel Setup
+
+### Quick Setup
+
+1. **Generate SSH keys:**
+   ```bash
+   ssh-keygen -t ed25519 -f ~/.ssh/ib_tunnel
+   ssh-copy-id -i ~/.ssh/ib_tunnel.pub user@server.com
+   ```
+
+2. **Configure container:**
+   ```yaml
+   environment:
+     SSH_TUNNEL: "yes"
+     SSH_USER_TUNNEL: "user@server.com"
+   volumes:
+     - ~/.ssh:/home/ibuser/.ssh:ro
+   ```
+
+3. **Access from client:**
+   ```bash
+   # API is now available at localhost:4001
+   telnet localhost 4001
+   ```
+
+### SSH Environment Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `SSH_TUNNEL` | `yes` (SSH only), `both` (SSH + local) | `yes` |
+| `SSH_USER_TUNNEL` | SSH connection string | `user@server.com` |
+| `SSH_REMOTE_PORT` | Remote port to expose | `4001` |
+| `SSH_VNC_PORT` | Tunnel VNC port (optional) | `5900` |
+| `SSH_PASSPHRASE` | SSH key passphrase | `your_passphrase` |
+
+## Port Reference
+
+| Program | Mode | Direct Port | Socat Port | Description |
+|---------|------|-------------|------------|-------------|
+| Gateway | Live | 4001 | 4003 | Live trading API |
+| Gateway | Paper | 4002 | 4004 | Paper trading API |
+| TWS | Live | 7496 | 7498 | Live trading API |
+| TWS | Paper | 7497 | 7499 | Paper trading API |
+| Both | - | 5900 | - | VNC server |
+
+## Monitoring & Management
+
+### Supervisord Web Interface
+
+Enable the web interface to monitor all processes:
+
+```yaml
+environment:
+  HTTP_SERVER_PORT: 9001
+  HTTP_SERVER_USER: admin    # Optional
+  HTTP_SERVER_PASS: secret   # Optional
+```
+
+**Access:** `http://localhost:9001`
+
+### Command Line Management
+
+```bash
+# Check all process status
+docker-compose exec ib-gateway supervisorctl status
+
+# Restart a specific service
+docker-compose exec ib-gateway supervisorctl restart ssh-tunnel
+
+# View live logs
+docker-compose exec ib-gateway supervisorctl tail -f ibc
+```
+
+## Additional Documentation
+
+- **[SSH Setup Guide](./SSH_SETUP.md)** - Detailed SSH tunnel configuration
+- **[Implementation Summary](./IMPLEMENTATION_SUMMARY.md)** - Technical architecture details
+
+## Troubleshooting
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| **SSH tunnel not connecting** | Verify SSH keys mounted: `~/.ssh:/home/ibuser/.ssh:ro` |
+| **API not accessible** | Check `ENABLE_SOCAT` setting and port configuration |
+| **Container won't start** | Check `.env` file and supervisord logs |
+| **Process keeps crashing** | Use `supervisorctl status` to identify failing service |
+
+### Debugging Commands
+
+```bash
+# Check port usage
+netstat -tlnp | grep -E ':(4001|4002|4003|4004)'
+
+# Test API connection
+telnet localhost 4001
+
+# Check container processes
+docker-compose exec ib-gateway ps aux
+
+# Service management
+docker-compose exec ib-gateway supervisorctl status
+docker-compose exec ib-gateway supervisorctl restart ssh-tunnel
+docker-compose exec ib-gateway supervisorctl tail -f ibc
+
+# Container logs
+docker-compose logs -f ib-gateway
+```
+
+### Security Best Practices
+
+1. **SSH Tunnels**: Use Ed25519 keys with strong passphrases
+2. **Network Access**: Prefer `SSH_TUNNEL=yes` over external socat exposure
+3. **Credentials**: Use `.env` files, never commit passwords
+4. **VNC**: Set strong `VNC_PWD` if enabling VNC server
+5. **Monitoring**: Enable supervisord web interface only on trusted networks
