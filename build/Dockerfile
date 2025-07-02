@@ -33,16 +33,16 @@ ENV LC_ALL=C.UTF-8 \
     TWS_SETTINGS_PATH=/home/ibuser/tws_settings
 
 # Copy installation script
-COPY install.sh ${HOME}/install.sh
+COPY install.sh /install.sh
 # Copy configuration files
 COPY config/jts.ini ${HOME}/tws_settings/jts.ini
 COPY config/ibc.ini ${IBC_INI}
 
 # Install system dependencies and IB software
-RUN chmod +x ${HOME}/install.sh && \
-    ${HOME}/install.sh && \
+RUN chmod +x /install.sh && \
+    /install.sh && \
     # Clean up installation script
-    rm -f ${HOME}/install.sh && \
+    rm -f /install.sh && \
     # Create flag file for settings initialization
     touch ${HOME}/init_container_vars
 
