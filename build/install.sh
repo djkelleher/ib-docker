@@ -30,7 +30,7 @@ sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
 locale-gen
 update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 # Install Gateway or TWS.
-echo "Installing ${PROGRAM}"
+echo "Downloading ${PROGRAM}"
 if [ ${VERSION} = "NULL" ]; then
 	PROG_FILE_URL=https://download2.interactivebrokers.com/installers/${PROGRAM}/${IB_RELEASE}-standalone/${PROGRAM}-${IB_RELEASE}-standalone-linux-${ARCH}.sh
 	echo "Downloading ${PROG_FILE_URL}"
@@ -38,13 +38,16 @@ if [ ${VERSION} = "NULL" ]; then
 else
 	PROG_FILE_NAME=${PROGRAM}-${IB_RELEASE}-${VERSION}-standalone-linux-x64.sh
 	PROG_FILE_URL=https://github.com/DankLabDev/ib-docker/releases/download/${IB_RELEASE}-${VERSION}/$PROG_FILE_NAME
+	echo "Downloading ${PROG_FILE_URL}"
 	wget -q -O /$PROG_FILE_NAME $PROG_FILE_URL
 	wget -q -O /$PROG_FILE_NAME.sha256 $PROG_FILE_URL.sha256
 	sha256sum --check /$PROG_FILE_NAME.sha256
 	mv /$PROG_FILE_NAME /ib.sh
 	rm -f /$PROG_FILE_NAME.sha256
 fi
+echo "Installing ${PROGRAM}"
 chmod +x /ib.sh
+echo "Finished installing ${PROGRAM}"
 
 if [ "$(uname -m)" = "aarch64" ]; then
 	echo "Installing custom Java release for aarch64."
