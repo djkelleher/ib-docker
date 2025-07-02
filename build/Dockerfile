@@ -8,7 +8,7 @@ ARG PROGRAM=ibgateway
 ARG RELEASE=stable
 # arch can be x64 or x86.
 ARG ARCH=x64
-ARG IBC_VERSION=3.22.0
+ARG IBC_VERSION=3.23.0
 
 # Add metadata labels
 LABEL description="Interactive Brokers Gateway/TWS Docker Container" \
