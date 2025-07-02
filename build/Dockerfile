@@ -26,17 +26,18 @@ ENV LC_ALL=C.UTF-8 \
     IBC_PATH=/opt/ibc \
     IBC_INI=/opt/ibc/ibc.ini \
     ARCH=${ARCH} \
+    VERSION=${VERSION} \
+    IBC_VERSION=${IBC_VERSION} \
     IB_RELEASE_DIR="" \
     HOME=/home/ibuser \
     TWS_SETTINGS_PATH=/home/ibuser/tws_settings
-
-# Copy installation script first (changes less frequently)
-COPY install.sh /install.sh
 
 # Create non-root user for security
 RUN groupadd -r ibuser && \
     useradd -r -g ibuser -s /bin/bash ibuser
 
+# Copy installation script first (changes less frequently)
+COPY install.sh /install.sh
 # Copy configuration files
 COPY config/jts.ini ${HOME}/tws_settings/jts.ini
 COPY config/ibc.ini ${IBC_INI}
