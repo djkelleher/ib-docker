@@ -36,7 +36,8 @@ if [ ${VERSION} = "NULL" ]; then
 	echo "Downloading ${PROG_FILE_URL}"
 	wget -q --show-progress -O /ib.sh $PROG_FILE_URL
 else
-	PROG_FILE_NAME=${PROGRAM}-${IB_RELEASE}-${VERSION}-standalone-linux-${ARCH}.sh
+	# TODO actually support x86?
+	PROG_FILE_NAME=${PROGRAM}-${IB_RELEASE}-${VERSION}-standalone-linux-x64.sh
 	PROG_FILE_URL=https://github.com/DankLabDev/ib-docker/releases/download/${IB_RELEASE}-${VERSION}/$PROG_FILE_NAME
 	echo "Downloading ${PROG_FILE_URL}"
 	wget -q --show-progress -O /$PROG_FILE_NAME $PROG_FILE_URL
