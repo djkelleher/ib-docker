@@ -32,32 +32,19 @@ ENV LC_ALL=C.UTF-8 \
     HOME=/home/ibuser \
     TWS_SETTINGS_PATH=/home/ibuser/tws_settings
 
-# Create non-root user for security
-RUN groupadd -r ibuser && \
-    useradd -r -g ibuser -s /bin/bash ibuser
-
-# Copy installation script first (changes less frequently)
-COPY install.sh /install.sh
+# Copy installation script
+COPY install.sh ${HOME}/install.sh
 # Copy configuration files
 COPY config/jts.ini ${HOME}/tws_settings/jts.ini
 COPY config/ibc.ini ${IBC_INI}
 
 # Install system dependencies and IB software
-RUN chmod +x /install.sh && \
-    /install.sh && \
+RUN chmod +x ${HOME}/install.sh && \
+    ${HOME}/install.sh && \
     # Clean up installation script
-    rm -f /install.sh && \
+    rm -f ${HOME}/install.sh && \
     # Create flag file for settings initialization
     touch ${HOME}/init_container_vars
-
-# Set permissions for non-root user
-RUN chown -R ibuser:ibuser ${HOME} ${IBC_PATH} && \
-    # Set ownership for IB installation directories
-    if [ "${PROGRAM}" = "ibgateway" ]; then \
-        chown -R ibuser:ibuser /opt/ibgateway; \
-    else \
-        chown -R ibuser:ibuser /Jts; \
-    fi
 
 # Copy and set up program scripts
 COPY programs/init_container_settings.py /usr/local/bin/init_container_settings
@@ -73,6 +60,19 @@ COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Make all scripts executable
 RUN /bin/bash -c "chmod +x /usr/local/bin/{init_container_settings,start_ibc,start_vnc,start_xvfb,run_socat,start_ssh,start_socat} /usr/local/lib/ssh_utils"
+
+# Create non-root user for security
+RUN groupadd -r ibuser && \
+    useradd -r -g ibuser -s /bin/bash ibuser
+
+# Set permissions for non-root user
+RUN chown -R ibuser:ibuser ${HOME} ${IBC_PATH} && \
+    # Set ownership for IB installation directories
+    if [ "${PROGRAM}" = "ibgateway" ]; then \
+        chown -R ibuser:ibuser /opt/ibgateway; \
+    else \
+        chown -R ibuser:ibuser /Jts; \
+    fi
 
 # Improved health check that works with non-root user
 HEALTHCHECK --interval=15s --timeout=10s --start-period=45s --retries=3 \
