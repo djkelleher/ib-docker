@@ -34,14 +34,14 @@ echo "Downloading ${PROGRAM}"
 if [ ${VERSION} = "NULL" ]; then
 	PROG_FILE_URL=https://download2.interactivebrokers.com/installers/${PROGRAM}/${IB_RELEASE}-standalone/${PROGRAM}-${IB_RELEASE}-standalone-linux-${ARCH}.sh
 	echo "Downloading ${PROG_FILE_URL}"
-	wget -q -O /ib.sh $PROG_FILE_URL
+	wget -q --show-progress -O /ib.sh $PROG_FILE_URL
 else
 	PROG_FILE_NAME=${PROGRAM}-${IB_RELEASE}-${VERSION}-standalone-linux-x64.sh
 	PROG_FILE_URL=https://github.com/DankLabDev/ib-docker/releases/download/${IB_RELEASE}-${VERSION}/$PROG_FILE_NAME
 	echo "Downloading ${PROG_FILE_URL}"
-	wget -q -O /$PROG_FILE_NAME $PROG_FILE_URL
+	wget -q --show-progress -O /$PROG_FILE_NAME $PROG_FILE_URL
 	echo "Downloading ${PROG_FILE_URL}.sha256"
-	wget -q -O /$PROG_FILE_NAME.sha256 $PROG_FILE_URL.sha256
+	wget -q --show-progress -O /$PROG_FILE_NAME.sha256 $PROG_FILE_URL.sha256
 	sha256sum --check /$PROG_FILE_NAME.sha256
 	echo "Checked sha256sum"
 	mv /$PROG_FILE_NAME /ib.sh
