@@ -48,9 +48,9 @@ jobs:
         - name: Build and push Gateway
           uses: docker/build-push-action@v5
           with:
-            context: .
+            context: ./build
             platforms: linux/amd64,linux/arm64
-            file: ./build/Dockerfile
+            file: Dockerfile
             push: true
             build-args: |
                 PROGRAM=ibgateway
