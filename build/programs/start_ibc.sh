@@ -19,6 +19,7 @@ start_ibc() {
 	fi
 	TWS_SETTINGS_PATH=${HOME}/tws_settings
 	mkdir -p $TWS_SETTINGS_PATH
+
 	log ".> Starting IBC in ${TRADING_MODE} mode, with params:"
 	echo ".>		Version: ${IB_RELEASE}"
 	echo ".>		program: ${PROGRAM}"

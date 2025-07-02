@@ -30,7 +30,11 @@ ENV LC_ALL=C.UTF-8 \
     IBC_VERSION=${IBC_VERSION} \
     IB_RELEASE_DIR="" \
     HOME=/home/ibuser \
-    TWS_SETTINGS_PATH=/home/ibuser/tws_settings
+    TWS_SETTINGS_PATH=/home/ibuser/tws_settings \
+    SUPERVISORD_UI_USER="" \
+    SUPERVISORD_UI_PASS="" \
+    SUPERVISORD_UI_PORT=9001 \
+    JAVA_OPTS="-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:+UseContainerSupport -Djava.security.egd=file:/dev/./urandom -XX:+DisableAttachMechanism"
 
 # Copy installation script
 COPY install.sh /install.sh

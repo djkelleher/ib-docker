@@ -1,10 +1,10 @@
 version: '3.8'
 
 services:
-  ib-gateway:
+  ib-tws:
     # ib-gateway or ib-tws. latest or stable.
     build:
-      context: .
+      context: ./build
       dockerfile: Dockerfile
       args:
         PROGRAM: tws
@@ -63,6 +63,8 @@ services:
       SSH_RESTART: ${SSH_RESTART:-5}
       SSH_VNC_PORT: ${SSH_VNC_PORT:-}
       SSH_RDP_PORT: ${SSH_RDP_PORT:-}
+      SUPERVISORD_UI_USER: serveradmin
+      SUPERVISORD_UI_PASS: serveradmin
     # volumes:
       # Uncomment to mount SSH keys for tunnel authentication
       # - ${HOME}/.ssh:/home/ibuser/.ssh:ro

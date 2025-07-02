@@ -22,9 +22,9 @@ Enable the web interface to monitor all processes:
 
 ```yaml
 environment:
-  HTTP_SERVER_PORT: 9001
-  HTTP_SERVER_USER: admin    # Optional
-  HTTP_SERVER_PASS: secret   # Optional
+  SUPERVISORD_UI_PORT: 9001
+  SUPERVISORD_UI_USER: admin    # Optional
+  SUPERVISORD_UI_PASS: secret   # Optional
 ```
 
 **Access:** `http://localhost:9001`
@@ -233,9 +233,9 @@ This guide covers all configuration options available for the IB Docker containe
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `HTTP_SERVER_PORT` | - | Enable supervisord web interface on port |
-| `HTTP_SERVER_USER` | - | Web interface username |
-| `HTTP_SERVER_PASS` | - | Web interface password |
+| `SUPERVISORD_UI_PORT` | - | Enable supervisord web interface on port |
+| `SUPERVISORD_UI_USER` | - | Web interface username |
+| `SUPERVISORD_UI_PASS` | - | Web interface password |
 
 ### Basic Configuration
 
@@ -251,7 +251,7 @@ This guide covers all configuration options available for the IB Docker containe
 | `ENABLE_SOCAT=no` | Disables port forwarding | Host networking + localhost-only |
 | `SSH_TUNNEL=yes` | SSH tunnel only | Maximum security |
 | `SSH_TUNNEL=both` | SSH + local access | Hybrid deployment |
-| `HTTP_SERVER_PORT=9001` | Enable supervisord web UI | Process monitoring |
+| `SUPERVISORD_UI_PORT=9001` | Enable supervisord web UI | Process monitoring |
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -260,7 +260,7 @@ This guide covers all configuration options available for the IB Docker containe
 | `SSH_TUNNEL` | - | SSH tunnel mode: `yes`, `both`, or empty |
 | `SSH_USER_TUNNEL` | - | SSH connection string (user@host) |
 | `VNC_PWD` | - | VNC server password (enables VNC if set) |
-| `HTTP_SERVER_PORT` | - | Enable supervisord web interface on port |
+| `SUPERVISORD_UI_PORT` | - | Enable supervisord web interface on port |
 | `AUTO_RESTART_TIME` | - | Daily restart time (HH:MM AM/PM) |
 
 ### IB Credentials
@@ -318,9 +318,9 @@ This guide covers all configuration options available for the IB Docker containe
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `HTTP_SERVER_PORT` | - | Enable supervisord web interface on port |
-| `HTTP_SERVER_USER` | - | Web interface username |
-| `HTTP_SERVER_PASS` | - | Web interface password |
+| `SUPERVISORD_UI_PORT` | - | Enable supervisord web interface on port |
+| `SUPERVISORD_UI_USER` | - | Web interface username |
+| `SUPERVISORD_UI_PASS` | - | Web interface password |
 
 ## 🔌 API Access
 
