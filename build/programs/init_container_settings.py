@@ -2,7 +2,6 @@
 
 import os
 import re
-import subprocess
 from pathlib import Path
 
 vars_reg = re.compile(r"\$\{([a-zA-Z_][\w]*)(?::-(.*?))?\}")

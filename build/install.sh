@@ -5,7 +5,7 @@ set -e
 apt-get -y update &&
 	DEBIAN_FRONTEND=noninteractive apt-get -y install --no-install-recommends \
 		wget ca-certificates unzip software-properties-common locales \
-		xvfb x11vnc supervisor \
+		xvfb x11vnc supervisor openssl x11-xserver-utils procps net-tools \
 		libx11-6 libxext-dev libxtst-dev libxrender1 \
 		openssh-client sshpass socat &&
 	# Clean up package cache early

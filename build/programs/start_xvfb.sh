@@ -11,14 +11,49 @@ log() {
 
 start_xvfb() {
 	echo "Starting Xvfb server"
-	display_no=$(echo "$DISPLAY" | sed 's/^://')
-	rm -f /tmp/.X${display_no}-lock
-	rm -r /tmp/.X11-unix
-	VNC_SCREEN_DIMENSION=${VNC_SCREEN_DIMENSION:-1280x1024x16}
+	
+	# Use a high display number that's unlikely to conflict
+	DISPLAY=":99"
+	export DISPLAY
+	display_no="99"
+	
+	echo "Using display: $DISPLAY"
+	
+	# Kill any existing Xvfb processes completely
+	pkill -9 -f "Xvfb" 2>/dev/null || true
+	sleep 3
+	
+	# Clean up any existing X11 locks and sockets
+	rm -f /tmp/.X${display_no}-lock 2>/dev/null || true
+	rm -f /tmp/.X11-unix/X${display_no} 2>/dev/null || true
+	rm -rf /tmp/.X11-unix 2>/dev/null || true
+	
+	# Recreate X11 directory with proper ownership
+	mkdir -p /tmp/.X11-unix 2>/dev/null || true
+	chmod 1777 /tmp/.X11-unix 2>/dev/null || true
+	
+	# Save DISPLAY info for other services
+	echo "$DISPLAY" > /tmp/display_info
+	
+	# Set default screen dimension
+	VNC_SCREEN_DIMENSION=${VNC_SCREEN_DIMENSION:-1600x1200x16}
 	log "Starting virtual frame buffer. Display $DISPLAY. Screen dimension: $VNC_SCREEN_DIMENSION"
-	## start virtual frame buffer.
-	# creates screen screennum and sets its width, height, and depth to W, H, and D respectively. By default, only screen 0 exists and has the dimensions 1280x1024x8.
-	/usr/bin/Xvfb $DISPLAY -ac -screen 0 $VNC_SCREEN_DIMENSION
+	
+	# Create Xauth file for the user
+	export XAUTHORITY=$HOME/.Xauthority
+	touch $XAUTHORITY
+	xauth add $DISPLAY . $(openssl rand -hex 16) 2>/dev/null || true
+	
+	# Start virtual frame buffer with optimized flags
+	# -ac: disable access control restrictions
+	# -extension RANDR: disable RANDR extension (not needed in headless)
+	# -extension RENDER: keep render extension for better graphics
+	# -noreset: don't reset after last client exits
+	# Set environment variables to reduce warnings
+	export XKB_DEFAULT_RULES="base"
+	export XKB_DEFAULT_MODEL="pc105"
+	export XKB_DEFAULT_LAYOUT="us"
+	exec /usr/bin/Xvfb $DISPLAY -ac -screen 0 $VNC_SCREEN_DIMENSION -noreset +extension RENDER -extension GLX 2>/dev/null
 }
 
 start_xvfb

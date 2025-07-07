@@ -12,7 +12,7 @@ services:
         ARCH: x64
     container_name: tws
     env_file:
-      - .env
+      - /opt/app/trading-app/.env
     restart: always
     network_mode: host
     environment:
@@ -65,6 +65,7 @@ services:
       SSH_RDP_PORT: ${SSH_RDP_PORT:-}
       SUPERVISORD_UI_USER: serveradmin
       SUPERVISORD_UI_PASS: serveradmin
+      SUPERVISORD_UI_PORT: 9123
     # volumes:
       # Uncomment to mount SSH keys for tunnel authentication
       # - ${HOME}/.ssh:/home/ibuser/.ssh:ro

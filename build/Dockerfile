@@ -1,3 +1,4 @@
+# docker build --build-arg PROGRAM=tws -t tws .
 FROM ubuntu:24.04
 
 # Build arguments
@@ -34,6 +35,7 @@ ENV LC_ALL=C.UTF-8 \
     SUPERVISORD_UI_USER="" \
     SUPERVISORD_UI_PASS="" \
     SUPERVISORD_UI_PORT=9001 \
+    XAUTHORITY=/home/ibuser/.Xauthority \
     JAVA_OPTS="-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:+UseContainerSupport -Djava.security.egd=file:/dev/./urandom -XX:+DisableAttachMechanism"
 
 # Copy installation script
@@ -59,15 +61,16 @@ COPY programs/ssh_utils.sh /usr/local/lib/ssh_utils
 COPY programs/run_socat.sh /usr/local/bin/run_socat
 COPY programs/start_ssh.sh /usr/local/bin/start_ssh
 COPY programs/start_socat.sh /usr/local/bin/start_socat
+COPY programs/health_check.sh /usr/local/bin/health_check
 # supervisord config
 COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Make all scripts executable
-RUN /bin/bash -c "chmod +x /usr/local/bin/{init_container_settings,start_ibc,start_vnc,start_xvfb,run_socat,start_ssh,start_socat} /usr/local/lib/ssh_utils"
+RUN /bin/bash -c "chmod +x /usr/local/bin/{init_container_settings,start_ibc,start_vnc,start_xvfb,run_socat,start_ssh,start_socat,health_check} /usr/local/lib/ssh_utils"
 
 # Create non-root user for security
 RUN groupadd -r ibuser && \
-    useradd -r -g ibuser -s /bin/bash ibuser
+    useradd -r -g ibuser -s /bin/bash -m ibuser
 
 # Set permissions for non-root user
 RUN chown -R ibuser:ibuser ${HOME} ${IBC_PATH} && \
@@ -76,11 +79,15 @@ RUN chown -R ibuser:ibuser ${HOME} ${IBC_PATH} && \
         chown -R ibuser:ibuser /opt/ibgateway; \
     else \
         chown -R ibuser:ibuser /Jts; \
-    fi
+    fi && \
+    # Create X11 auth file with proper permissions
+    touch ${HOME}/.Xauthority && \
+    chown ibuser:ibuser ${HOME}/.Xauthority && \
+    chmod 600 ${HOME}/.Xauthority
 
-# Improved health check that works with non-root user
-HEALTHCHECK --interval=15s --timeout=10s --start-period=45s --retries=3 \
-    CMD pgrep -f supervisord >/dev/null 2>&1 || exit 1
+# Improved health check that validates all services
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD health_check
 
 # Switch to the non-root user
 USER ibuser
