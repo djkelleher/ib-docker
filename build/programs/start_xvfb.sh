@@ -10,40 +10,27 @@ log() {
 }
 
 start_xvfb() {
-	echo "Starting Xvfb server"
-	
-	# Use a high display number that's unlikely to conflict
-	DISPLAY=":99"
-	export DISPLAY
-	display_no="99"
-	
-	echo "Using display: $DISPLAY"
-	
+	echo "Starting Xvfb server. Using display: $DISPLAY"
+	display_no="${DISPLAY#:}"
 	# Kill any existing Xvfb processes completely
 	pkill -9 -f "Xvfb" 2>/dev/null || true
-	sleep 3
-	
+	sleep 1
 	# Clean up any existing X11 locks and sockets
 	rm -f /tmp/.X${display_no}-lock 2>/dev/null || true
 	rm -f /tmp/.X11-unix/X${display_no} 2>/dev/null || true
 	rm -rf /tmp/.X11-unix 2>/dev/null || true
-	
 	# Recreate X11 directory with proper ownership
 	mkdir -p /tmp/.X11-unix 2>/dev/null || true
 	chmod 1777 /tmp/.X11-unix 2>/dev/null || true
-	
-	# Save DISPLAY info for other services
-	echo "$DISPLAY" > /tmp/display_info
-	
 	# Set default screen dimension
 	VNC_SCREEN_DIMENSION=${VNC_SCREEN_DIMENSION:-1600x1200x16}
 	log "Starting virtual frame buffer. Display $DISPLAY. Screen dimension: $VNC_SCREEN_DIMENSION"
-	
 	# Create Xauth file for the user
 	export XAUTHORITY=$HOME/.Xauthority
 	touch $XAUTHORITY
 	xauth add $DISPLAY . $(openssl rand -hex 16) 2>/dev/null || true
-	
+	# Save DISPLAY info for other services
+	echo "$DISPLAY" > /tmp/display_info
 	# Start virtual frame buffer with optimized flags
 	# -ac: disable access control restrictions
 	# -extension RANDR: disable RANDR extension (not needed in headless)

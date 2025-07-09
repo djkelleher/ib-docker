@@ -4,7 +4,7 @@
 set -Eo pipefail
 
 # Source SSH utilities
-source /usr/local/lib/ssh_utils
+source /usr/local/lib/ib_utils
 
 # Check if SSH tunnel is enabled
 if [ "$SSH_TUNNEL" != "yes" ] && [ "$SSH_TUNNEL" != "both" ]; then

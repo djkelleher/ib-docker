@@ -60,7 +60,7 @@ else
 fi
 
 # Check API port accessibility
-API_PORT=$(docker-compose exec -T ib-gateway bash -c 'source /usr/local/lib/ssh_utils && set_ports && echo $API_PORT' | tr -d '\r')
+API_PORT=$(docker-compose exec -T ib-gateway bash -c 'source /usr/local/lib/ib_utils && set_ports && echo $API_PORT' | tr -d '\r')
 echo "ℹ️  API port: $API_PORT"
 
 # Test local connection (if socat is running)

@@ -4,7 +4,7 @@
 set -Eo pipefail
 
 # Source SSH utilities for port configuration
-source /usr/local/lib/ssh_utils
+source /usr/local/lib/ib_utils
 
 # Set up ports
 set_ports

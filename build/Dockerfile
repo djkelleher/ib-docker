@@ -32,6 +32,7 @@ ENV LC_ALL=C.UTF-8 \
     IB_RELEASE_DIR="" \
     HOME=/home/ibuser \
     TWS_SETTINGS_PATH=/home/ibuser/tws_settings \
+    # TODO remove these?
     SUPERVISORD_UI_USER="" \
     SUPERVISORD_UI_PASS="" \
     SUPERVISORD_UI_PORT=9001 \
@@ -57,7 +58,7 @@ COPY programs/init_container_settings.py /usr/local/bin/init_container_settings
 COPY programs/start_xvfb.sh /usr/local/bin/start_xvfb
 COPY programs/start_vnc.sh /usr/local/bin/start_vnc
 COPY programs/start_ibc.sh /usr/local/bin/start_ibc
-COPY programs/ssh_utils.sh /usr/local/lib/ssh_utils
+COPY programs/ib_utils.sh /usr/local/lib/ib_utils
 COPY programs/run_socat.sh /usr/local/bin/run_socat
 COPY programs/start_ssh.sh /usr/local/bin/start_ssh
 COPY programs/start_socat.sh /usr/local/bin/start_socat
@@ -66,7 +67,7 @@ COPY programs/health_check.sh /usr/local/bin/health_check
 COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Make all scripts executable
-RUN /bin/bash -c "chmod +x /usr/local/bin/{init_container_settings,start_ibc,start_vnc,start_xvfb,run_socat,start_ssh,start_socat,health_check} /usr/local/lib/ssh_utils"
+RUN /bin/bash -c "chmod +x /usr/local/bin/{init_container_settings,start_ibc,start_vnc,start_xvfb,run_socat,start_ssh,start_socat,health_check} /usr/local/lib/ib_utils"
 
 # Create non-root user for security
 RUN groupadd -r ibuser && \
