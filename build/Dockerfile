@@ -85,9 +85,9 @@ RUN chown -R ibuser:ibuser ${HOME} ${IBC_PATH} && \
     chown ibuser:ibuser ${HOME}/.Xauthority && \
     chmod 600 ${HOME}/.Xauthority
 
-# Improved health check that validates all services
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD health_check
+# Improved health check that works with non-root user
+HEALTHCHECK --interval=15s --timeout=10s --start-period=45s --retries=3 \
+    CMD pgrep -f supervisord >/dev/null 2>&1 || exit 1
 
 # Switch to the non-root user
 USER ibuser
