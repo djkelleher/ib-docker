@@ -26,9 +26,23 @@ start_ibc() {
 		export IBC_JAVA_OPTS="$JAVA_OPTS"
 	fi
 
+	# Enhanced JVM stability options to prevent SIGSEGV crashes
+	STABILITY_OPTS="-XX:+UseG1GC -XX:+UnlockExperimentalVMOptions -XX:+UseStringDeduplication"
+	STABILITY_OPTS="$STABILITY_OPTS -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError"
+	STABILITY_OPTS="$STABILITY_OPTS -XX:HeapDumpPath=/tmp/java_crash.hprof"
+	STABILITY_OPTS="$STABILITY_OPTS -XX:+DisableAttachMechanism"
+	STABILITY_OPTS="$STABILITY_OPTS -Djava.awt.headless=false"
+	STABILITY_OPTS="$STABILITY_OPTS -Dsun.java2d.xrender=false"
+	STABILITY_OPTS="$STABILITY_OPTS -Dsun.java2d.pmoffscreen=false"
+
+	export JAVA_OPTS="$JAVA_OPTS $STABILITY_OPTS"
+	export TWS_JAVA_OPTS="$JAVA_OPTS"
+	export IBC_JAVA_OPTS="$JAVA_OPTS"
+
 	# Additional crash prevention measures
 	ulimit -c unlimited # Enable core dumps for debugging
 	ulimit -n 65536     # Increase file descriptor limit
+	ulimit -v unlimited # Remove virtual memory limits
 	export _JAVA_OPTIONS="$JAVA_OPTS"
 
 	# Disable problematic X11 features that can cause JNI crashes
