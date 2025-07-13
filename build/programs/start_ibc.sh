@@ -26,6 +26,17 @@ start_ibc() {
 		export IBC_JAVA_OPTS="$JAVA_OPTS"
 	fi
 
+	# Additional crash prevention measures
+	ulimit -c unlimited # Enable core dumps for debugging
+	ulimit -n 65536     # Increase file descriptor limit
+	export _JAVA_OPTIONS="$JAVA_OPTS"
+
+	# Disable problematic X11 features that can cause JNI crashes
+	export LIBGL_ALWAYS_INDIRECT=1
+	export LIBGL_ALWAYS_SOFTWARE=1
+	export QT_X11_NO_MITSHM=1
+	export GDK_SYNCHRONIZE=1
+
 	log ".> Starting IBC in ${TRADING_MODE} mode, with params:"
 	echo ".>		Version: ${IB_RELEASE}"
 	echo ".>		program: ${PROGRAM}"

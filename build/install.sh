@@ -13,6 +13,15 @@ apt-get -y update &&
 	apt-get clean -y &&
 	rm -rf /var/lib/apt/lists/*
 
+# Add system-level fixes for Java crashes in containers
+echo "vm.swappiness=1" >>/etc/sysctl.conf
+echo "kernel.randomize_va_space=0" >>/etc/sysctl.conf
+# Create limits configuration to prevent memory issues
+echo "* soft nofile 65536" >>/etc/security/limits.conf
+echo "* hard nofile 65536" >>/etc/security/limits.conf
+echo "* soft nproc 8192" >>/etc/security/limits.conf
+echo "* hard nproc 8192" >>/etc/security/limits.conf
+
 if [ ${PROGRAM} = "ibgateway" ]; then
 	IB_RELEASE_DIR=/opt/ibgateway/${IB_RELEASE}
 else

@@ -37,7 +37,7 @@ ENV LC_ALL=C.UTF-8 \
     SUPERVISORD_UI_PASS="" \
     SUPERVISORD_UI_PORT=9001 \
     XAUTHORITY=/home/ibuser/.Xauthority \
-    JAVA_OPTS="-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:+UseContainerSupport -Djava.security.egd=file:/dev/./urandom -XX:+DisableAttachMechanism"
+    JAVA_OPTS="-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:+UseContainerSupport -Djava.security.egd=file:/dev/./urandom -XX:+DisableAttachMechanism -Djava.awt.headless=false -Dsun.java2d.xrender=false -Dsun.java2d.pmoffscreen=false -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError -Djava.net.preferIPv4Stack=true"
 
 # Copy installation script
 COPY install.sh /install.sh
