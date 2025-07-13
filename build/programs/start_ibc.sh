@@ -20,6 +20,12 @@ start_ibc() {
 	export XAUTHORITY="$HOME/.Xauthority"
 	wait_for_x_server
 
+	# Set JVM options to prevent crashes
+	if [ -n "$JAVA_OPTS" ]; then
+		export TWS_JAVA_OPTS="$JAVA_OPTS"
+		export IBC_JAVA_OPTS="$JAVA_OPTS"
+	fi
+
 	log ".> Starting IBC in ${TRADING_MODE} mode, with params:"
 	echo ".>		Version: ${IB_RELEASE}"
 	echo ".>		program: ${PROGRAM}"

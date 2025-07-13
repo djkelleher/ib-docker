@@ -26,6 +26,8 @@ services:
       DISPLAY: :0
       TZ: ${TIME_ZONE:-America/New_York}
       TIME_ZONE: ${TIME_ZONE:-America/New_York}
+      # JVM options to prevent crashes
+      JAVA_OPTS: "-XX:+UnlockExperimentalVMOptions -XX:+UseContainerSupport -XX:+DisableAttachMechanism -Djava.awt.headless=false -Dsun.java2d.xrender=false -Dprism.order=sw"
       # live or paper.
       TRADING_MODE: ${TRADING_MODE:-paper}
       # yes or no. See https://github.com/IbcAlpha/IBC/blob/master/userguide.md

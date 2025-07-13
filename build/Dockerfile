@@ -1,5 +1,5 @@
 # docker build --build-arg PROGRAM=tws -t tws .
-FROM ubuntu:24.04
+FROM ubuntu:20.04
 
 # Build arguments
 ARG VERSION=NULL
