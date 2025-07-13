@@ -38,17 +38,18 @@ start_xvfb() {
 	# -extension RENDER: keep render extension for better graphics
 	# -noreset: don't reset after last client exits
 	# Set environment variables to reduce warnings and prevent crashes
-	export XKB_DEFAULT_RULES="base"
-	export XKB_DEFAULT_MODEL="pc105"
-	export XKB_DEFAULT_LAYOUT="us"
+	#export XKB_DEFAULT_RULES="base"
+	#export XKB_DEFAULT_MODEL="pc105"
+	#export XKB_DEFAULT_LAYOUT="us"
 	# Disable problematic extensions that can cause JNI crashes
-	export LIBGL_ALWAYS_INDIRECT=1
-	export LIBGL_ALWAYS_SOFTWARE=1
-	export MESA_GL_VERSION_OVERRIDE=2.1
+	#export LIBGL_ALWAYS_INDIRECT=1
+	#export LIBGL_ALWAYS_SOFTWARE=1
+	#export MESA_GL_VERSION_OVERRIDE=2.1
 	# Start Xvfb with minimal extensions to prevent JNI crashes
 	# Removed GLX extension which is a common cause of Java crashes in containers
 	# Disabled RENDER extension as well since it can cause issues with Java 8
-	exec /usr/bin/Xvfb "$DISPLAY" -ac -screen 0 "$VNC_SCREEN_DIMENSION" -noreset -extension GLX -extension RENDER -extension RANDR -extension XINERAMA 2>/dev/null
+	#exec /usr/bin/Xvfb "$DISPLAY" -ac -screen 0 "$VNC_SCREEN_DIMENSION" -noreset -extension GLX -extension RENDER -extension RANDR -extension XINERAMA 2>/dev/null
+	exec /usr/bin/Xvfb "$DISPLAY" -ac -screen 0 "$VNC_SCREEN_DIMENSION" -noreset
 }
 
 start_xvfb

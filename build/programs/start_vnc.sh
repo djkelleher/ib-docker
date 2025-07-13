@@ -19,9 +19,8 @@ start_vnc() {
 	# forever: Keep listening for more connections rather than exiting as soon as the first client(s) disconnect.
 	# shared: VNC display is shared, i.e. more than one viewer can connect at the same time.
 	# noipv6: Do not try to use IPv6 for any listening or connecting sockets.
-	# quiet: reduce verbose output
 	# noxdamage: disable X DAMAGE extension warnings
-	exec /usr/bin/x11vnc -ncache 10 -ncache_cr -passwd "$VNC_PWD" -display "$DISPLAY" -forever -shared -noipv6 -quiet -noxdamage
+	exec /usr/bin/x11vnc -ncache 10 -ncache_cr -passwd "$VNC_PWD" -display "$DISPLAY" -forever -shared -noipv6 -noxdamage
 }
 
 start_vnc
