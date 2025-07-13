@@ -14,7 +14,7 @@ wait_for_x_server() {
 		# Check if we can read the DISPLAY from a shared location
 		if [ -f "/tmp/display_info" ] && [ -s "/tmp/display_info" ]; then
 			DISPLAY=$(cat /tmp/display_info 2>/dev/null)
-			if [ -n "$DISPLAY" ] && [[ "$DISPLAY" =~ ^:[0-9]+$ ]]; then
+			if [ -n "$DISPLAY" ] && [[ $DISPLAY =~ ^:[0-9]+$ ]]; then
 				export DISPLAY
 				log "Found DISPLAY from xvfb: $DISPLAY"
 				break
@@ -30,10 +30,11 @@ wait_for_x_server() {
 		log "Could not find valid DISPLAY from xvfb"
 		exit 1
 	fi
-	
+
 	# Set up X11 environment
-	export XAUTHORITY=$HOME/.Xauthority
-		
+	XAUTHORITY="$HOME/.Xauthority"
+	export XAUTHORITY
+
 	# Wait for X server to be ready
 	timeout=30
 	while [ $timeout -gt 0 ]; do

@@ -55,4 +55,4 @@ echo ".> Starting SSH tunnel: ${SSH_USER_TUNNEL}"
 echo ".> Local port: ${API_PORT}, Remote port: ${SSH_REMOTE_PORT}"
 
 # Start SSH tunnel - this becomes the main process that supervisord monitors
-exec ssh ${_SSH_OPTIONS} -TNR 127.0.0.1:${API_PORT}:localhost:${SSH_REMOTE_PORT} ${_SCREEN} ${SSH_USER_TUNNEL}
+exec ssh ${_SSH_OPTIONS} -TNR "127.0.0.1:${API_PORT}:localhost:${SSH_REMOTE_PORT}" ${_SCREEN} "${SSH_USER_TUNNEL}"

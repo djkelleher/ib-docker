@@ -13,11 +13,11 @@ start_ibc() {
 		PROGRAM_FLAG=""
 		IB_BASE_DIR=/Jts
 	fi
-	TWS_SETTINGS_PATH=${HOME}/tws_settings
-	mkdir -p $TWS_SETTINGS_PATH
+	TWS_SETTINGS_PATH="${HOME}/tws_settings"
+	mkdir -p "$TWS_SETTINGS_PATH"
 
 	# Set up X11 environment for IBC
-	export XAUTHORITY=$HOME/.Xauthority
+	export XAUTHORITY="$HOME/.Xauthority"
 	wait_for_x_server
 
 	log ".> Starting IBC in ${TRADING_MODE} mode, with params:"
@@ -35,7 +35,7 @@ start_ibc() {
 		"--ibc-ini=${IBC_INI}" \
 		"--ibc-path=${IBC_PATH}" \
 		"--on2fatimeout=${TWOFA_TIMEOUT_ACTION}" \
-		"--tws-settings-path=${TWS_SETTINGS_PATH:-}"
+		"--tws-settings-path=${TWS_SETTINGS_PATH}"
 }
 
 start_ibc
