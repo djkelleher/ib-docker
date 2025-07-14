@@ -35,6 +35,18 @@ start_ibc() {
 	STABILITY_OPTS="$STABILITY_OPTS -Dsun.java2d.xrender=false"
 	STABILITY_OPTS="$STABILITY_OPTS -Dsun.java2d.pmoffscreen=false"
 
+	# JavaFX WebKit crash prevention
+	STABILITY_OPTS="$STABILITY_OPTS -Dprism.order=sw"
+	STABILITY_OPTS="$STABILITY_OPTS -Djavafx.platform=desktop"
+	STABILITY_OPTS="$STABILITY_OPTS -Dprism.vsync=false"
+	STABILITY_OPTS="$STABILITY_OPTS -Dcom.sun.javafx.isEmbedded=false"
+	STABILITY_OPTS="$STABILITY_OPTS -Dcom.sun.javafx.virtual.keyboard=none"
+
+	# WebKit media handling fixes
+	STABILITY_OPTS="$STABILITY_OPTS -Dcom.sun.webkit.useHTML5MediaPlayer=false"
+	STABILITY_OPTS="$STABILITY_OPTS -Dcom.sun.webkit.disableHTML5Media=true"
+	STABILITY_OPTS="$STABILITY_OPTS -Djava.util.Arrays.useLegacyMergeSort=true"
+
 	export JAVA_OPTS="$JAVA_OPTS $STABILITY_OPTS"
 	export TWS_JAVA_OPTS="$JAVA_OPTS"
 	export IBC_JAVA_OPTS="$JAVA_OPTS"
@@ -50,6 +62,12 @@ start_ibc() {
 	export LIBGL_ALWAYS_SOFTWARE=1
 	export QT_X11_NO_MITSHM=1
 	export GDK_SYNCHRONIZE=1
+
+	# Additional JavaFX/WebKit crash prevention
+	export PRISM_ORDER=sw
+	export PRISM_VSYNC=false
+	export WEBKIT_DISABLE_COMPOSITING_MODE=1
+	export JAVA_TOOL_OPTIONS="-Djava.util.Arrays.useLegacyMergeSort=true"
 
 	log ".> Starting IBC in ${TRADING_MODE} mode, with params:"
 	echo ".>		Version: ${IB_RELEASE}"

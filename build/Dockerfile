@@ -36,8 +36,11 @@ ENV LC_ALL=C.UTF-8 \
     SUPERVISORD_UI_USER="" \
     SUPERVISORD_UI_PASS="" \
     SUPERVISORD_UI_PORT=9001 \
-    XAUTHORITY=/home/ibuser/.Xauthority
-    #JAVA_OPTS="-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:+UseContainerSupport -Djava.security.egd=file:/dev/./urandom -XX:+DisableAttachMechanism -Djava.awt.headless=false -Dsun.java2d.xrender=false -Dsun.java2d.pmoffscreen=false -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError -Djava.net.preferIPv4Stack=true"
+    XAUTHORITY=/home/ibuser/.Xauthority \
+    # JavaFX WebKit crash prevention
+    JAVA_TOOL_OPTIONS="-Djava.util.Arrays.useLegacyMergeSort=true -Dcom.sun.webkit.disableHTML5Media=true -Dprism.order=sw" \
+    # Enhanced JVM options for stability and crash prevention
+    JAVA_OPTS="-XX:+UseG1GC -XX:+DisableAttachMechanism -Djava.awt.headless=false -Dsun.java2d.xrender=false -Dsun.java2d.pmoffscreen=false -XX:+ExitOnOutOfMemoryError -Djava.net.preferIPv4Stack=true -Dcom.sun.webkit.useHTML5MediaPlayer=false"
 
 # Copy installation script
 COPY install.sh /install.sh
