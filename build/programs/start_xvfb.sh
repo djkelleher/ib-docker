@@ -29,9 +29,16 @@ start_xvfb() {
 	XAUTHORITY="$HOME/.Xauthority"
 	export XAUTHORITY
 	touch "$XAUTHORITY"
+	chmod 600 "$XAUTHORITY"
+	# Generate a proper MIT-MAGIC-COOKIE-1
 	xauth add "$DISPLAY" . "$(openssl rand -hex 16)" 2>/dev/null || true
+	# Also add localhost variants for better compatibility
+	xauth add "localhost$DISPLAY" . "$(openssl rand -hex 16)" 2>/dev/null || true
+	xauth add "$(hostname)$DISPLAY" . "$(openssl rand -hex 16)" 2>/dev/null || true
 	# Save DISPLAY info for other services
 	echo "$DISPLAY" >/tmp/display_info
+	# Wait a moment for auth setup
+	sleep 2
 	# Start virtual frame buffer with optimized flags
 	# -ac: disable access control restrictions
 	# -extension RANDR: disable RANDR extension (not needed in headless)

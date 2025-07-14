@@ -20,55 +20,6 @@ start_ibc() {
 	export XAUTHORITY="$HOME/.Xauthority"
 	wait_for_x_server
 
-	# Set JVM options to prevent crashes
-	if [ -n "$JAVA_OPTS" ]; then
-		export TWS_JAVA_OPTS="$JAVA_OPTS"
-		export IBC_JAVA_OPTS="$JAVA_OPTS"
-	fi
-
-	# Enhanced JVM stability options to prevent SIGSEGV crashes
-	STABILITY_OPTS="-XX:+UseG1GC -XX:+UnlockExperimentalVMOptions -XX:+UseStringDeduplication"
-	STABILITY_OPTS="$STABILITY_OPTS -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError"
-	STABILITY_OPTS="$STABILITY_OPTS -XX:HeapDumpPath=/tmp/java_crash.hprof"
-	STABILITY_OPTS="$STABILITY_OPTS -XX:+DisableAttachMechanism"
-	STABILITY_OPTS="$STABILITY_OPTS -Djava.awt.headless=false"
-	STABILITY_OPTS="$STABILITY_OPTS -Dsun.java2d.xrender=false"
-	STABILITY_OPTS="$STABILITY_OPTS -Dsun.java2d.pmoffscreen=false"
-
-	# JavaFX WebKit crash prevention
-	STABILITY_OPTS="$STABILITY_OPTS -Dprism.order=sw"
-	STABILITY_OPTS="$STABILITY_OPTS -Djavafx.platform=desktop"
-	STABILITY_OPTS="$STABILITY_OPTS -Dprism.vsync=false"
-	STABILITY_OPTS="$STABILITY_OPTS -Dcom.sun.javafx.isEmbedded=false"
-	STABILITY_OPTS="$STABILITY_OPTS -Dcom.sun.javafx.virtual.keyboard=none"
-
-	# WebKit media handling fixes
-	STABILITY_OPTS="$STABILITY_OPTS -Dcom.sun.webkit.useHTML5MediaPlayer=false"
-	STABILITY_OPTS="$STABILITY_OPTS -Dcom.sun.webkit.disableHTML5Media=true"
-	STABILITY_OPTS="$STABILITY_OPTS -Djava.util.Arrays.useLegacyMergeSort=true"
-
-	export JAVA_OPTS="$JAVA_OPTS $STABILITY_OPTS"
-	export TWS_JAVA_OPTS="$JAVA_OPTS"
-	export IBC_JAVA_OPTS="$JAVA_OPTS"
-
-	# Additional crash prevention measures
-	ulimit -c unlimited # Enable core dumps for debugging
-	ulimit -n 65536     # Increase file descriptor limit
-	ulimit -v unlimited # Remove virtual memory limits
-	export _JAVA_OPTIONS="$JAVA_OPTS"
-
-	# Disable problematic X11 features that can cause JNI crashes
-	export LIBGL_ALWAYS_INDIRECT=1
-	export LIBGL_ALWAYS_SOFTWARE=1
-	export QT_X11_NO_MITSHM=1
-	export GDK_SYNCHRONIZE=1
-
-	# Additional JavaFX/WebKit crash prevention
-	export PRISM_ORDER=sw
-	export PRISM_VSYNC=false
-	export WEBKIT_DISABLE_COMPOSITING_MODE=1
-	export JAVA_TOOL_OPTIONS="-Djava.util.Arrays.useLegacyMergeSort=true"
-
 	log ".> Starting IBC in ${TRADING_MODE} mode, with params:"
 	echo ".>		Version: ${IB_RELEASE}"
 	echo ".>		program: ${PROGRAM}"
