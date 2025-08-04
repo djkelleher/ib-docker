@@ -3,31 +3,11 @@ set -e
 
 # Update package lists and install packages
 apt-get -y update &&
-	DEBIAN_FRONTEND=noninteractive apt-get -y install --no-install-recommends
-# Essential utilities
-wget `# Downloads files from the internet` \
-	ca-certificates `# SSL/TLS certificate authorities for secure connections` \
-	unzip `# Extracts ZIP archives (needed for IBC installation)` \
-	software-properties-common `# Manages APT repositories and PPAs` \
-	locales `# System locale data for internationalization`
-# X11 virtual display components
-xvfb `# X Virtual Framebuffer - provides headless X11 display` \
-	x11vnc `# VNC server for X11 - allows remote desktop access` \
-	supervisor `# Process control system - manages all container services` \
-	openssl `# Cryptographic tools - generates X11 auth cookies` \
-	x11-xserver-utils `# X11 utilities including xset for server testing`
-# System monitoring and networking
-procps `# Process utilities (ps, top, kill, etc.)` \
-	net-tools `# Network utilities (netstat, ifconfig, etc.)`
-# X11 libraries for Java GUI
-libx11-6 `# Core X11 client library` \
-	libxext-dev `# X11 extensions library` \
-	libxtst-dev `# X11 testing/input simulation library` \
-	libxrender1 `# X11 rendering extension library`
-# Remote access tools
-openssh-client `# SSH client for tunnel connections` \
-	sshpass `# Non-interactive SSH password provider` \
-	socat `# Socket relay tool for port forwarding` &&
+	DEBIAN_FRONTEND=noninteractive apt-get -y install --no-install-recommends \
+	wget ca-certificates unzip software-properties-common locales \
+	xvfb x11vnc supervisor openssl x11-xserver-utils procps \
+	net-tools libx11-6 libxext-dev libxtst-dev libxrender1 \
+	openssh-client sshpass socat \
 	# Clean up package cache early
 	apt-get autoremove -y --purge &&
 	apt-get clean -y &&
