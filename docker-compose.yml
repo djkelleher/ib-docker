@@ -42,6 +42,8 @@ services:
       JAVA_OPTS: "-XX:+UnlockExperimentalVMOptions -XX:+UseContainerSupport -XX:+DisableAttachMechanism -Djava.awt.headless=false -Dsun.java2d.xrender=false -Dsun.java2d.pmoffscreen=false -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError -Djava.net.preferIPv4Stack=true -Dprism.order=sw"
       # live or paper.
       TRADING_MODE: ${TRADING_MODE:-paper}
+      # yes or no. Automatically accept paper trading account warning dialog.
+      ACCEPT_NON_BROKERAGE_WARNING: ${ACCEPT_NON_BROKERAGE_WARNING:-yes}
       # yes or no. See https://github.com/IbcAlpha/IBC/blob/master/userguide.md
       READ_ONLY_API: ${READ_ONLY_API:-no}
       # 'exit' or 'restart', set to 'restart if you set `AUTO_RESTART_TIME`. See IBC [documentation](https://github.com/IbcAlpha/IBC/blob/master/userguide.md#second-factor-authentication)

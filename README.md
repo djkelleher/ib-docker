@@ -96,7 +96,6 @@ services:
     environment:
       TRADING_MODE: paper
       ENABLE_SOCAT: "no"
-      VNC_PWD: "password123"
 ```
 **Access:** `localhost:4001` (paper: `localhost:4002`)
 
@@ -161,6 +160,7 @@ This guide covers all configuration options available for the IB Docker containe
 | `PGID` | `1000` | Group ID to run container as |
 | `TZ` | `America/New_York` | Container timezone |
 | `TRADING_MODE` | `paper` | Trading mode: `paper` or `live` |
+| `ACCEPT_NON_BROKERAGE_WARNING` | `yes` | Auto-accept paper trading account warning dialog |
 
 
 | Service | Port | Description |
@@ -245,6 +245,7 @@ This guide covers all configuration options available for the IB Docker containe
 | `PGID` | `1000` | Group ID to run container as |
 | `TZ` | `America/New_York` | Container timezone |
 | `TRADING_MODE` | `paper` | Trading mode: `paper` or `live` |
+| `ACCEPT_NON_BROKERAGE_WARNING` | `yes` | Auto-accept paper trading account warning dialog |
 
 | Variable | Effect | Use Case |
 |----------|--------|----------|
@@ -256,6 +257,7 @@ This guide covers all configuration options available for the IB Docker containe
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TRADING_MODE` | `paper` | Trading mode: `paper` or `live` |
+| `ACCEPT_NON_BROKERAGE_WARNING` | `yes` | Auto-accept paper trading account warning dialog |
 | `ENABLE_SOCAT` | `yes` | Enable port forwarding (required for bridge networking) |
 | `SSH_TUNNEL` | - | SSH tunnel mode: `yes`, `both`, or empty |
 | `SSH_USER_TUNNEL` | - | SSH connection string (user@host) |

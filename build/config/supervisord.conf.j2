@@ -12,12 +12,13 @@ minprocs=200          # Minimum number of process descriptors available
 file=/tmp/supervisor.sock  # Unix socket file for supervisorctl communication
 chmod=0700                 # Restrict socket access to owner only
 
+{% if supervisord_ui_port %}
 [inet_http_server]
-; Optional supervisord web interface - only enabled if SUPERVISORD_UI_PORT env var is set
-; Set SUPERVISORD_UI_PORT to enable (e.g., 9001)
-port=%(ENV_SUPERVISORD_UI_PORT)s      # TCP port for web interface (from environment variable)
-username=%(ENV_SUPERVISORD_UI_USER)s  # Username for web interface authentication
-password=%(ENV_SUPERVISORD_UI_PASS)s  # Password for web interface authentication
+; Supervisord web interface - enabled because SUPERVISORD_UI_PORT is set
+port={{ supervisord_ui_port }}
+username={{ supervisord_ui_user }}
+password={{ supervisord_ui_pass }}
+{% endif %}
 
 [supervisorctl]
 serverurl=unix:///tmp/supervisor.sock  # URL for supervisorctl to connect to supervisord
@@ -72,7 +73,6 @@ stdout_logfile_maxbytes=0        # Disable stdout log rotation
 stderr_logfile=/dev/stderr       # Send stderr to container's stderr
 stderr_logfile_maxbytes=0        # Disable stderr log rotation
 
-
 [program:x11vnc]
 ## start VNC server.
 # display: X11 server display to connect to.
@@ -93,30 +93,32 @@ stdout_logfile_maxbytes=0        # Disable stdout log rotation
 stderr_logfile=/dev/stderr       # Send stderr to container's stderr
 stderr_logfile_maxbytes=0        # Disable stderr log rotation
 
-
-
-#[program:socat]
+{% if enable_socat %}
+[program:socat]
 ## Port forwarding with socat
-#command=start_socat
-#priority=40
-#autorestart=true
-#autostart=true
-#depends_on=ibc
-#stdout_logfile=/dev/stdout
-#stdout_logfile_maxbytes=0
-#stderr_logfile=/dev/stderr
-#stderr_logfile_maxbytes=0
+command=start_socat
+priority=40
+autorestart=true
+autostart=true
+depends_on=ibc
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+{% endif %}
 
-#[program:ssh-tunnel]
+{% if enable_ssh_tunnel %}
+[program:ssh-tunnel]
 ## SSH tunnel for secure remote access
-#command=start_ssh
-#priority=50
-#autorestart=false
-#autostart=true
-#exitcodes=0
-#startsecs=0
-#depends_on=ibc
-#stdout_logfile=/dev/stdout
-#stdout_logfile_maxbytes=0
-#stderr_logfile=/dev/stderr
-#stderr_logfile_maxbytes=0
+command=start_ssh
+priority=50
+autorestart=false
+autostart=true
+exitcodes=0
+startsecs=0
+depends_on=ibc
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+{% endif %}

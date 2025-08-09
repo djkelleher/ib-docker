@@ -36,7 +36,7 @@ ENV LC_ALL=C.UTF-8 \
     SUPERVISORD_UI_USER="" \
     SUPERVISORD_UI_PASS="" \
     SUPERVISORD_UI_PORT=9001 \
-    XAUTHORITY=/home/ibuser/.Xauthority 
+    XAUTHORITY=/home/ibuser/.Xauthority
     # JavaFX WebKit crash prevention
     #JAVA_TOOL_OPTIONS="-Djava.util.Arrays.useLegacyMergeSort=true -Dcom.sun.webkit.disableHTML5Media=true -Dprism.order=sw" \
     # Enhanced JVM options for stability and crash prevention
@@ -67,7 +67,7 @@ COPY programs/start_ssh.sh /usr/local/bin/start_ssh
 COPY programs/start_socat.sh /usr/local/bin/start_socat
 COPY programs/health_check.sh /usr/local/bin/health_check
 # supervisord config
-COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY config/supervisord.conf.j2 ${HOME}/supervisord.conf.j2
 
 # Make all scripts executable
 RUN /bin/bash -c "chmod +x /usr/local/bin/{init_container_settings,start_ibc,start_vnc,start_xvfb,run_socat,start_ssh,start_socat,health_check} /usr/local/lib/ib_utils"
