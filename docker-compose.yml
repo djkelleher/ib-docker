@@ -19,13 +19,6 @@ services:
     privileged: false
     security_opt:
       - seccomp:unconfined
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
-      nproc:
-        soft: 8192
-        hard: 8192
     shm_size: 2g
     environment:
       # User `uid` to run the container as (1000 is host user)
@@ -38,8 +31,7 @@ services:
       DISPLAY: :0
       TZ: ${TIME_ZONE:-America/New_York}
       TIME_ZONE: ${TIME_ZONE:-America/New_York}
-      # JVM options to prevent crashes
-      JAVA_OPTS: "-XX:+UnlockExperimentalVMOptions -XX:+UseContainerSupport -XX:+DisableAttachMechanism -Djava.awt.headless=false -Dsun.java2d.xrender=false -Dsun.java2d.pmoffscreen=false -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError -Djava.net.preferIPv4Stack=true -Dprism.order=sw"
+      JAVA_OPTS: "-XX:+UnlockExperimentalVMOptions -XX:+UseContainerSupport"
       # live or paper.
       TRADING_MODE: ${TRADING_MODE:-paper}
       # yes or no. Automatically accept paper trading account warning dialog.
@@ -65,25 +57,9 @@ services:
       TWOFA_EXIT_INTERVAL: ${TWOFA_EXIT_INTERVAL:-60}
       IB_USER: ${IB_USER}
       IB_PASSWORD: ${IB_PASSWORD}
-      # Port forwarding configuration
-      ENABLE_SOCAT: ${ENABLE_SOCAT:-yes}
-      # SSH Tunnel Configuration
-      SSH_TUNNEL: ${SSH_TUNNEL:-}
-      SSH_OPTIONS: ${SSH_OPTIONS:-}
-      SSH_ALIVE_INTERVAL: ${SSH_ALIVE_INTERVAL:-20}
-      SSH_ALIVE_COUNT: ${SSH_ALIVE_COUNT:-3}
-      SSH_PASSPHRASE: ${SSH_PASSPHRASE:-}
-      SSH_PASSPHRASE_FILE: ${SSH_PASSPHRASE_FILE:-}
-      SSH_REMOTE_PORT: ${SSH_REMOTE_PORT:-}
-      SSH_USER_TUNNEL: ${SSH_USER_TUNNEL:-}
-      SSH_RESTART: ${SSH_RESTART:-5}
-      SSH_VNC_PORT: ${SSH_VNC_PORT:-}
-      SSH_RDP_PORT: ${SSH_RDP_PORT:-}
       SUPERVISORD_UI_USER: serveradmin
       SUPERVISORD_UI_PASS: serveradmin
       SUPERVISORD_UI_PORT: 9123
     # volumes:
-      # Uncomment to mount SSH keys for tunnel authentication
-      # - ${HOME}/.ssh:/home/ibuser/.ssh:ro
       # Uncomment to preserve TWS settings
       # - ./tws_settings:/home/ibuser/tws_settings

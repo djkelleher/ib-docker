@@ -92,33 +92,3 @@ stdout_logfile=/dev/stdout       # Send stdout to container's stdout
 stdout_logfile_maxbytes=0        # Disable stdout log rotation
 stderr_logfile=/dev/stderr       # Send stderr to container's stderr
 stderr_logfile_maxbytes=0        # Disable stderr log rotation
-
-{% if enable_socat %}
-[program:socat]
-## Port forwarding with socat
-command=start_socat
-priority=40
-autorestart=true
-autostart=true
-depends_on=ibc
-stdout_logfile=/dev/stdout
-stdout_logfile_maxbytes=0
-stderr_logfile=/dev/stderr
-stderr_logfile_maxbytes=0
-{% endif %}
-
-{% if enable_ssh_tunnel %}
-[program:ssh-tunnel]
-## SSH tunnel for secure remote access
-command=start_ssh
-priority=50
-autorestart=false
-autostart=true
-exitcodes=0
-startsecs=0
-depends_on=ibc
-stdout_logfile=/dev/stdout
-stdout_logfile_maxbytes=0
-stderr_logfile=/dev/stderr
-stderr_logfile_maxbytes=0
-{% endif %}

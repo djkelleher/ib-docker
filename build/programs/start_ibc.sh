@@ -8,11 +8,11 @@ start_ibc() {
 	#major_v=$(ls $IB_PATH/*.desktop | sed -E 's/[^0-9]+//g')
 	if [ "$PROGRAM" = "ibgateway" ]; then
 		PROGRAM_FLAG="-g"
-		IB_BASE_DIR=/opt
 	else
 		PROGRAM_FLAG=""
-		IB_BASE_DIR=/Jts
 	fi
+	# Use consistent path for both TWS and IB Gateway
+	IB_BASE_DIR="/opt/${PROGRAM}"
 	TWS_SETTINGS_PATH="${HOME}/tws_settings"
 	mkdir -p "$TWS_SETTINGS_PATH"
 

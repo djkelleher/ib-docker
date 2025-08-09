@@ -4,12 +4,11 @@ set -e
 # Update package lists and install packages
 apt-get -y update &&
 	DEBIAN_FRONTEND=noninteractive apt-get -y install --no-install-recommends \
-	wget ca-certificates unzip software-properties-common locales \
-	xvfb x11vnc supervisor openssl x11-xserver-utils procps \
-	net-tools libx11-6 libxext-dev libxtst-dev libxrender1 \
-	openssh-client sshpass socat \
-	# Clean up package cache early
-	apt-get autoremove -y --purge &&
+		wget ca-certificates unzip software-properties-common locales \
+		xvfb x11vnc supervisor openssl x11-xserver-utils procps \
+		net-tools libx11-6 libxext-dev libxtst-dev libxrender1
+# Clean up package cache early
+apt-get autoremove -y --purge &&
 	apt-get clean -y &&
 	rm -rf /var/lib/apt/lists/*
 
@@ -22,10 +21,8 @@ echo "* hard nofile 65536" >>/etc/security/limits.conf
 echo "* soft nproc 8192" >>/etc/security/limits.conf
 echo "* hard nproc 8192" >>/etc/security/limits.conf
 
-if [ ${PROGRAM} = "ibgateway" ]; then
-	IB_RELEASE_DIR=/opt/ibgateway/${IB_RELEASE}
-else
-	IB_RELEASE_DIR=/Jts/$IB_RELEASE
+# Install additional dependencies for TWS
+if [ ${PROGRAM} = "tws" ]; then
 	DEBIAN_FRONTEND=noninteractive apt-get update &&
 		apt-get -y install --no-install-recommends libavcodec-dev \
 			libavformat-dev libgtk-3-dev libnss3 libnspr4 &&
@@ -76,6 +73,10 @@ else
 	/ib.sh -q -dir ${IB_RELEASE_DIR}
 fi
 rm -f /ib.sh
+
+# The vmoptions file will be at a predictable location
+VMOPTIONS_FILE="${IB_RELEASE_DIR}/${PROGRAM}.vmoptions"
+echo "VM options file will be at: $VMOPTIONS_FILE"
 
 # Install IBC
 echo "Installing IBC"

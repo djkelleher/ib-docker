@@ -29,14 +29,10 @@ ENV LC_ALL=C.UTF-8 \
     ARCH=${ARCH} \
     VERSION=${VERSION} \
     IBC_VERSION=${IBC_VERSION} \
-    IB_RELEASE_DIR="" \
     HOME=/home/ibuser \
     TWS_SETTINGS_PATH=/home/ibuser/tws_settings \
-    # TODO remove these?
-    SUPERVISORD_UI_USER="" \
-    SUPERVISORD_UI_PASS="" \
-    SUPERVISORD_UI_PORT=9001 \
-    XAUTHORITY=/home/ibuser/.Xauthority
+    XAUTHORITY=/home/ibuser/.Xauthority \
+    IB_RELEASE_DIR=/opt/${PROGRAM}/${RELEASE}
     # JavaFX WebKit crash prevention
     #JAVA_TOOL_OPTIONS="-Djava.util.Arrays.useLegacyMergeSort=true -Dcom.sun.webkit.disableHTML5Media=true -Dprism.order=sw" \
     # Enhanced JVM options for stability and crash prevention
@@ -62,15 +58,12 @@ COPY programs/start_xvfb.sh /usr/local/bin/start_xvfb
 COPY programs/start_vnc.sh /usr/local/bin/start_vnc
 COPY programs/start_ibc.sh /usr/local/bin/start_ibc
 COPY programs/ib_utils.sh /usr/local/lib/ib_utils
-COPY programs/run_socat.sh /usr/local/bin/run_socat
-COPY programs/start_ssh.sh /usr/local/bin/start_ssh
-COPY programs/start_socat.sh /usr/local/bin/start_socat
 COPY programs/health_check.sh /usr/local/bin/health_check
 # supervisord config
 COPY config/supervisord.conf.j2 ${HOME}/supervisord.conf.j2
 
 # Make all scripts executable
-RUN /bin/bash -c "chmod +x /usr/local/bin/{init_container_settings,start_ibc,start_vnc,start_xvfb,run_socat,start_ssh,start_socat,health_check} /usr/local/lib/ib_utils"
+RUN /bin/bash -c "chmod +x /usr/local/bin/{init_container_settings,start_ibc,start_vnc,start_xvfb,health_check} /usr/local/lib/ib_utils"
 
 # Create non-root user for security
 RUN groupadd -r ibuser && \
@@ -78,12 +71,8 @@ RUN groupadd -r ibuser && \
 
 # Set permissions for non-root user
 RUN chown -R ibuser:ibuser ${HOME} ${IBC_PATH} && \
-    # Set ownership for IB installation directories
-    if [ "${PROGRAM}" = "ibgateway" ]; then \
-        chown -R ibuser:ibuser /opt/ibgateway; \
-    else \
-        chown -R ibuser:ibuser /Jts; \
-    fi && \
+    # Set ownership for IB installation directories (now consistently /opt/{PROGRAM})
+    chown -R ibuser:ibuser /opt/${PROGRAM} && \
     # Create X11 auth file with proper permissions
     touch ${HOME}/.Xauthority && \
     chown ibuser:ibuser ${HOME}/.Xauthority && \
