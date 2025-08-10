@@ -112,7 +112,10 @@ ENV DISPLAY=:0 \
     VERSION=${VERSION}
 
 # Create non-root user early so we can chown on COPY
-RUN groupadd -r ibuser && useradd -r -g ibuser -s /bin/bash -m ibuser
+RUN groupadd -r ibuser && useradd -r -g ibuser -s /bin/bash -m ibuser \
+    && mkdir -p /tmp/.X11-unix \
+    && chown root:root /tmp/.X11-unix \
+    && chmod 1777 /tmp/.X11-unix
 
 # Copy installed software from builder (owned by ibuser)
 COPY --from=builder --chown=ibuser:ibuser /opt/${PROGRAM} /opt/${PROGRAM}

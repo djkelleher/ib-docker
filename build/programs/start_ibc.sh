@@ -21,6 +21,7 @@ start_ibc() {
 
 	log ".> Starting IBC in ${TRADING_MODE} mode, with params:"
 	echo ".>		Version: ${IB_RELEASE}"
+	echo ".>		IBC version: ${IBC_VERSION}"
 	echo ".>		program: ${PROGRAM}"
 	echo ".>		tws-path: ${IB_BASE_DIR}"
 	echo ".>		ibc-path: ${IBC_PATH}"

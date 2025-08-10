@@ -7,50 +7,39 @@ log() {
 }
 
 start_xvfb() {
+	# Ensure X11 dir exists with correct ownership and perms early
+	if [ ! -d /tmp/.X11-unix ]; then
+		mkdir -p /tmp/.X11-unix
+	fi
+	# If root set ownership & perms; non-root skip to avoid errors
+	if [ "$(id -u)" = "0" ]; then
+		chown root:root /tmp/.X11-unix 2>/dev/null || true
+		chmod 1777 /tmp/.X11-unix 2>/dev/null || true
+	fi
+
 	echo "Starting Xvfb server. Using display: $DISPLAY"
 	display_no="${DISPLAY#:}"
 	# Kill any existing Xvfb processes completely
 	pkill -9 -f "Xvfb" 2>/dev/null || true
 	sleep 1
-	# Clean up any existing X11 locks and sockets
+	# Only remove stale lock/socket for this display
 	rm -f "/tmp/.X${display_no}-lock" 2>/dev/null || true
 	rm -f "/tmp/.X11-unix/X${display_no}" 2>/dev/null || true
-	rm -rf /tmp/.X11-unix 2>/dev/null || true
-	# Recreate X11 directory with proper ownership
-	mkdir -p /tmp/.X11-unix 2>/dev/null || true
-	chmod 1777 /tmp/.X11-unix 2>/dev/null || true
-	# Set default screen dimension
-	VNC_SCREEN_DIMENSION="${VNC_SCREEN_DIMENSION:-1600x1200x16}"
+
+	# Allow override of screen depth & size. Default to 1600x1200x24 for better color fidelity.
+	VNC_SCREEN_DIMENSION="${VNC_SCREEN_DIMENSION:-1600x1200x24}"
 	log "Starting virtual frame buffer. Display $DISPLAY. Screen dimension: $VNC_SCREEN_DIMENSION"
+
 	# Create Xauth file for the user
 	XAUTHORITY="$HOME/.Xauthority"
 	export XAUTHORITY
 	touch "$XAUTHORITY"
 	chmod 600 "$XAUTHORITY"
-	# Generate a proper MIT-MAGIC-COOKIE-1
+	# Generate MIT-MAGIC-COOKIE-1
 	xauth add "$DISPLAY" . "$(openssl rand -hex 16)" 2>/dev/null || true
-	# Also add localhost variants for better compatibility
 	xauth add "localhost$DISPLAY" . "$(openssl rand -hex 16)" 2>/dev/null || true
 	xauth add "$(hostname)$DISPLAY" . "$(openssl rand -hex 16)" 2>/dev/null || true
-	# Wait a moment for auth setup
 	sleep 2
-	# Start virtual frame buffer with optimized flags
-	# -ac: disable access control restrictions
-	# -extension RANDR: disable RANDR extension (not needed in headless)
-	# -extension RENDER: keep render extension for better graphics
-	# -noreset: don't reset after last client exits
-	# Set environment variables to reduce warnings and prevent crashes
-	#export XKB_DEFAULT_RULES="base"
-	#export XKB_DEFAULT_MODEL="pc105"
-	#export XKB_DEFAULT_LAYOUT="us"
-	# Disable problematic extensions that can cause JNI crashes
-	#export LIBGL_ALWAYS_INDIRECT=1
-	#export LIBGL_ALWAYS_SOFTWARE=1
-	#export MESA_GL_VERSION_OVERRIDE=2.1
-	# Start Xvfb with minimal extensions to prevent JNI crashes
-	# Removed GLX extension which is a common cause of Java crashes in containers
-	# Disabled RENDER extension as well since it can cause issues with Java 8
-	#exec /usr/bin/Xvfb "$DISPLAY" -ac -screen 0 "$VNC_SCREEN_DIMENSION" -noreset -extension GLX -extension RENDER -extension RANDR -extension XINERAMA 2>/dev/null
 	exec /usr/bin/Xvfb "$DISPLAY" -ac -screen 0 "$VNC_SCREEN_DIMENSION" -noreset
 }
 
