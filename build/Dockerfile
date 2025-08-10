@@ -24,7 +24,7 @@ ENV IBC_PATH=/opt/ibc \
 # Download IB installer
 RUN set -eux; \
     mkdir -p "$IB_RELEASE_DIR"; \
-    # Ensure target JRE container path exists (will hold bundled or external Java)
+    # Ensure target JRE container path exists (will hold bundled or external Java) \
     mkdir -p /opt/i4j_jres; \
     if [ "$VERSION" = "NULL" ]; then \
       URL="https://download2.interactivebrokers.com/installers/${PROGRAM}/${RELEASE}-standalone/${PROGRAM}-${RELEASE}-standalone-linux-${ARCH}.sh"; \
@@ -32,13 +32,15 @@ RUN set -eux; \
     else \
       FILE="${PROGRAM}-${RELEASE}-${VERSION}-standalone-linux-x64.sh"; \
       URL="https://github.com/DankLabDev/ib-docker/releases/download/${RELEASE}-${VERSION}/$FILE"; \
-      wget -q -O /ib.sh "$URL"; \
-      wget -q -O /ib.sh.sha256 "$URL.sha256"; \
-      sha256sum --check /ib.sh.sha256; \
-      rm -f /ib.sh.sha256; \
+      # download using original filename so the .sha256 file matches
+      wget -q -O "/$FILE" "$URL"; \
+      wget -q -O "/$FILE.sha256" "$URL.sha256"; \
+      sha256sum --check "/$FILE.sha256"; \
+      mv "/$FILE" /ib.sh; \
+      rm -f "/$FILE.sha256"; \
     fi; \
     chmod +x /ib.sh; \
-    # For aarch64 supply external Java 17 (Zulu), otherwise use bundled Java
+    # For aarch64 supply external Java 17 (Zulu), otherwise use bundled Java \
     if [ "$(uname -m)" = "aarch64" ]; then \
       ZULU_NAME="zulu17.52.17-ca-jre17.0.12-linux_aarch64"; \
       wget -q -O /tmp/zulu.tar.gz "https://cdn.azul.com/zulu/bin/${ZULU_NAME}.tar.gz"; \
