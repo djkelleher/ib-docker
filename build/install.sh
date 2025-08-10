@@ -69,7 +69,8 @@ if [ "$(uname -m)" = "aarch64" ]; then
 	app_java_home=/usr/local/zulu17 /ib.sh -q -dir "${IB_RELEASE_DIR}"
 	rm -f "${ZULU_FILE}"
 else
-	/ib.sh -q -dir ${IB_RELEASE_DIR}
+	echo "Using bundled Java for x64."
+	/ib.sh -q -dir "${IB_RELEASE_DIR}"
 fi
 echo "Finished installing ${PROGRAM}"
 rm -f /ib.sh

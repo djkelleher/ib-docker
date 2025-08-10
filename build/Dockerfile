@@ -34,10 +34,6 @@ ENV LC_ALL=C.UTF-8 \
     TWS_SETTINGS_PATH=/home/ibuser/tws_settings \
     XAUTHORITY=/home/ibuser/.Xauthority \
     IB_RELEASE_DIR=/opt/${PROGRAM}/${RELEASE}
-    # JavaFX WebKit crash prevention
-    #JAVA_TOOL_OPTIONS="-Djava.util.Arrays.useLegacyMergeSort=true -Dcom.sun.webkit.disableHTML5Media=true -Dprism.order=sw" \
-    # Enhanced JVM options for stability and crash prevention
-    #JAVA_OPTS="-XX:+UseG1GC -XX:+DisableAttachMechanism -Djava.awt.headless=false -Dsun.java2d.xrender=false -Dsun.java2d.pmoffscreen=false -XX:+ExitOnOutOfMemoryError -Djava.net.preferIPv4Stack=true -Dcom.sun.webkit.useHTML5MediaPlayer=false"
 
 # Copy installation script
 COPY install.sh /install.sh
@@ -60,7 +56,6 @@ COPY programs/start_xvfb.sh /usr/local/bin/start_xvfb
 COPY programs/start_vnc.sh /usr/local/bin/start_vnc
 COPY programs/start_ibc.sh /usr/local/bin/start_ibc
 COPY programs/ib_utils.sh /usr/local/lib/ib_utils
-COPY programs/health_check.sh /usr/local/bin/health_check
 # supervisord config
 COPY config/supervisord.conf /etc/supervisor/supervisord.conf
 

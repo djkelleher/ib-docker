@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   ib-tws:
     # ib-gateway or ib-tws. latest or stable.
