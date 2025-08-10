@@ -1,0 +1,58 @@
+# Memory settings
+-Xmx{{ max_heap }}m
+-Xms{{ initial_heap }}m
+
+# Garbage Collection - Use Parallel GC for better container stability
+-XX:+UseParallelGC
+-XX:MaxGCPauseMillis=200
+-XX:GCTimeRatio=4
+-XX:AdaptiveSizePolicyWeight=90
+
+# Container support
+-XX:+UseContainerSupport
+-XX:MaxRAMPercentage=75.0
+
+# Performance and stability
+-XX:+OptimizeStringConcat
+-XX:+UseCompressedOops
+-XX:+UseCompressedClassPointers
+
+# GUI and stability
+-Djava.awt.headless=false
+-Dsun.java2d.xrender=false
+-Dsun.java2d.pmoffscreen=false
+-Dsun.java2d.uiScale=1.0
+-Dswing.boldMetal=false
+
+# WebKit/JavaFX stability
+-Dcom.sun.webkit.useHTML5MediaPlayer=false
+-Dprism.order=sw
+-Dprism.verbose=false
+
+# Network
+-Djava.net.preferIPv4Stack=true
+-Djava.security.egd=file:/dev/./urandom
+
+# Crash prevention and debugging
+-XX:+ExitOnOutOfMemoryError
+-XX:ErrorFile=/tmp/hs_err_pid%p.log
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/tmp/
+-XX:+ShowCodeDetailsInExceptionMessages
+
+# Container-specific stability options
+-XX:+UnlockDiagnosticVMOptions
+-XX:+LogVMOutput
+-XX:+UseTransparentHugePages
+-Dsun.java2d.opengl=false
+-Dsun.java2d.d3d=false
+
+# IB specific
+-Dinstaller.uuid=/home/ibuser
+-DjtsConfigDir=/home/ibuser/tws_settings
+{% if custom_opts %}
+# Custom options
+{% for opt in custom_opts %}
+{{ opt }}
+{% endfor %}
+{% endif %}

@@ -11,12 +11,8 @@ services:
         RELEASE: stable
         ARCH: x64
     container_name: tws
-    env_file:
-      - /opt/app/trading-app/.env
     restart: always
     network_mode: host
-    # Runtime options to prevent JNI crashes
-    privileged: false
     security_opt:
       - seccomp:unconfined
     shm_size: 2g
@@ -31,35 +27,10 @@ services:
       DISPLAY: :0
       TZ: ${TIME_ZONE:-America/New_York}
       TIME_ZONE: ${TIME_ZONE:-America/New_York}
-      JAVA_OPTS: "-XX:+UnlockExperimentalVMOptions -XX:+UseContainerSupport"
       # live or paper.
       TRADING_MODE: ${TRADING_MODE:-paper}
-      # yes or no. Automatically accept paper trading account warning dialog.
-      ACCEPT_NON_BROKERAGE_WARNING: ${ACCEPT_NON_BROKERAGE_WARNING:-yes}
-      # yes or no. See https://github.com/IbcAlpha/IBC/blob/master/userguide.md
-      READ_ONLY_API: ${READ_ONLY_API:-no}
-      # 'exit' or 'restart', set to 'restart if you set `AUTO_RESTART_TIME`. See IBC [documentation](https://github.com/IbcAlpha/IBC/blob/master/userguide.md#second-factor-authentication)
-      TWOFA_TIMEOUT_ACTION: ${TWOFA_TIMEOUT_ACTION:-exit}
-      # time to restart IB Gateway, does not require daily 2FA validation. format hh:mm AM/PM. See IBC [documentation](https://github.com/IbcAlpha/IBC/blob/master/userguide.md#ibc-user-guide)
-      AUTO_RESTART_TIME: ${AUTO_RESTART_TIME:-}
-      # Auto-Logoff: at a specified time, TWS shuts down tidily, without restarting
-      AUTO_LOGOFF_TIME: ${AUTO_LOGOFF_TIME:-}
-      # a time (specified in your local timeframe) that is after 01:00 US/Eastern. When
-      # this time is reached on Sundays, IBC tidily closes TWS, and the script then
-      # reloads IBC thus starting a new instance of TWS and initiating the usual full logon.
-      COLD_RESTART_TIME: ${COLD_RESTART_TIME:-}
-      # Settings relate to the corresponding 'Precautions' checkboxes in the API section of the Global Configuration dialog. Accepted values `yes`, `no` if not set, the existing TWS/Gateway configuration is unchanged
-      BYPASS_WARNING: ${BYPASS_WARNING:-yes}
-      # automatically save its settings on a schedule of your choosing. You can specify one or more specific times, ex `SaveTwsSettingsAt=08:00   12:30 17:30`
-      SAVE_TWS_SETTINGS: ${SAVE_TWS_SETTINGS:-Every 30 mins}
-      # support relogin after timeout. See IBC [documentation](https://github.com/IbcAlpha/IBC/blob/master/userguide.md#second-factor-authentication)
-      RELOGIN_AFTER_TWOFA_TIMEOUT: ${RELOGIN_AFTER_TWOFA_TIMEOUT:-no}
-      TWOFA_EXIT_INTERVAL: ${TWOFA_EXIT_INTERVAL:-60}
       IB_USER: ${IB_USER}
       IB_PASSWORD: ${IB_PASSWORD}
       SUPERVISORD_UI_USER: serveradmin
       SUPERVISORD_UI_PASS: serveradmin
       SUPERVISORD_UI_PORT: 9123
-    # volumes:
-      # Uncomment to preserve TWS settings
-      # - ./tws_settings:/home/ibuser/tws_settings

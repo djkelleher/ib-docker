@@ -22,6 +22,7 @@ LABEL description="Interactive Brokers Gateway/TWS Docker Container" \
 ENV LC_ALL=C.UTF-8 \
     LANG=en_US.UTF-8 \
     LANGUAGE=en_US.UTF-8 \
+    DISPLAY=:0 \
     PROGRAM=${PROGRAM} \
     IB_RELEASE=${RELEASE} \
     IBC_PATH=/opt/ibc \
@@ -43,6 +44,7 @@ COPY install.sh /install.sh
 # Copy configuration files
 COPY config/jts.ini ${HOME}/tws_settings/jts.ini
 COPY config/ibc.ini ${IBC_INI}
+COPY config/vmoptions.j2 ${HOME}/vmoptions.j2
 
 # Install system dependencies and IB software
 RUN chmod +x /install.sh && \
@@ -60,7 +62,7 @@ COPY programs/start_ibc.sh /usr/local/bin/start_ibc
 COPY programs/ib_utils.sh /usr/local/lib/ib_utils
 COPY programs/health_check.sh /usr/local/bin/health_check
 # supervisord config
-COPY config/supervisord.conf.j2 ${HOME}/supervisord.conf.j2
+COPY config/supervisord.conf /etc/supervisor/supervisord.conf
 
 # Make all scripts executable
 RUN /bin/bash -c "chmod +x /usr/local/bin/{init_container_settings,start_ibc,start_vnc,start_xvfb,health_check} /usr/local/lib/ib_utils"
@@ -76,7 +78,10 @@ RUN chown -R ibuser:ibuser ${HOME} ${IBC_PATH} && \
     # Create X11 auth file with proper permissions
     touch ${HOME}/.Xauthority && \
     chown ibuser:ibuser ${HOME}/.Xauthority && \
-    chmod 600 ${HOME}/.Xauthority
+    chmod 600 ${HOME}/.Xauthority && \
+# Create supervisor log directory for non-root user and config directory
+    mkdir -p /var/log/supervisor /etc/supervisor/conf.d && \
+    chown -R ibuser:ibuser /var/log/supervisor /etc/supervisor/conf.d /etc/supervisor/supervisord.conf
 
 # Improved health check that works with non-root user
 HEALTHCHECK --interval=15s --timeout=10s --start-period=45s --retries=3 \

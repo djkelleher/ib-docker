@@ -9,9 +9,6 @@ start_vnc() {
 	fi
 	log "Found VNC password (VNC_PWD)."
 	wait_for_x_server
-	# get display used by xvfb
-	DISPLAY=$(cat /tmp/display_info)
-	export DISPLAY
 	# Set up X11 authentication if needed
 	export XAUTHORITY="$HOME/.Xauthority"
 	## start VNC server.

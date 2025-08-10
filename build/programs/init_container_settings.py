@@ -4,8 +4,6 @@ import os
 import re
 from pathlib import Path
 
-from jinja2 import Template
-
 vars_reg = re.compile(r"\$\{([a-zA-Z_][\w]*)(?::-(.*?))?\}")
 
 
@@ -21,18 +19,8 @@ def sub_env_vars(txt: str) -> str:
 def set_java_vmoptions():
     """Configure JVM options for IB Gateway/TWS"""
     program = os.environ["PROGRAM"]
-    ib_release_dir = os.environ["IB_RELEASE_DIR"]
-    vmoptions_file = Path(ib_release_dir) / f"{program}.vmoptions"
-
-    if not vmoptions_file.exists():
-        print(f"Warning: vmoptions file not found at {vmoptions_file}")
-        return
-
-    # Backup original file
-    backup_file = vmoptions_file.with_suffix(".vmoptions.original")
-    if not backup_file.exists():
-        backup_file.write_text(vmoptions_file.read_text())
-        print(f"Backed up original vmoptions to {backup_file}")
+    ib_release_dir = Path(os.environ["IB_RELEASE_DIR"])
+    vmoptions_file = ib_release_dir / f"{program}.vmoptions"
 
     # Auto-detect container memory if JAVA_HEAP_SIZE not set
     java_heap_size = os.getenv("JAVA_HEAP_SIZE")
@@ -82,53 +70,40 @@ def set_java_vmoptions():
     else:
         initial_heap = 768  # Fixed 768MB for larger heaps (IB's default)
 
-    # Write optimized vmoptions
-    vmoptions_content = f"""# Memory settings
--Xmx{java_heap_size}m
--Xms{initial_heap}m
+    template_path = Path.home() / "vmoptions.j2"
+    # Load and render the vmoptions template
+    template_content = template_path.read_text()
+    # Parse custom JVM options from environment if provided
+    custom_opts_env = os.getenv("CUSTOM_JVM_OPTS", "")
+    custom_opts = []
+    if custom_opts_env:
+        custom_opts = [opt.strip() for opt in custom_opts_env.split() if opt.strip()]
 
-# Garbage Collection
--XX:+UseG1GC
--XX:MaxGCPauseMillis=200
--XX:+ParallelRefProcEnabled
+    # Simple string replacement for template variables
+    vmoptions_content = template_content.replace("{{ max_heap }}", java_heap_size)
+    vmoptions_content = vmoptions_content.replace(
+        "{{ initial_heap }}", str(initial_heap)
+    )
 
-# Container support
--XX:+UnlockExperimentalVMOptions
--XX:+UseContainerSupport
--XX:MaxRAMPercentage=75.0
-
-# Performance
--XX:+UseStringDeduplication
--XX:+OptimizeStringConcat
-
-# GUI and stability
--Djava.awt.headless=false
--Dsun.java2d.xrender=false
--Dsun.java2d.pmoffscreen=false
--Dsun.java2d.uiScale=1.0
--Dswing.boldMetal=false
-
-# WebKit/JavaFX stability
--Dcom.sun.webkit.useHTML5MediaPlayer=false
--Dprism.order=sw
--Dprism.verbose=false
-
-# Network
--Djava.net.preferIPv4Stack=true
--Djava.security.egd=file:/dev/./urandom
-
-# Crash prevention
--XX:+ExitOnOutOfMemoryError
--XX:ErrorFile=/tmp/hs_err_pid%p.log
-
-# IB specific
--Dinstaller.uuid=/home/ibuser
--DjtsConfigDir=/home/ibuser/tws_settings
-"""
+    # Handle custom options
+    if custom_opts:
+        custom_section = "# Custom options\n" + "\n".join(custom_opts)
+    else:
+        custom_section = ""
+    vmoptions_content = vmoptions_content.replace(
+        "{% if custom_opts %}\n# Custom options\n{% for opt in custom_opts %}\n{{ opt }}\n{% endfor %}\n{% endif %}",
+        custom_section,
+    )
 
     vmoptions_file.write_text(vmoptions_content)
-    print(f"Updated vmoptions file with optimized settings (heap={java_heap_size}MB)")
+    print(
+        f"Updated vmoptions file with optimized settings (heap={java_heap_size}MB, initial={initial_heap}MB)"
+    )
     print(f"VM Options written to: {vmoptions_file}")
+
+    # Clean up template file after use
+    if template_path.exists():
+        template_path.unlink()
 
 
 def check_container_settings_initialized():
@@ -142,38 +117,7 @@ def check_container_settings_initialized():
     # Configure JVM options once during initialization
     set_java_vmoptions()
 
-    # --- handle supervisord inet_http_server configuration ---
-    configure_supervisord_web_interface()
-
     flag_file.unlink()
-
-
-def configure_supervisord_web_interface():
-    """Configure supervisord using Jinja2 template with environment variables"""
-    supervisord_template_path = Path.home() / "supervisord.conf.j2"
-    if not supervisord_template_path.exists():
-        print("supervisord.conf.j2 template not found, skipping configuration")
-        return
-
-    # Prepare template variables from environment
-    template_vars = {
-        "supervisord_ui_port": os.getenv("SUPERVISORD_UI_PORT"),
-        "supervisord_ui_user": os.getenv("SUPERVISORD_UI_USER", "admin"),
-        "supervisord_ui_pass": os.getenv("SUPERVISORD_UI_PASS", "admin"),
-    }
-    print(
-        f"Configuring supervisord with: UI={bool(template_vars['supervisord_ui_port'])}"
-    )
-
-    # Render template
-    template_content = supervisord_template_path.read_text()
-    template = Template(template_content)
-    rendered_config = template.render(**template_vars)
-
-    # Write rendered config
-    Path("/etc/supervisor/conf.d/supervisord.conf").write_text(rendered_config)
-    supervisord_template_path.unlink()
-    print("supervisord.conf generated from template")
 
 
 if __name__ == "__main__":

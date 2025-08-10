@@ -11,7 +11,6 @@ start_ibc() {
 	else
 		PROGRAM_FLAG=""
 	fi
-	# Use consistent path for both TWS and IB Gateway
 	IB_BASE_DIR="/opt/${PROGRAM}"
 	TWS_SETTINGS_PATH="${HOME}/tws_settings"
 	mkdir -p "$TWS_SETTINGS_PATH"

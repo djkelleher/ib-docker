@@ -1,8 +1,5 @@
 #!/bin/bash
 
-DISPLAY=${DISPLAY:-:0}
-export DISPLAY
-
 log() {
 	#local timestamp
 	timestamp=$(date +"%Y-%m-%d %H:%M:%S")
@@ -35,8 +32,6 @@ start_xvfb() {
 	# Also add localhost variants for better compatibility
 	xauth add "localhost$DISPLAY" . "$(openssl rand -hex 16)" 2>/dev/null || true
 	xauth add "$(hostname)$DISPLAY" . "$(openssl rand -hex 16)" 2>/dev/null || true
-	# Save DISPLAY info for other services
-	echo "$DISPLAY" >/tmp/display_info
 	# Wait a moment for auth setup
 	sleep 2
 	# Start virtual frame buffer with optimized flags
