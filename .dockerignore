@@ -1,14 +1,27 @@
-# Git files
+# Ignore VCS
 .git
 .gitignore
 
-# Documentation
-README.md
-*.md
+# Python cache
+__pycache__/
+*.py[cod]
 
-# Development files
+# Editors
+*.swp
+*.swo
 .vscode/
 .idea/
+
+# Docs & media not needed in build context
+README.md
+.logo.jpg
+
+# Node / misc
+node_modules/
+
+# Env files / secrets
+.env
+.env.*
 
 # Temporary files
 *.tmp
