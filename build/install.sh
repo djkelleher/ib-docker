@@ -56,27 +56,23 @@ else
 fi
 echo "Installing ${PROGRAM}"
 chmod +x /ib.sh
-echo "Finished installing ${PROGRAM}"
 
+# Install Java 17 for both architectures
 if [ "$(uname -m)" = "aarch64" ]; then
-	echo "Installing custom Java release for aarch64."
-	wget -q -O bellsoft.tar.gz "https://download.bell-sw.com/java/11.0.22+12/bellsoft-jre11.0.22+12-linux-aarch64-full.tar.gz"
-	tar -xzf bellsoft.tar.gz
-	export JVM_DIR="jre-11.0.22-full"
-	export JAVA_HOME=/opt/java
-	mv jre-11.0.22-full $JAVA_HOME
-	export PATH=$JAVA_HOME/bin:$PATH
-	sed -i 's/-Djava.ext.dirs="$app_java_home\/lib\/ext:$app_java_home\/jre\/lib\/ext"/--add-modules=ALL-MODULE-PATH/g' "/ib.sh"
-	app_java_home=/opt/java /ib.sh -q -dir ${IB_RELEASE_DIR}
-	rm -f bellsoft.tar.gz
+	echo "Installing Zulu Java 17 for aarch64."
+	ZULU_NAME="zulu17.52.17-ca-jre17.0.12-linux_aarch64"
+	ZULU_FILE="${ZULU_NAME}.tar.gz"
+	ZULU_URL="https://cdn.azul.com/zulu/bin/${ZULU_FILE}"
+	wget -q -O "${ZULU_FILE}" "${ZULU_URL}"
+	tar -xzf "${ZULU_FILE}" -C /usr/local/
+	ln -s "/usr/local/${ZULU_NAME}" /usr/local/zulu17
+	app_java_home=/usr/local/zulu17 /ib.sh -q -dir "${IB_RELEASE_DIR}"
+	rm -f "${ZULU_FILE}"
 else
 	/ib.sh -q -dir ${IB_RELEASE_DIR}
 fi
+echo "Finished installing ${PROGRAM}"
 rm -f /ib.sh
-
-# The vmoptions file will be at a predictable location
-VMOPTIONS_FILE="${IB_RELEASE_DIR}/${PROGRAM}.vmoptions"
-echo "VM options file will be at: $VMOPTIONS_FILE"
 
 # Install IBC
 echo "Installing IBC"
