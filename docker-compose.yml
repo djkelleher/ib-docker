@@ -1,14 +1,14 @@
 services:
-  ib-tws:
+  ib-gateway:
     # ib-gateway or ib-tws. latest or stable.
     build:
       context: ./build
       dockerfile: Dockerfile
       args:
-        PROGRAM: tws
+        PROGRAM: ibgateway
         RELEASE: stable
         ARCH: x64
-    container_name: tws
+    container_name: gateway
     restart: always
     network_mode: host
     security_opt:
