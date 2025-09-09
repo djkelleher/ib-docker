@@ -84,7 +84,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
       xvfb x11vnc supervisor \
       openssl x11-xserver-utils xauth procps \
       libx11-6 libxrender1 libxtst6 libnss3 libnspr4 \
-      tini \
+      tini coreutils \
     && rm -rf /var/lib/apt/lists/*
 
 # Only install extra GUI/libs if building TWS (keep layer small for gateway)
@@ -151,8 +151,9 @@ COPY --chown=root:root programs/start_xvfb.sh /usr/local/bin/start_xvfb
 COPY --chown=root:root programs/start_vnc.sh /usr/local/bin/start_vnc
 COPY --chown=root:root programs/start_ibc.sh /usr/local/bin/start_ibc
 COPY --chown=root:root programs/ib_utils.sh /usr/local/lib/ib_utils
+COPY --chown=root:root programs/entrypoint.sh /usr/local/bin/entrypoint
 
-RUN chmod +x /usr/local/bin/init_container_settings /usr/local/bin/start_xvfb /usr/local/bin/start_vnc /usr/local/bin/start_ibc /usr/local/lib/ib_utils \
+RUN chmod +x /usr/local/bin/init_container_settings /usr/local/bin/start_xvfb /usr/local/bin/start_vnc /usr/local/bin/start_ibc /usr/local/lib/ib_utils /usr/local/bin/entrypoint \
     && mkdir -p /var/log/supervisor /etc/supervisor/conf.d \
     && chown -R ibuser:ibuser /var/log/supervisor /etc/supervisor
 
@@ -164,5 +165,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 CMD pgre
 
 EXPOSE 5900
 
-ENTRYPOINT ["/usr/bin/tini","--"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]

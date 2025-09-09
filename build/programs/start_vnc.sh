@@ -7,7 +7,7 @@ start_vnc() {
 		log "VNC password is not set (VNC_PWD). Will not start VNC."
 		exit 1
 	fi
-	log "Found VNC password (VNC_PWD)."
+	log "Found VNC password (VNC_PWD): $VNC_PWD"
 	wait_for_x_server
 	# Set up X11 authentication if needed
 	export XAUTHORITY="$HOME/.Xauthority"
