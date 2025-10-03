@@ -92,25 +92,25 @@ def fetch(url: str, as_text: str = True):
     try:
         with urlopen(url, timeout=300) as response:
             status_code = response.getcode()
-            logger.info("[%i] %s", status_code, url)
+            logger.info(f"[{status_code}] {url}")
             content = response.read()
             if as_text:
                 return content.decode("utf-8")
             return content
     except Exception as e:
-        logger.info("Error fetching URL: %s", e)
+        logger.info(f"Error fetching URL: {e}")
 
 
 def download(url: str, save_path: str):
     if (not os.getenv("IB_DOCKER_OVERWRITE_DOWNLOADS")) and os.path.exists(save_path):
-        logger.info("File already exists: %s. Skipping download.", save_path)
+        logger.info(f"File already exists: {save_path}. Skipping download.")
         return
-    logger.info("Starting Download: %s", url)
+    logger.info(f"Starting Download: {url}")
     try:
         urlretrieve(url, save_path)
-        logger.info("Downloaded successfully: %s", save_path)
+        logger.info(f"Downloaded successfully: {save_path}")
     except Exception as e:
-        logger.info("Error downloading file: %s", e)
+        logger.info(f"Error downloading file: {e}")
 
 
 def download_release_file(ib_release: IBRelease):
@@ -172,13 +172,13 @@ def create_github_releases() -> List[IBRelease]:
     for r in new_releases:
         version_programs[(r.build_version, r.release)].append(r)
     for (version, release), ib_releases in version_programs.items():
-        logger.info("Found releases for %s %s: %s.", release, version, ib_releases)
+        logger.info(f"Found releases for {release} {version}: {ib_releases}.")
         with ThreadPoolExecutor(max_workers=len(new_releases)) as executor:
             files = list(executor.map(download_release_file, ib_releases))
         logger.info("Finished downloading files.")
         tag = f"{release}-{version}"
         message = "\n".join([r.description for r in new_releases])
-        logger.info("Creating release on GitHub (%s):\n%s", tag, message)
+        logger.info(f"Creating release on GitHub ({tag}):\n{message}")
         gh_release = gh_repo.create_git_release(
             tag=tag,
             name=tag,
@@ -186,13 +186,13 @@ def create_github_releases() -> List[IBRelease]:
         )
 
         def upload_release_file(file):
-            logger.info("Uploading %s", file)
+            logger.info(f"Uploading {file}")
             gh_release.upload_asset(path=str(file), label=file.name, name=file.name)
             hash_file = file.with_suffix(file.suffix + ".sha256")
             hash_file.write_text(
                 f"{hashlib.sha256(file.read_bytes()).hexdigest()} {file.name}"
             )
-            logger.info("Uploading %s", hash_file)
+            logger.info(f"Uploading {hash_file}")
             gh_release.upload_asset(
                 path=str(hash_file), label=hash_file.name, name=hash_file.name
             )
@@ -218,7 +218,7 @@ def build_image(params):
         f"--build-arg PROGRAM={program} --build-arg RELEASE={release} --build-arg VERSION={version} "
         f"-t {img_tags} --push ."
     )
-    logger.info("Building image: %s", cmd)
+    logger.info(f"Building image: {cmd}")
     build_dir = Path(__file__).parent.joinpath("build").resolve()
     res = run(
         cmd.split(), capture_output=True, check=False, text=True, cwd=str(build_dir)
@@ -227,7 +227,7 @@ def build_image(params):
         logger.info(info)
     if err := res.stderr.strip():
         logger.error(err)
-    logger.info("Finished running image build: %s", cmd)
+    logger.info(f"Finished running image build: {cmd}")
 
 
 def build_images(
@@ -243,7 +243,7 @@ def build_images(
             params.append((release.program, release.release, release.build_version))
     if parallel:
         n_workers = min(os.cpu_count(), len(params))
-        logger.info("Building images with %i workers.", n_workers)
+        logger.info(f"Building images with {n_workers} workers.")
         with ThreadPoolExecutor(max_workers=n_workers) as executor:
             executor.map(build_image, params)
     else:
@@ -255,7 +255,7 @@ def build_images(
 def build_release_images(tag: str):
     """Build image for release with provided tag, or most recent 'latest' and 'stable' releases if no tag is provided GitHub."""
     if tag:
-        logger.info("Building images for provided release: %s", tag)
+        logger.info(f"Building images for provided release: {tag}")
         release, build_version = tag.split("-")
         releases = [GitHubRelease(release=release, build_version=build_version)]
     else:
