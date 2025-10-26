@@ -85,7 +85,7 @@ class GitHubRelease:
 @cache
 def get_gh_repo():
     gh = Github(github_token)
-    return gh.get_repo("DankLabDev/ib-docker")
+    return gh.get_repo("djkelleher/ib-docker")
 
 
 def fetch(url: str, as_text: str = True):

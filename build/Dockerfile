@@ -31,7 +31,7 @@ RUN set -eux; \
       wget -q -O /ib.sh "$URL"; \
     else \
       FILE="${PROGRAM}-${RELEASE}-${VERSION}-standalone-linux-x64.sh"; \
-      URL="https://github.com/DankLabDev/ib-docker/releases/download/${RELEASE}-${VERSION}/$FILE"; \
+      URL="https://github.com/djkelleher/ib-docker/releases/download/${RELEASE}-${VERSION}/$FILE"; \
       # download using original filename so the .sha256 file matches
       wget -q -O "/$FILE" "$URL"; \
       wget -q -O "/$FILE.sha256" "$URL.sha256"; \
@@ -74,7 +74,7 @@ LABEL org.opencontainers.image.title="Interactive Brokers ${PROGRAM}" \
       org.opencontainers.image.description="Interactive Brokers ${PROGRAM} (${RELEASE}) with IBC ${IBC_VERSION}" \
       org.opencontainers.image.vendor="DankLabs" \
       org.opencontainers.image.version="${VERSION}" \
-      org.opencontainers.image.source="https://github.com/DankLabDev/ib-docker" \
+      org.opencontainers.image.source="https://github.com/djkelleher/ib-docker" \
       org.opencontainers.image.licenses="MIT"
 
 # Install only runtime packages
@@ -101,7 +101,7 @@ RUN sed -i 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
     && locale-gen en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 LANGUAGE=en_US:en
 
-ENV DISPLAY=:0 \
+ENV DISPLAY=:1 \
     IBC_PATH=/opt/ibc \
     IBC_INI=/opt/ibc/ibc.ini \
     HOME=/home/ibuser \
@@ -125,19 +125,9 @@ COPY --from=builder --chown=ibuser:ibuser /opt/ibc /opt/ibc
 # Copy bundled JRE directory created by installer (empty for gateway if not used but path exists)
 COPY --from=builder --chown=ibuser:ibuser /opt/i4j_jres /opt/i4j_jres
 
-# Fix IBC vmoptions path issue at build time
-# IBC expects vmoptions in a different directory structure than where IB Gateway installs them
-RUN if [ "$PROGRAM" = "ibgateway" ]; then \
-      # TODO make a better solution for this.
-      # Create the directory structure IBC expects \
-      mkdir -p /opt/${PROGRAM}/ibgateway/${RELEASE}; \
-      # Copy ibgateway.vmoptions as tws.vmoptions (IBC sometimes looks for this) \
-      if [ -f "/opt/${PROGRAM}/${RELEASE}/ibgateway.vmoptions" ]; then \
-        cp /opt/${PROGRAM}/${RELEASE}/ibgateway.vmoptions /opt/${PROGRAM}/${RELEASE}/tws.vmoptions; \
-        # Create symlinks in the expected directory structure \
-        ln -sf /opt/${PROGRAM}/${RELEASE}/ibgateway.vmoptions /opt/${PROGRAM}/ibgateway/${RELEASE}/ibgateway.vmoptions; \
-        ln -sf /opt/${PROGRAM}/${RELEASE}/tws.vmoptions /opt/${PROGRAM}/ibgateway/${RELEASE}/tws.vmoptions; \
-      fi; \
+# IBC sometimes expects tws.vmoptions even for gateway
+RUN if [ "$PROGRAM" = "ibgateway" ] && [ -f "$IB_RELEASE_DIR/ibgateway.vmoptions" ]; then \
+      cp "$IB_RELEASE_DIR/ibgateway.vmoptions" "$IB_RELEASE_DIR/tws.vmoptions"; \
     fi \
     && chown -R ibuser:ibuser /opt/${PROGRAM}
 

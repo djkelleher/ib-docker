@@ -4,9 +4,9 @@
   <img height="300" src="./.logo.jpg">
 </p>
 
-[![Daily Release Check](https://github.com/DankLabDev/ib-docker/actions/workflows/release.yml/badge.svg)](https://github.com/DankLabDev/ib-docker/actions/workflows/release.yml)
-[![Gateway Build](https://github.com/DankLabDev/ib-docker/actions/workflows/build_gateway.yml/badge.svg)](https://github.com/DankLabDev/ib-docker/actions/workflows/build_gateway.yml)
-[![TWS Build](https://github.com/DankLabDev/ib-docker/actions/workflows/build_tws.yml/badge.svg)](https://github.com/DankLabDev/ib-docker/actions/workflows/build_tws.yml)
+[![Daily Release Check](https://github.com/djkelleher/ib-docker/actions/workflows/release.yml/badge.svg)](https://github.com/djkelleher/ib-docker/actions/workflows/release.yml)
+[![Gateway Build](https://github.com/djkelleher/ib-docker/actions/workflows/build_gateway.yml/badge.svg)](https://github.com/djkelleher/ib-docker/actions/workflows/build_gateway.yml)
+[![TWS Build](https://github.com/djkelleher/ib-docker/actions/workflows/build_tws.yml/badge.svg)](https://github.com/djkelleher/ib-docker/actions/workflows/build_tws.yml)
 
 Reliable, high-performance Docker images for running Interactive Brokers Gateway and TWS with full automation and robust process management.
 
@@ -18,7 +18,7 @@ VNC_PWD must be set, or VNC will not start. `IB_USER` and `IB_PASSWORD` must be 
 
 ```bash
 # 1. Get the project
-git clone https://github.com/DankLabDev/ib-docker.git
+git clone https://github.com/djkelleher/ib-docker.git
 cd ib-docker
 
 # 2. Configure credentials

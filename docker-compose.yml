@@ -1,6 +1,6 @@
 services:
   ib-gateway:
-    # ib-gateway or ib-tws. latest or stable.
+    image: ib-gateway
     build:
       context: ./build
       dockerfile: Dockerfile
@@ -9,6 +9,26 @@ services:
         RELEASE: stable
         ARCH: x64
     container_name: gateway
+    restart: always
+    network_mode: host
+    environment:
+      # VNC server password. If not defined, then VNC server will NOT start.
+      VNC_PWD: tws
+      VNC_SCREEN_DIMENSION: ${VNC_SCREEN_DIMENSION:-1600x1200x24}
+      # live or paper.
+      TRADING_MODE: ${TRADING_MODE:-paper}
+      IB_USER: ${IB_USER}
+      IB_PASSWORD: ${IB_PASSWORD}
+  ib-tws:
+    image: ib-tws
+    build:
+      context: ./build
+      dockerfile: Dockerfile
+      args:
+        PROGRAM: tws
+        RELEASE: stable
+        ARCH: x64
+    container_name: tws
     restart: always
     network_mode: host
     security_opt:
@@ -22,9 +42,6 @@ services:
       # VNC server password. If not defined, then VNC server will NOT start.
       VNC_PWD: tws
       VNC_SCREEN_DIMENSION: ${VNC_SCREEN_DIMENSION:-1600x1200x24}
-      DISPLAY: :0
-      TZ: ${TIME_ZONE:-America/New_York}
-      TIME_ZONE: ${TIME_ZONE:-America/New_York}
       # live or paper.
       TRADING_MODE: ${TRADING_MODE:-paper}
       IB_USER: ${IB_USER}

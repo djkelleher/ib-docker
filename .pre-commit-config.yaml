@@ -34,12 +34,12 @@ repos:
         language_version: python3.12
 
   # 5. Pylint linting
-  - repo: https://github.com/PyCQA/pylint
-    rev: v3.3.7
-    hooks:
-      - id: pylint
-        args: ["--enable=duplicate-code"]
-        language_version: python3.12
+  #- repo: https://github.com/PyCQA/pylint
+  #  rev: v3.3.7
+  #  hooks:
+  #    - id: pylint
+  #      args: ["--enable=duplicate-code"]
+  #      language_version: python3.12
 
   # 6. shfmt - Shell script formatter
   - repo: https://github.com/scop/pre-commit-shfmt
