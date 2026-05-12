@@ -925,6 +925,17 @@ def test_dockerfile_validates_build_args_before_downloads() -> None:
     assert "IB installer artifacts are only supported with ARCH=x64" in content
 
 
+def test_dockerfile_verifies_ibc_start_script_during_build() -> None:
+    """Builds should fail if the IBC archive does not contain the runtime entrypoint."""
+    content = DOCKERFILE_PATH.read_text()
+
+    assert 'find "$IBC_PATH" -type f -name "*.sh" -exec chmod u+x {} +' in content
+    assert 'test -x "$IBC_PATH/scripts/ibcstart.sh"' in content
+    assert (
+        "chmod -R u+x ${IBC_PATH}/*.sh ${IBC_PATH}/scripts/*.sh || true" not in content
+    )
+
+
 def test_build_context_ignores_generated_python_artifacts() -> None:
     """The build context should not include local Python cache artifacts."""
     ignored_patterns = set(BUILD_DOCKERIGNORE_PATH.read_text().splitlines())

@@ -83,7 +83,8 @@ RUN set -eux; \
 RUN set -eux; \
     wget -q -O /tmp/IBC.zip "https://github.com/IbcAlpha/IBC/releases/download/${IBC_VERSION}/IBCLinux-${IBC_VERSION}.zip"; \
     unzip /tmp/IBC.zip -d "$IBC_PATH"; \
-    chmod -R u+x ${IBC_PATH}/*.sh ${IBC_PATH}/scripts/*.sh || true; \
+    find "$IBC_PATH" -type f -name "*.sh" -exec chmod u+x {} +; \
+    test -x "$IBC_PATH/scripts/ibcstart.sh"; \
     rm -f /tmp/IBC.zip
 
 # Prune unneeded files (logs, docs caches) to save space
