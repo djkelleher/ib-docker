@@ -15,6 +15,10 @@ RUN set -eu; \
       echo "VERSION must be NULL or a packaged IB version" >&2; \
       exit 1; \
     fi; \
+    if [ "$VERSION" != "NULL" ] && ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'; then \
+      echo "VERSION must look like 10.45.1e or be NULL: $VERSION" >&2; \
+      exit 1; \
+    fi; \
     if [ -z "$IBC_VERSION" ]; then \
       echo "IBC_VERSION must not be empty" >&2; \
       exit 1; \
@@ -110,6 +114,10 @@ RUN set -eu; \
     case "$RELEASE" in stable|latest|beta) ;; *) echo "Unsupported RELEASE: $RELEASE" >&2; exit 1 ;; esac; \
     if [ -z "$VERSION" ]; then \
       echo "VERSION must be NULL or a packaged IB version" >&2; \
+      exit 1; \
+    fi; \
+    if [ "$VERSION" != "NULL" ] && ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'; then \
+      echo "VERSION must look like 10.45.1e or be NULL: $VERSION" >&2; \
       exit 1; \
     fi; \
     if [ -z "$IBC_VERSION" ]; then \

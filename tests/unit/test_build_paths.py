@@ -1217,6 +1217,8 @@ def test_dockerfile_validates_build_args_before_downloads() -> None:
     assert "Unsupported RELEASE" in content
     assert "IB installer artifacts are only supported with ARCH=x64" in content
     assert "VERSION must be NULL or a packaged IB version" in content
+    assert "VERSION must look like 10.45.1e or be NULL" in content
+    assert "'^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'" in content
     assert "IBC_VERSION must not be empty" in content
 
 
