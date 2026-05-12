@@ -1011,6 +1011,8 @@ def test_dockerfile_healthcheck_uses_supervisor_service_status() -> None:
     content = DOCKERFILE_PATH.read_text()
 
     assert "supervisorctl status xvfb ibc" in content
+    assert "grep -Eq '^xvfb[[:space:]]+RUNNING'" in content
+    assert "grep -Eq '^ibc[[:space:]]+RUNNING'" in content
     assert "pgrep -f supervisord" not in content
 
 
