@@ -19,7 +19,7 @@ start_xvfb() {
 	# Use DISPLAY environment variable or default to :1
 	DISPLAY="${DISPLAY:-:1}"
 	export DISPLAY
-	ensure_env HOME
+	ensure_absolute_path HOME
 
 	log "Starting Xvfb server. Using display: $DISPLAY"
 	display_no="$(x_display_number "$DISPLAY")"

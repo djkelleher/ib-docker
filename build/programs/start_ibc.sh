@@ -13,16 +13,17 @@ start_ibc() {
 	TWOFA_TIMEOUT_ACTION="$(ib_twofa_timeout_action)"
 	ensure_env IB_RELEASE
 	ensure_env IBC_VERSION
-	ensure_env IBC_PATH
-	ensure_env IBC_INI
+	ensure_absolute_path IBC_PATH
+	ensure_absolute_path IBC_INI
 	if [ "$app_name" = "ibgateway" ]; then
 		ibc_args+=("-g")
 	fi
 	IB_RELEASE_DIR="$(resolve_ib_release_dir)"
 	IB_BASE_DIR="$(resolve_ibc_tws_path "$IB_RELEASE_DIR")"
-	ensure_env HOME
+	ensure_absolute_path HOME
 	home_dir="$HOME"
 	TWS_SETTINGS_PATH="${TWS_SETTINGS_PATH:-${home_dir}/tws_settings}"
+	ensure_absolute_path TWS_SETTINGS_PATH
 	mkdir -p "$TWS_SETTINGS_PATH"
 
 	# Set up X11 environment for IBC

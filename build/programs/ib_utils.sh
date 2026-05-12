@@ -14,6 +14,22 @@ ensure_env() {
 	fi
 }
 
+ensure_absolute_path() {
+	local name="$1"
+	local value
+
+	ensure_env "$name"
+	value="${!name}"
+
+	case "$value" in
+	/*) ;;
+	*)
+		log "ERROR: ${name} must be an absolute path: ${value}"
+		exit 1
+		;;
+	esac
+}
+
 ib_product_executable() {
 	case "${PROGRAM:-}" in
 	ibgateway)
@@ -162,7 +178,7 @@ wait_for_x_server() {
 	export DISPLAY
 
 	log "Waiting for X server on display ${DISPLAY}..."
-	ensure_env HOME
+	ensure_absolute_path HOME
 
 	# Set up X11 environment
 	XAUTHORITY="$HOME/.Xauthority"

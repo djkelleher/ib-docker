@@ -24,10 +24,15 @@ def require_env(name: str) -> str:
     return value
 
 
+def require_absolute_path(path: Path, label: str) -> None:
+    """Fail with a clear message when a required runtime path is relative."""
+    if not path.is_absolute():
+        raise RuntimeError(f"{label} must be an absolute path: {path}")
+
+
 def require_directory(path: Path, label: str) -> None:
     """Fail with a clear message when a required runtime directory is missing."""
-    if not path.is_absolute():
-        raise RuntimeError(f"{label} directory must be an absolute path: {path}")
+    require_absolute_path(path, f"{label} directory")
     if not path.is_dir():
         raise RuntimeError(f"{label} directory does not exist: {path}")
 
@@ -51,7 +56,9 @@ def render_config_template(
     fallback_template_path: Path | None = None,
 ) -> None:
     """Render an environment-expanded config from a persistent template."""
+    require_absolute_path(output_path, f"{label} output")
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    template_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         template_content = template_path.read_text()
@@ -186,6 +193,9 @@ def validate_runtime_environment() -> None:
     program = require_env("PROGRAM")
     vmoptions_names(program)
     require_directory(Path(require_env("IB_RELEASE_DIR")), "IB release")
+    require_absolute_path(Path(require_env("IBC_INI")), "IBC_INI")
+    require_absolute_path(Path(require_env("TWS_SETTINGS_PATH")), "TWS_SETTINGS_PATH")
+    require_directory(Path(require_env("HOME")), "HOME")
 
 
 def render_vmoptions(

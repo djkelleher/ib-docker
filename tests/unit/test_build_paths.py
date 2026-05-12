@@ -112,6 +112,14 @@ def test_python_required_directory_rejects_relative_paths(
         init_settings.require_directory(Path("opt/tws/stable"), "IB release")
 
 
+def test_python_absolute_path_validation_rejects_relative_paths(
+    init_settings: ModuleType,
+) -> None:
+    """Python startup config should validate path-like env values consistently."""
+    with pytest.raises(RuntimeError, match="IBC_INI must be an absolute path"):
+        init_settings.require_absolute_path(Path("ibc.ini"), "IBC_INI")
+
+
 def test_python_initializer_cli_reports_errors_without_traceback() -> None:
     """The runtime config command should print actionable errors without tracebacks."""
     result = subprocess.run(
@@ -232,6 +240,20 @@ def test_ensure_env_fails_with_clear_error() -> None:
 
     assert result.returncode == 1
     assert "Required environment variable IB_RELEASE is not set" in result.stdout
+
+
+def test_ensure_absolute_path_rejects_relative_values() -> None:
+    """Runtime paths passed across scripts should not depend on cwd."""
+    result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        IBC_PATH=opt/ibc
+        ensure_absolute_path IBC_PATH
+        """
+    )
+
+    assert result.returncode == 1
+    assert "IBC_PATH must be an absolute path: opt/ibc" in result.stdout
 
 
 def test_wait_for_x_server_requires_home_before_xauth_setup() -> None:
@@ -361,7 +383,7 @@ def test_xvfb_cleanup_is_display_specific() -> None:
     """Xvfb startup should not kill unrelated Xvfb processes on other displays."""
     content = START_XVFB_PATH.read_text()
 
-    assert "ensure_env HOME" in content
+    assert "ensure_absolute_path HOME" in content
     assert 'xvfb_pattern="$(x_display_process_pattern Xvfb "$DISPLAY")"' in content
     assert 'pkill -9 -f "$xvfb_pattern"' in content
     assert 'pkill -9 -f "Xvfb.*${DISPLAY}"' not in content
@@ -441,6 +463,16 @@ def test_vnc_password_optional_under_strict_shell_mode() -> None:
     content = START_VNC_PATH.read_text()
 
     assert "if [[ -z ${VNC_PWD:-} ]]; then" in content
+
+
+def test_ibc_startup_requires_absolute_runtime_paths() -> None:
+    """IBC startup should validate paths before passing them to IBC."""
+    content = START_IBC_PATH.read_text()
+
+    assert "ensure_absolute_path IBC_PATH" in content
+    assert "ensure_absolute_path IBC_INI" in content
+    assert "ensure_absolute_path HOME" in content
+    assert "ensure_absolute_path TWS_SETTINGS_PATH" in content
 
 
 def test_gateway_vmoptions_updates_primary_and_compatibility_files(
@@ -558,6 +590,28 @@ def test_main_rejects_missing_release_dir_before_rendering_configs(
     assert jts_ini.read_text() == "TimeZone=old\n"
 
 
+def test_main_rejects_relative_config_paths_before_rendering(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Relative config paths should not be expanded under an implicit cwd."""
+    home = tmp_path / "home" / "ibuser"
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    home.mkdir(parents=True)
+    release_dir.mkdir(parents=True)
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "tws")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("IBC_INI", "ibc.ini")
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(home / "tws_settings"))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+
+    with pytest.raises(RuntimeError, match="IBC_INI must be an absolute path"):
+        init_settings.main()
+
+    assert not (tmp_path / "ibc.ini").exists()
+
+
 def test_vmoptions_paths_rejects_unsupported_program(
     init_settings: ModuleType, tmp_path: Path
 ) -> None:
@@ -617,6 +671,22 @@ def test_render_config_template_bootstraps_existing_placeholder_config(
     """Existing placeholder configs should become templates if no template exists yet."""
     config_path = tmp_path / "ibc.ini"
     template_path = config_path.with_suffix(".ini.template")
+    config_path.write_text("IbLoginId=${IB_USER}\n")
+    monkeypatch.setenv("IB_USER", "paper-user")
+
+    init_settings.render_config_template(template_path, config_path, "ibc.ini")
+
+    assert config_path.read_text() == "IbLoginId=paper-user\n"
+    assert template_path.read_text() == "IbLoginId=${IB_USER}\n"
+
+
+def test_render_config_template_creates_separate_template_parent(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Template bootstrapping should not assume template and output share a parent."""
+    template_path = tmp_path / "templates" / "ibc.ini.template"
+    config_path = tmp_path / "runtime" / "ibc.ini"
+    config_path.parent.mkdir()
     config_path.write_text("IbLoginId=${IB_USER}\n")
     monkeypatch.setenv("IB_USER", "paper-user")
 
