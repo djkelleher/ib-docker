@@ -979,6 +979,28 @@ def test_render_config_template_bootstraps_existing_placeholder_config(
     assert template_path.read_text() == "IbLoginId=${IB_USER}\n"
 
 
+def test_render_config_template_preserves_existing_expanded_custom_config(
+    init_settings: ModuleType, tmp_path: Path
+) -> None:
+    """Fallback templates should not clobber an existing custom config file."""
+    config_path = tmp_path / "custom" / "ibc.ini"
+    fallback_template_path = tmp_path / "defaults" / "ibc.ini.template"
+    config_path.parent.mkdir()
+    fallback_template_path.parent.mkdir()
+    config_path.write_text("IbLoginId=custom-user\n")
+    fallback_template_path.write_text("IbLoginId=${IB_USER}\n")
+
+    init_settings.render_config_template(
+        config_path.with_suffix(".ini.template"),
+        config_path,
+        "ibc.ini",
+        fallback_template_path,
+    )
+
+    assert config_path.read_text() == "IbLoginId=custom-user\n"
+    assert not config_path.with_suffix(".ini.template").exists()
+
+
 def test_render_config_template_creates_separate_template_parent(
     init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

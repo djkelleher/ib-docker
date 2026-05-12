@@ -81,17 +81,17 @@ def render_config_template(
     try:
         template_content = template_path.read_text()
     except FileNotFoundError:
-        if fallback_template_path is not None and fallback_template_path.exists():
+        try:
+            current_content = output_path.read_text()
+        except FileNotFoundError:
+            if fallback_template_path is None or not fallback_template_path.exists():
+                print(f"{label} template not found at {template_path}; skipping")
+                return
+
             template_content = fallback_template_path.read_text()
             template_path.write_text(template_content)
             output_path.write_text(sub_env_vars(template_content))
             print(f"Rendered {label} from {fallback_template_path} -> {output_path}")
-            return
-
-        try:
-            current_content = output_path.read_text()
-        except FileNotFoundError:
-            print(f"{label} template not found at {template_path}; skipping")
             return
 
         if "${" not in current_content:
