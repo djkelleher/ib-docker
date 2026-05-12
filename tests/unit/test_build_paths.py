@@ -1579,10 +1579,8 @@ def test_ci_build_tags_use_dockerhub_namespace() -> None:
     assert "def docker_image_repository(program: str) -> str:" in content
     assert 'return "ib-gateway"' in content
     assert 'return "ib-tws"' in content
-    assert (
-        'image_name = f"{dockerhub_username}/{docker_image_repository(program)}"'
-        in content
-    )
+    assert "image_repository = docker_image_repository(program)" in content
+    assert 'image_name = f"{dockerhub_username}/{image_repository}"' in content
 
 
 def test_ci_build_validates_release_channel_and_product_before_docker() -> None:
@@ -1595,7 +1593,78 @@ def test_ci_build_validates_release_channel_and_product_before_docker() -> None:
     )
     assert "Invalid IB release channel from {source}: {release}" in content
     assert 'release = parse_release_channel(release, "Docker image build")' in content
+    assert "image_repository = docker_image_repository(program)" in content
+    assert "platforms = docker_platforms(program)" in content
+    assert content.index(
+        "image_repository = docker_image_repository(program)"
+    ) < content.index('dockerhub_username = require_env("DOCKERHUB_USERNAME")')
     assert 'raise ValueError(f"Unsupported PROGRAM: {program}")' in content
+
+
+def test_ci_build_image_rejects_bad_program_before_secret_lookup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Invalid product builds should not be hidden by missing DockerHub secrets."""
+    ci_module = load_ci_module(monkeypatch)
+    monkeypatch.delenv("DOCKERHUB_USERNAME", raising=False)
+
+    with pytest.raises(ValueError, match="Unsupported PROGRAM: desktop"):
+        ci_module.build_image(("desktop", "stable", "10.45.1e"))
+
+
+def test_ci_build_image_uses_argv_and_expected_tags(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Manual CI builds should pass exact buildx argv without shell splitting."""
+    ci_module = load_ci_module(monkeypatch)
+    captured: dict[str, object] = {}
+
+    def fake_run(
+        cmd: list[str],
+        capture_output: bool,
+        check: bool,
+        text: bool,
+        cwd: str,
+    ) -> object:
+        captured["cmd"] = cmd
+        captured["capture_output"] = capture_output
+        captured["check"] = check
+        captured["text"] = text
+        captured["cwd"] = cwd
+        return ci_module.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setenv("DOCKERHUB_USERNAME", "demo")
+    monkeypatch.setattr(ci_module, "run", fake_run)
+
+    ci_module.build_image(("ibgateway", "latest", "10.45.1e"))
+
+    assert captured["cmd"] == [
+        "docker",
+        "buildx",
+        "build",
+        "--platform",
+        "linux/amd64,linux/arm64",
+        "--build-arg",
+        "PROGRAM=ibgateway",
+        "--build-arg",
+        "RELEASE=latest",
+        "--build-arg",
+        "VERSION=10.45.1e",
+        "-t",
+        "demo/ib-gateway:latest",
+        "-t",
+        "demo/ib-gateway:10.45.1e",
+        "-t",
+        "demo/ib-gateway:10.45",
+        "-t",
+        "demo/ib-gateway:10",
+        "--push",
+        ".",
+    ]
+    assert captured["capture_output"] is True
+    assert captured["check"] is False
+    assert captured["text"] is True
+    assert captured["cwd"] == str(REPO_ROOT / "build")
 
 
 def test_ci_docker_tags_do_not_give_beta_broad_aliases() -> None:

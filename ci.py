@@ -362,9 +362,10 @@ def create_github_releases() -> list[IBRelease]:
 def build_image(params: tuple[str, str, str]) -> None:
     program, release, version = params
     tags = docker_tags(release, version)
-    dockerhub_username = require_env("DOCKERHUB_USERNAME")
-    image_name = f"{dockerhub_username}/{docker_image_repository(program)}"
+    image_repository = docker_image_repository(program)
     platforms = docker_platforms(program)
+    dockerhub_username = require_env("DOCKERHUB_USERNAME")
+    image_name = f"{dockerhub_username}/{image_repository}"
 
     cmd = [
         "docker",
