@@ -5,6 +5,36 @@ log() {
 	echo "$timestamp  $1"
 }
 
+resolve_ib_release_dir() {
+	local release_dir="${IB_RELEASE_DIR:-}"
+
+	if [ -z "$release_dir" ]; then
+		release_dir="/opt/${PROGRAM}/${IB_RELEASE}"
+	fi
+
+	if [ ! -d "$release_dir/jars" ]; then
+		log "ERROR: IB release directory is invalid: ${release_dir}"
+		log "Expected to find jars under ${release_dir}/jars"
+		exit 1
+	fi
+
+	printf '%s\n' "$release_dir"
+}
+
+resolve_ibc_tws_path() {
+	local release_dir="$1"
+	local product_dir
+
+	product_dir="$(dirname "$release_dir")"
+
+	if [ "$PROGRAM" = "ibgateway" ] && [ "$(basename "$product_dir")" = "ibgateway" ]; then
+		# IBC appends /ibgateway/<version> for Gateway, but only /<version> for TWS.
+		dirname "$product_dir"
+	else
+		printf '%s\n' "$product_dir"
+	fi
+}
+
 wait_for_x_server() {
 	log "Waiting for X server on display ${DISPLAY}..."
 

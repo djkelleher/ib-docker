@@ -3,15 +3,13 @@
 source /usr/local/lib/ib_utils
 
 start_ibc() {
-	# use arg -g or -gateway to start gateway.
-	# extract major version from desktop file.
-	#major_v=$(ls $IB_PATH/*.desktop | sed -E 's/[^0-9]+//g')
 	if [ "$PROGRAM" = "ibgateway" ]; then
 		PROGRAM_FLAG="-g"
 	else
 		PROGRAM_FLAG=""
 	fi
-	IB_BASE_DIR="/opt/${PROGRAM}"
+	IB_RELEASE_DIR="$(resolve_ib_release_dir)"
+	IB_BASE_DIR="$(resolve_ibc_tws_path "$IB_RELEASE_DIR")"
 	TWS_SETTINGS_PATH="${HOME}/tws_settings"
 	mkdir -p "$TWS_SETTINGS_PATH"
 
@@ -23,6 +21,7 @@ start_ibc() {
 	echo ".>		Version: ${IB_RELEASE}"
 	echo ".>		IBC version: ${IBC_VERSION}"
 	echo ".>		program: ${PROGRAM}"
+	echo ".>		ib-release-dir: ${IB_RELEASE_DIR}"
 	echo ".>		tws-path: ${IB_BASE_DIR}"
 	echo ".>		ibc-path: ${IBC_PATH}"
 	echo ".>		ibc-init: ${IBC_INI}"
