@@ -1238,6 +1238,7 @@ def test_ci_validates_release_tags_before_building() -> None:
     content = CI_PATH.read_text()
 
     assert "RELEASE_TAG_RE = re.compile" in content
+    assert "latest|stable|beta" in content
     assert "def parse_release_tag(tag_name: str) -> GitHubRelease:" in content
     assert 'raise ValueError(f"Invalid release tag: {tag_name}")' in content
     assert (

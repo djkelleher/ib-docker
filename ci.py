@@ -23,7 +23,9 @@ logging.basicConfig(
 logger = logging.getLogger("CI")
 
 downloads_dir = Path(__file__).parent / "downloads"
-RELEASE_TAG_RE = re.compile(r"^(latest|stable)-([0-9]+[.][0-9]+[.][0-9]+[a-z]?)$")
+ReleaseChannel = Literal["latest", "stable", "beta"]
+ScheduledReleaseChannel = Literal["latest", "stable"]
+RELEASE_TAG_RE = re.compile(r"^(latest|stable|beta)-([0-9]+[.][0-9]+[.][0-9]+[a-z]?)$")
 
 
 def require_env(name: str) -> str:
@@ -36,7 +38,9 @@ def require_env(name: str) -> str:
 
 class IBRelease:
     def __init__(
-        self, release: Literal["latest", "stable"], program: Literal["ibgateway", "tws"]
+        self,
+        release: ScheduledReleaseChannel,
+        program: Literal["ibgateway", "tws"],
     ) -> None:
         self.release = release
         self.program = program
@@ -88,7 +92,7 @@ class IBRelease:
 
 @dataclass
 class GitHubRelease:
-    release: Literal["latest", "stable"]
+    release: ReleaseChannel
     build_version: str
 
 
