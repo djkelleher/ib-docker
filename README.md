@@ -89,7 +89,7 @@ services:
     environment:
       TRADING_MODE: paper
 ```
-**Access:** `localhost:4001` (paper: `localhost:4002`)
+**Access:** `localhost:4002` for paper trading or `localhost:4001` for live trading.
 
 ### Bridge Networking (Isolated)
 ```yaml

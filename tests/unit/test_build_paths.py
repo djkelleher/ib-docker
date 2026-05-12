@@ -20,6 +20,7 @@ VMOPTIONS_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "vmoptions.j2"
 SUPERVISORD_CONF_PATH = REPO_ROOT / "build" / "config" / "supervisord.conf"
 DOCKER_COMPOSE_PATH = REPO_ROOT / "docker-compose.yml"
 IBC_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "ibc.ini"
+README_PATH = REPO_ROOT / "README.md"
 
 
 def load_init_settings() -> ModuleType:
@@ -1145,3 +1146,12 @@ def test_compose_passes_env_file_to_runtime_services() -> None:
 
     assert content.count("env_file:") == 2
     assert content.count("- .env") == 2
+
+
+def test_readme_gateway_access_ports_match_trading_modes() -> None:
+    """README should not point paper users at the live Gateway API port."""
+    content = README_PATH.read_text()
+
+    assert "`localhost:4002` for paper trading" in content
+    assert "`localhost:4001` for live trading" in content
+    assert "`localhost:4001` (paper:" not in content
