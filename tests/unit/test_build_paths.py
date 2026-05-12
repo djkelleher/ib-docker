@@ -83,6 +83,16 @@ def test_env_substitution_uses_defaults_for_empty_values(
     assert rendered == "TradingMode=paper\nFIX=no\nIbLoginId=\n"
 
 
+def test_python_required_env_fails_with_clear_error(
+    init_settings: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Python startup config should not fail with a raw KeyError."""
+    monkeypatch.delenv("IBC_INI", raising=False)
+
+    with pytest.raises(RuntimeError, match="Required environment variable IBC_INI"):
+        init_settings.require_env("IBC_INI")
+
+
 def test_gateway_ibc_path_resolves_to_parent_expected_by_ibc(tmp_path: Path) -> None:
     """Gateway IBC startup should find /opt/ibgateway/<release> without fallback."""
     release_dir = tmp_path / "opt" / "ibgateway" / "stable"

@@ -15,6 +15,14 @@ CUSTOM_OPTS_BLOCK = """{% if custom_opts %}
 MIN_AUTO_HEAP_MB = 256
 
 
+def require_env(name: str) -> str:
+    """Return a required environment value or fail with a clear message."""
+    value = os.environ.get(name)
+    if not value:
+        raise RuntimeError(f"Required environment variable {name} is not set")
+    return value
+
+
 def sub_env_vars(txt: str) -> str:
     def replace_match(match: re.Match[str]) -> str:
         var_name = match.group(1)
@@ -187,9 +195,9 @@ def render_vmoptions(
 
 def set_java_vmoptions() -> None:
     """Configure JVM options for IB Gateway/TWS with robust cgroup memory detection."""
-    program = os.environ["PROGRAM"]
-    ib_release_dir = Path(os.environ["IB_RELEASE_DIR"])
-    tws_settings_path = Path(os.environ["TWS_SETTINGS_PATH"])
+    program = require_env("PROGRAM")
+    ib_release_dir = Path(require_env("IB_RELEASE_DIR"))
+    tws_settings_path = Path(require_env("TWS_SETTINGS_PATH"))
     java_heap_size = calculate_java_heap_size()
     initial_heap = calculate_initial_heap_size(java_heap_size)
 
@@ -216,7 +224,7 @@ def set_java_vmoptions() -> None:
 
 
 def main() -> None:
-    ibc_ini_path = Path(os.environ["IBC_INI"])
+    ibc_ini_path = Path(require_env("IBC_INI"))
     default_ibc_dir = Path(os.environ.get("IBC_PATH", str(ibc_ini_path.parent)))
     default_ibc_template_path = default_ibc_dir / "ibc.ini.template"
     render_config_template(
@@ -226,7 +234,7 @@ def main() -> None:
         default_ibc_template_path,
     )
 
-    tws_settings_path = Path(os.environ["TWS_SETTINGS_PATH"])
+    tws_settings_path = Path(require_env("TWS_SETTINGS_PATH"))
     jts_ini_path = tws_settings_path / "jts.ini"
     default_jts_template_path = Path.home() / "tws_settings" / "jts.ini.template"
     render_config_template(
