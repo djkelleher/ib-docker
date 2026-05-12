@@ -2,6 +2,7 @@
 
 import os
 import re
+import shlex
 from pathlib import Path
 
 VARS_REG = re.compile(r"\$\{([a-zA-Z_][\w]*)(?::-(.*?))?\}")
@@ -20,6 +21,28 @@ def sub_env_vars(txt: str) -> str:
         return os.getenv(var_name, default)
 
     return VARS_REG.sub(replace_match, txt)
+
+
+def render_config_template(template_path: Path, output_path: Path, label: str) -> None:
+    """Render an environment-expanded config from a persistent template."""
+    try:
+        template_content = template_path.read_text()
+    except FileNotFoundError:
+        try:
+            current_content = output_path.read_text()
+        except FileNotFoundError:
+            print(f"{label} template not found at {template_path}; skipping")
+            return
+
+        if "${" not in current_content:
+            print(f"{label} template not found and existing config is already expanded")
+            return
+
+        template_content = current_content
+        template_path.write_text(template_content)
+
+    output_path.write_text(sub_env_vars(template_content))
+    print(f"Rendered {label} from {template_path} -> {output_path}")
 
 
 def detect_memory_mb() -> int | None:
@@ -48,11 +71,37 @@ def detect_memory_mb() -> int | None:
     return None
 
 
+def parse_memory_mb(value: str) -> int:
+    """Parse a memory value as megabytes, supporting m and g suffixes."""
+    normalized = value.strip().lower()
+    if normalized.endswith("m"):
+        multiplier = 1
+        number = normalized[:-1]
+    elif normalized.endswith("g"):
+        multiplier = 1024
+        number = normalized[:-1]
+    else:
+        multiplier = 1
+        number = normalized
+
+    try:
+        memory_mb = int(number) * multiplier
+    except ValueError as exc:
+        raise ValueError(
+            f"JAVA_HEAP_SIZE must be a whole number of MB, or use an m/g suffix: {value}"
+        ) from exc
+
+    if memory_mb <= 0:
+        raise ValueError(f"JAVA_HEAP_SIZE must be greater than zero: {value}")
+
+    return memory_mb
+
+
 def calculate_java_heap_size() -> str:
     """Return the configured or memory-derived maximum Java heap size."""
     java_heap_size = os.getenv("JAVA_HEAP_SIZE")
     if java_heap_size:
-        return java_heap_size
+        return str(parse_memory_mb(java_heap_size))
 
     mem_mb = detect_memory_mb()
     if mem_mb is None:
@@ -74,7 +123,7 @@ def calculate_java_heap_size() -> str:
 
 def calculate_initial_heap_size(java_heap_size: str) -> int:
     """Return the initial Java heap size for a maximum heap size."""
-    heap_size_int = int(java_heap_size)
+    heap_size_int = parse_memory_mb(java_heap_size)
     if heap_size_int <= 1024:
         return max(128, heap_size_int // 2)
     if heap_size_int <= 2048:
@@ -118,7 +167,7 @@ def set_java_vmoptions() -> None:
     if template_path.exists():
         template_content = template_path.read_text()
         custom_opts_env = os.getenv("CUSTOM_JVM_OPTS", "")
-        custom_opts = [opt.strip() for opt in custom_opts_env.split() if opt.strip()]
+        custom_opts = shlex.split(custom_opts_env)
         vmoptions_content = render_vmoptions(
             template_content, java_heap_size, initial_heap, custom_opts
         )
@@ -132,27 +181,17 @@ def set_java_vmoptions() -> None:
         print("VM options template not found; skipping vmoptions generation")
 
 
-def expand_ini_file(path: Path, label: str) -> None:
-    """Expand environment variables in an ini file if it exists."""
-    try:
-        content = path.read_text()
-    except FileNotFoundError:
-        print(f"{label} not found at {path}; skipping env expansion")
-        return
-
-    if "${" in content:
-        print(f"Expanding environment variables in {label}")
-        path.write_text(sub_env_vars(content))
-    else:
-        print(f"{label} has no variables to expand; skipping")
-
-
 def main() -> None:
-    ibc_ini_path = Path(os.environ["IBC_PATH"]) / "ibc.ini"
-    expand_ini_file(ibc_ini_path, "ibc.ini")
+    ibc_ini_path = Path(os.environ["IBC_INI"])
+    render_config_template(
+        ibc_ini_path.with_suffix(".ini.template"), ibc_ini_path, "ibc.ini"
+    )
 
-    jts_ini_path = Path.home() / "tws_settings" / "jts.ini"
-    expand_ini_file(jts_ini_path, "jts.ini")
+    tws_settings_path = Path(os.environ["TWS_SETTINGS_PATH"])
+    jts_ini_path = tws_settings_path / "jts.ini"
+    render_config_template(
+        jts_ini_path.with_suffix(".ini.template"), jts_ini_path, "jts.ini"
+    )
 
     set_java_vmoptions()
 

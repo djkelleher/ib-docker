@@ -133,7 +133,9 @@ RUN if [ "$PROGRAM" = "ibgateway" ] && [ -f "$IB_RELEASE_DIR/ibgateway.vmoptions
 
 # Copy configuration & scripts
 COPY --chown=ibuser:ibuser config/jts.ini ${HOME}/tws_settings/jts.ini
+COPY --chown=ibuser:ibuser config/jts.ini ${HOME}/tws_settings/jts.ini.template
 COPY --chown=ibuser:ibuser config/ibc.ini ${IBC_INI}
+COPY --chown=ibuser:ibuser config/ibc.ini ${IBC_INI}.template
 COPY --chown=ibuser:ibuser config/vmoptions.j2 ${HOME}/vmoptions.j2
 COPY --chown=root:root config/supervisord.conf /etc/supervisor/supervisord.conf
 COPY --chown=root:root programs/init_container_settings.py /usr/local/bin/init_container_settings

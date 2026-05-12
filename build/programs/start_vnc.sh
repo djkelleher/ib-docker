@@ -4,10 +4,10 @@ source /usr/local/lib/ib_utils
 
 start_vnc() {
 	if [[ -z $VNC_PWD ]]; then
-		log "VNC password is not set (VNC_PWD). Will not start VNC."
-		exit 1
+		log "VNC password is not set (VNC_PWD). VNC is disabled."
+		exec sleep infinity
 	fi
-	log "Found VNC password (VNC_PWD): $VNC_PWD"
+	log "Found VNC password (VNC_PWD). Starting VNC."
 	wait_for_x_server
 	# Set up X11 authentication if needed
 	export XAUTHORITY="$HOME/.Xauthority"

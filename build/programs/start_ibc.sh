@@ -3,6 +3,7 @@
 source /usr/local/lib/ib_utils
 
 start_ibc() {
+	TWOFA_TIMEOUT_ACTION="${TWOFA_TIMEOUT_ACTION:-exit}"
 	if [ "$PROGRAM" = "ibgateway" ]; then
 		PROGRAM_FLAG="-g"
 	else
@@ -10,7 +11,7 @@ start_ibc() {
 	fi
 	IB_RELEASE_DIR="$(resolve_ib_release_dir)"
 	IB_BASE_DIR="$(resolve_ibc_tws_path "$IB_RELEASE_DIR")"
-	TWS_SETTINGS_PATH="${HOME}/tws_settings"
+	TWS_SETTINGS_PATH="${TWS_SETTINGS_PATH:-${HOME}/tws_settings}"
 	mkdir -p "$TWS_SETTINGS_PATH"
 
 	# Set up X11 environment for IBC

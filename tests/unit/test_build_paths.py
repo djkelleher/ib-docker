@@ -94,8 +94,8 @@ def test_gateway_vmoptions_updates_primary_and_compatibility_files(
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("PROGRAM", "ibgateway")
     monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
-    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024")
-    monkeypatch.setenv("CUSTOM_JVM_OPTS", "-Dcustom=true")
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1g")
+    monkeypatch.setenv("CUSTOM_JVM_OPTS", "-Dcustom=true '-Dquoted=value with spaces'")
 
     init_settings.set_java_vmoptions()
 
@@ -105,6 +105,7 @@ def test_gateway_vmoptions_updates_primary_and_compatibility_files(
     assert "-Xmx1024m" in primary_content
     assert "-Xms512m" in primary_content
     assert "-Dcustom=true" in primary_content
+    assert "-Dquoted=value with spaces" in primary_content
     assert template_path.exists()
 
 
@@ -130,3 +131,69 @@ def test_tws_vmoptions_updates_tws_file_only(
     assert "-Xmx2048m" in vmoptions_content
     assert "-Xms512m" in vmoptions_content
     assert not (release_dir / "ibgateway.vmoptions").exists()
+
+
+def test_main_renders_ini_files_from_templates_each_start(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Runtime config should be regenerated from templates when env values change."""
+    home = tmp_path / "home" / "ibuser"
+    settings_dir = tmp_path / "settings"
+    ibc_dir = tmp_path / "ibc"
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    home.mkdir(parents=True)
+    settings_dir.mkdir()
+    ibc_dir.mkdir()
+    release_dir.mkdir(parents=True)
+
+    ibc_ini = ibc_dir / "ibc.ini"
+    jts_ini = settings_dir / "jts.ini"
+    ibc_ini.write_text("IbLoginId=old\n")
+    jts_ini.write_text("TimeZone=old\n")
+    ibc_ini.with_suffix(".ini.template").write_text("IbLoginId=${IB_USER}\n")
+    jts_ini.with_suffix(".ini.template").write_text("TimeZone=${TIME_ZONE:-UTC}\n")
+    (home / "vmoptions.j2").write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "tws")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("IBC_INI", str(ibc_ini))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(settings_dir))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+    monkeypatch.setenv("IB_USER", "first-user")
+    monkeypatch.setenv("TIME_ZONE", "America/New_York")
+
+    init_settings.main()
+
+    assert ibc_ini.read_text() == "IbLoginId=first-user\n"
+    assert jts_ini.read_text() == "TimeZone=America/New_York\n"
+
+    monkeypatch.setenv("IB_USER", "second-user")
+    monkeypatch.setenv("TIME_ZONE", "UTC")
+
+    init_settings.main()
+
+    assert ibc_ini.read_text() == "IbLoginId=second-user\n"
+    assert jts_ini.read_text() == "TimeZone=UTC\n"
+    assert ibc_ini.with_suffix(".ini.template").read_text() == "IbLoginId=${IB_USER}\n"
+
+
+def test_render_config_template_bootstraps_existing_placeholder_config(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Existing placeholder configs should become templates if no template exists yet."""
+    config_path = tmp_path / "ibc.ini"
+    template_path = config_path.with_suffix(".ini.template")
+    config_path.write_text("IbLoginId=${IB_USER}\n")
+    monkeypatch.setenv("IB_USER", "paper-user")
+
+    init_settings.render_config_template(template_path, config_path, "ibc.ini")
+
+    assert config_path.read_text() == "IbLoginId=paper-user\n"
+    assert template_path.read_text() == "IbLoginId=${IB_USER}\n"
+
+
+def test_java_heap_size_rejects_invalid_values(init_settings: ModuleType) -> None:
+    """Invalid heap values should fail before writing broken vmoptions."""
+    with pytest.raises(ValueError, match="JAVA_HEAP_SIZE"):
+        init_settings.parse_memory_mb("2gb")
