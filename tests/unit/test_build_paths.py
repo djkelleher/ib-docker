@@ -546,12 +546,43 @@ def test_x_screen_dimension_defaults_and_validates() -> None:
     assert "Invalid VNC_SCREEN_DIMENSION" in invalid_result.stdout
 
 
+def test_vnc_port_defaults_and_validates() -> None:
+    """VNC should support per-service host-network ports."""
+    default_result = run_bash(
+        f"""
+        source "{IB_UTILS_PATH}"
+        unset VNC_PORT
+        vnc_port
+        """
+    )
+    custom_result = run_bash(
+        f"""
+        source "{IB_UTILS_PATH}"
+        VNC_PORT=5901
+        vnc_port
+        """
+    )
+    invalid_result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        VNC_PORT=70000
+        vnc_port
+        """
+    )
+
+    assert default_result.stdout.strip() == "5900"
+    assert custom_result.stdout.strip() == "5901"
+    assert invalid_result.returncode == 1
+    assert "Invalid VNC_PORT" in invalid_result.stdout
+
+
 def test_vnc_password_is_not_passed_on_process_command_line() -> None:
     """VNC password should not remain in x11vnc argv or inherited env."""
     content = START_VNC_PATH.read_text()
 
     assert '-passwd "$VNC_PWD"' not in content
     assert '-passwdfile "$vnc_password_file"' in content
+    assert '-rfbport "$vnc_listen_port"' in content
     assert 'chmod 600 "$vnc_password_file"' in content
     assert "unset VNC_PWD" in content
 
@@ -1146,6 +1177,14 @@ def test_compose_passes_env_file_to_runtime_services() -> None:
 
     assert content.count("env_file:") == 2
     assert content.count("- .env") == 2
+
+
+def test_compose_uses_distinct_vnc_ports_for_host_network_services() -> None:
+    """Enabling VNC on both compose services should not collide on host networking."""
+    content = DOCKER_COMPOSE_PATH.read_text()
+
+    assert "VNC_PORT: ${VNC_PORT:-5900}" in content
+    assert "VNC_PORT: ${TWS_VNC_PORT:-5901}" in content
 
 
 def test_readme_gateway_access_ports_match_trading_modes() -> None:

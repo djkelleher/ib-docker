@@ -131,6 +131,8 @@ services:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `VNC_PWD` | - | VNC server password (enables VNC if set) |
+| `VNC_PORT` | `5900` | Gateway VNC listen port |
+| `TWS_VNC_PORT` | `5901` | TWS VNC listen port in the provided compose file |
 | `VNC_SCREEN_DIMENSION` | `1600x1200x24` | VNC/Xvfb screen resolution |
 | `DISPLAY` | `:1` | X11 display number |
 
@@ -154,7 +156,8 @@ services:
 | Gateway Paper | 4002 | Paper trading API |
 | TWS Live | 7496 | Live trading API |
 | TWS Paper | 7497 | Paper trading API |
-| VNC | 5900 | Remote desktop access |
+| Gateway VNC | 5900 | Remote desktop access when `VNC_PWD` is set |
+| TWS VNC | 5901 | Remote desktop access in the provided compose file when `VNC_PWD` is set |
 
 ## 🔌 API Access (Summary)
 Same as Ports table above. Map or expose as required.

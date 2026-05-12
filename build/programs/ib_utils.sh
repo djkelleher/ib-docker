@@ -196,6 +196,18 @@ x_screen_dimension() {
 	printf '%s\n' "$dimension"
 }
 
+vnc_port() {
+	local port="${VNC_PORT:-5900}"
+
+	if [[ ! $port =~ ^[1-9][0-9]*$ ]] || ((port > 65535)); then
+		log "ERROR: Invalid VNC_PORT: ${port}"
+		log "Expected an integer from 1 to 65535"
+		exit 1
+	fi
+
+	printf '%s\n' "$port"
+}
+
 x_display_process_pattern() {
 	local process_name="$1"
 	local display="${2:-${DISPLAY:-:1}}"

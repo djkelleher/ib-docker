@@ -16,6 +16,7 @@ services:
     environment:
       # VNC is disabled unless VNC_PWD is set in .env.
       VNC_PWD: ${VNC_PWD:-}
+      VNC_PORT: ${VNC_PORT:-5900}
       VNC_SCREEN_DIMENSION: ${VNC_SCREEN_DIMENSION:-1600x1200x24}
       # live or paper.
       TRADING_MODE: ${TRADING_MODE:-paper}
@@ -41,6 +42,7 @@ services:
     environment:
       # VNC is disabled unless VNC_PWD is set in .env.
       VNC_PWD: ${VNC_PWD:-}
+      VNC_PORT: ${TWS_VNC_PORT:-5901}
       VNC_SCREEN_DIMENSION: ${VNC_SCREEN_DIMENSION:-1600x1200x24}
       # live or paper.
       TRADING_MODE: ${TRADING_MODE:-paper}
