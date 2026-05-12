@@ -1311,6 +1311,7 @@ def test_ci_validates_upstream_build_versions_before_release_tags() -> None:
     assert "Invalid IB build version from {source}: {version}" in content
     assert "return parse_build_version(" in content
     assert 'self.release_meta["buildVersion"].strip()' in content
+    assert 'version = parse_build_version(version, "Docker image build")' in content
 
 
 def test_ci_release_discovery_skips_unsupported_tags() -> None:

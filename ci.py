@@ -281,6 +281,7 @@ def create_github_releases() -> list[IBRelease]:
 
 def build_image(params: tuple[str, str, str]) -> None:
     program, release, version = params
+    version = parse_build_version(version, "Docker image build")
     dockerhub_username = require_env("DOCKERHUB_USERNAME")
     image_name = (
         f"{dockerhub_username}/"
