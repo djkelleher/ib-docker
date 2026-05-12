@@ -19,6 +19,7 @@ BUILD_DOCKERIGNORE_PATH = REPO_ROOT / "build" / ".dockerignore"
 VMOPTIONS_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "vmoptions.j2"
 SUPERVISORD_CONF_PATH = REPO_ROOT / "build" / "config" / "supervisord.conf"
 DOCKER_COMPOSE_PATH = REPO_ROOT / "docker-compose.yml"
+ENV_EXAMPLE_PATH = REPO_ROOT / ".env.example"
 IBC_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "ibc.ini"
 README_PATH = REPO_ROOT / "README.md"
 GATEWAY_WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "build_gateway.yml"
@@ -1247,6 +1248,16 @@ def test_compose_requires_credentials_before_startup() -> None:
 
     assert content.count("IB_USER: ${IB_USER:?IB_USER is required}") == 2
     assert content.count("IB_PASSWORD: ${IB_PASSWORD:?IB_PASSWORD is required}") == 2
+
+
+def test_env_example_does_not_bypass_required_credentials() -> None:
+    """The example env file should still trigger compose's required credential checks."""
+    env_example = ENV_EXAMPLE_PATH.read_text().splitlines()
+
+    assert "IB_USER=" in env_example
+    assert "IB_PASSWORD=" in env_example
+    assert "IB_USER=your_ib_username" not in env_example
+    assert "IB_PASSWORD=your_ib_password" not in env_example
 
 
 def test_compose_uses_distinct_vnc_ports_for_host_network_services() -> None:
