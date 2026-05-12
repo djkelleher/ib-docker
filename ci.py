@@ -249,7 +249,14 @@ def create_github_releases() -> list[IBRelease]:
 
 def build_image(params: tuple[str, str, str]) -> None:
     program, release, version = params
-    image_name = {"ibgateway": "ib-gateway", "tws": "ib-tws"}[program]
+    dockerhub_username = require_env("DOCKERHUB_USERNAME")
+    image_name = (
+        f"{dockerhub_username}/"
+        + {
+            "ibgateway": "ib-gateway",
+            "tws": "ib-tws",
+        }[program]
+    )
     platforms = docker_platforms(program)
     # tag with latest or stable as well as version number.
     major, minor, _ = version.split(".")

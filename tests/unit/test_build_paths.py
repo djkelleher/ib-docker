@@ -1290,6 +1290,16 @@ def test_ci_build_platforms_match_workflow_support() -> None:
     assert "platforms: linux/amd64,linux/arm64" not in tws_workflow
 
 
+def test_ci_build_tags_use_dockerhub_namespace() -> None:
+    """Manual CI image pushes should target the configured DockerHub namespace."""
+    content = CI_PATH.read_text()
+
+    assert 'dockerhub_username = require_env("DOCKERHUB_USERNAME")' in content
+    assert 'f"{dockerhub_username}/"' in content
+    assert '"ibgateway": "ib-gateway"' in content
+    assert '"tws": "ib-tws"' in content
+
+
 def test_ci_download_and_fetch_errors_are_fatal() -> None:
     """Release automation should not continue after failed network operations."""
     content = CI_PATH.read_text()
