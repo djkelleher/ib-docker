@@ -515,7 +515,7 @@ def test_tws_vmoptions_updates_tws_file_only(
     home = tmp_path / "home" / "ibuser"
     release_dir = tmp_path / "opt" / "tws" / "stable"
     home.mkdir(parents=True)
-    release_dir.mkdir(parents=True)
+    create_ib_release_dir(release_dir, "tws")
     template_path = home / "vmoptions.j2"
     template_path.write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
 
@@ -590,6 +590,42 @@ def test_main_rejects_missing_release_dir_before_rendering_configs(
     assert jts_ini.read_text() == "TimeZone=old\n"
 
 
+def test_main_rejects_incomplete_release_layout_before_rendering_configs(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An incomplete IB release should be caught before config mutation."""
+    home = tmp_path / "home" / "ibuser"
+    settings_dir = tmp_path / "settings"
+    ibc_dir = tmp_path / "ibc"
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    home.mkdir(parents=True)
+    settings_dir.mkdir()
+    ibc_dir.mkdir()
+    (release_dir / "jars").mkdir(parents=True)
+
+    ibc_ini = ibc_dir / "ibc.ini"
+    jts_ini = settings_dir / "jts.ini"
+    ibc_ini.write_text("IbLoginId=old\n")
+    jts_ini.write_text("TimeZone=old\n")
+    ibc_ini.with_suffix(".ini.template").write_text("IbLoginId=${IB_USER}\n")
+    jts_ini.with_suffix(".ini.template").write_text("TimeZone=${TIME_ZONE:-UTC}\n")
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "tws")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("IBC_INI", str(ibc_ini))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(settings_dir))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+    monkeypatch.setenv("IB_USER", "new-user")
+    monkeypatch.setenv("TIME_ZONE", "America/New_York")
+
+    with pytest.raises(RuntimeError, match="expected executable"):
+        init_settings.main()
+
+    assert ibc_ini.read_text() == "IbLoginId=old\n"
+    assert jts_ini.read_text() == "TimeZone=old\n"
+
+
 def test_main_rejects_relative_config_paths_before_rendering(
     init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -597,7 +633,7 @@ def test_main_rejects_relative_config_paths_before_rendering(
     home = tmp_path / "home" / "ibuser"
     release_dir = tmp_path / "opt" / "tws" / "stable"
     home.mkdir(parents=True)
-    release_dir.mkdir(parents=True)
+    create_ib_release_dir(release_dir, "tws")
 
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("PROGRAM", "tws")
@@ -631,7 +667,7 @@ def test_main_renders_ini_files_from_templates_each_start(
     home.mkdir(parents=True)
     settings_dir.mkdir()
     ibc_dir.mkdir()
-    release_dir.mkdir(parents=True)
+    create_ib_release_dir(release_dir, "tws")
 
     ibc_ini = ibc_dir / "ibc.ini"
     jts_ini = settings_dir / "jts.ini"
@@ -708,7 +744,7 @@ def test_main_bootstraps_custom_config_paths_from_default_templates(
     release_dir = tmp_path / "opt" / "ibgateway" / "stable"
     default_settings_dir.mkdir(parents=True)
     default_ibc_dir.mkdir(parents=True)
-    release_dir.mkdir(parents=True)
+    create_ib_release_dir(release_dir, "ibgateway")
 
     default_ibc_template = default_ibc_dir / "ibc.ini.template"
     default_jts_template = default_settings_dir / "jts.ini.template"

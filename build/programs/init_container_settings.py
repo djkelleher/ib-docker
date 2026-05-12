@@ -188,11 +188,35 @@ def vmoptions_paths(program: str, ib_release_dir: Path) -> list[Path]:
     return [ib_release_dir / name for name in vmoptions_names(program)]
 
 
+def validate_ib_release_layout(program: str, ib_release_dir: Path) -> None:
+    """Validate the installed IB product layout before mutating runtime config."""
+    require_directory(ib_release_dir, "IB release")
+    executable_path = ib_release_dir / program
+    jars_path = ib_release_dir / "jars"
+    primary_vmoptions_path = ib_release_dir / f"{program}.vmoptions"
+
+    if not jars_path.is_dir():
+        raise RuntimeError(f"IB release directory is invalid: expected {jars_path}")
+    if not executable_path.is_file():
+        raise RuntimeError(
+            f"IB release directory is invalid: expected executable {executable_path}"
+        )
+    if not os.access(executable_path, os.X_OK):
+        raise RuntimeError(
+            f"IB release directory is invalid: executable is not runnable {executable_path}"
+        )
+    if not primary_vmoptions_path.is_file():
+        raise RuntimeError(
+            "IB release directory is invalid: "
+            f"expected vmoptions file {primary_vmoptions_path}"
+        )
+
+
 def validate_runtime_environment() -> None:
     """Validate runtime settings that should prevent config generation."""
     program = require_env("PROGRAM")
     vmoptions_names(program)
-    require_directory(Path(require_env("IB_RELEASE_DIR")), "IB release")
+    validate_ib_release_layout(program, Path(require_env("IB_RELEASE_DIR")))
     require_absolute_path(Path(require_env("IBC_INI")), "IBC_INI")
     require_absolute_path(Path(require_env("TWS_SETTINGS_PATH")), "TWS_SETTINGS_PATH")
     require_directory(Path(require_env("HOME")), "HOME")
