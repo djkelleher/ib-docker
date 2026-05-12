@@ -11,7 +11,6 @@ start_ibc() {
 	app_name="$(ib_product_executable)"
 	TRADING_MODE="$(ib_trading_mode)"
 	TWOFA_TIMEOUT_ACTION="$(ib_twofa_timeout_action)"
-	ensure_env IB_RELEASE
 	ensure_env IBC_VERSION
 	ensure_absolute_path IBC_PATH
 	ensure_absolute_path IBC_INI
@@ -19,6 +18,7 @@ start_ibc() {
 		ibc_args+=("-g")
 	fi
 	IB_RELEASE_DIR="$(resolve_ib_release_dir)"
+	IB_RELEASE="$(ib_release_version_from_dir "$IB_RELEASE_DIR")"
 	IB_BASE_DIR="$(resolve_ibc_tws_path "$IB_RELEASE_DIR")"
 	ensure_absolute_path HOME
 	home_dir="$HOME"

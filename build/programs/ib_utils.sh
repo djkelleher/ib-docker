@@ -137,6 +137,12 @@ resolve_ibc_tws_path() {
 	fi
 }
 
+ib_release_version_from_dir() {
+	local release_dir="$1"
+
+	basename "$release_dir"
+}
+
 x_display_number() {
 	local display="${1:-${DISPLAY:-:1}}"
 	local display_no

@@ -173,6 +173,25 @@ def test_tws_ibc_path_resolves_to_product_dir_expected_by_ibc(tmp_path: Path) ->
     assert result.stdout.strip().endswith(f"{os.sep}opt{os.sep}tws")
 
 
+def test_ibc_release_version_comes_from_resolved_release_dir(tmp_path: Path) -> None:
+    """Custom release dirs should keep IBC's version argument aligned with the path."""
+    release_dir = tmp_path / "opt" / "tws" / "10.45.1e"
+    create_ib_release_dir(release_dir, "tws")
+
+    result = run_bash(
+        f"""
+        source "{IB_UTILS_PATH}"
+        PROGRAM=tws
+        IB_RELEASE=stable
+        IB_RELEASE_DIR="{release_dir}"
+        release_dir="$(resolve_ib_release_dir)"
+        ib_release_version_from_dir "$release_dir"
+        """
+    )
+
+    assert result.stdout.strip() == "10.45.1e"
+
+
 def test_gateway_ibc_path_rejects_parent_not_named_ibgateway(tmp_path: Path) -> None:
     """Gateway custom release dirs must match the path shape IBC reconstructs."""
     release_dir = tmp_path / "opt" / "gateway" / "stable"
@@ -469,6 +488,7 @@ def test_ibc_startup_requires_absolute_runtime_paths() -> None:
     """IBC startup should validate paths before passing them to IBC."""
     content = START_IBC_PATH.read_text()
 
+    assert 'IB_RELEASE="$(ib_release_version_from_dir "$IB_RELEASE_DIR")"' in content
     assert "ensure_absolute_path IBC_PATH" in content
     assert "ensure_absolute_path IBC_INI" in content
     assert "ensure_absolute_path HOME" in content
