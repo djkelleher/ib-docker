@@ -11,7 +11,7 @@ from datetime import datetime
 from functools import cache, cached_property
 from pathlib import Path
 from subprocess import run
-from typing import List, Literal, Union
+from typing import Any, Literal
 from urllib.request import urlopen, urlretrieve
 
 from github import Github
@@ -23,11 +23,15 @@ logging.basicConfig(
 logger = logging.getLogger("CI")
 
 downloads_dir = Path(__file__).parent / "downloads"
-downloads_dir.mkdir(exist_ok=True)
+RELEASE_TAG_RE = re.compile(r"^(latest|stable)-([0-9]+[.][0-9]+[.][0-9]+[a-z]?)$")
 
-docker_user = os.environ["DOCKERHUB_USERNAME"]
-docker_password = os.environ["DOCKERHUB_TOKEN"]
-github_token = os.environ["GITHUB_TOKEN"]
+
+def require_env(name: str) -> str:
+    """Return a required environment value or fail with a clear message."""
+    value = os.environ.get(name)
+    if not value:
+        raise RuntimeError(f"Required environment variable {name} is not set")
+    return value
 
 
 class IBRelease:
@@ -36,7 +40,10 @@ class IBRelease:
     ) -> None:
         self.release = release
         self.program = program
-        self.base_url = f"https://download2.interactivebrokers.com/installers/{program}/{release}-standalone"
+        self.base_url = (
+            "https://download2.interactivebrokers.com/installers/"
+            f"{program}/{release}-standalone"
+        )
 
     @property
     def title(self) -> str:
@@ -67,10 +74,13 @@ class IBRelease:
         return datetime.fromisoformat(self.release_meta["buildDateTime"].strip())
 
     @cached_property
-    def release_meta(self):
+    def release_meta(self) -> dict[str, Any]:
         url = f"{self.base_url}/version.json"
         resp = fetch(url)
-        return json.loads(re.search(r"{.*}", resp).group())
+        match = re.search(r"{.*}", resp)
+        if match is None:
+            raise RuntimeError(f"Could not parse release metadata from {url}")
+        return json.loads(match.group())
 
     def __repr__(self) -> str:
         return self.tag
@@ -83,12 +93,12 @@ class GitHubRelease:
 
 
 @cache
-def get_gh_repo():
-    gh = Github(github_token)
+def get_gh_repo() -> Any:
+    gh = Github(require_env("GITHUB_TOKEN"))
     return gh.get_repo("djkelleher/ib-docker")
 
 
-def fetch(url: str, as_text: str = True):
+def fetch(url: str, as_text: bool = True) -> str | bytes:
     try:
         with urlopen(url, timeout=300) as response:
             status_code = response.getcode()
@@ -97,11 +107,11 @@ def fetch(url: str, as_text: str = True):
             if as_text:
                 return content.decode("utf-8")
             return content
-    except Exception as e:
-        logger.info(f"Error fetching URL: {e}")
+    except Exception as exc:
+        raise RuntimeError(f"Error fetching URL {url}: {exc}") from exc
 
 
-def download(url: str, save_path: str):
+def download(url: str, save_path: Path) -> None:
     if (not os.getenv("IB_DOCKER_OVERWRITE_DOWNLOADS")) and os.path.exists(save_path):
         logger.info(f"File already exists: {save_path}. Skipping download.")
         return
@@ -109,11 +119,12 @@ def download(url: str, save_path: str):
     try:
         urlretrieve(url, save_path)
         logger.info(f"Downloaded successfully: {save_path}")
-    except Exception as e:
-        logger.info(f"Error downloading file: {e}")
+    except Exception as exc:
+        raise RuntimeError(f"Error downloading file {url}: {exc}") from exc
 
 
-def download_release_file(ib_release: IBRelease):
+def download_release_file(ib_release: IBRelease) -> Path:
+    downloads_dir.mkdir(exist_ok=True)
     url = ib_release.download_url
     file_name = Path(url).name
     file_name = file_name.replace(
@@ -124,18 +135,27 @@ def download_release_file(ib_release: IBRelease):
     return file
 
 
-def find_latest_github_releases() -> List[GitHubRelease]:
+def parse_release_tag(tag_name: str) -> GitHubRelease:
+    """Parse a GitHub release tag into release channel and IB build version."""
+    match = RELEASE_TAG_RE.match(tag_name)
+    if match is None:
+        raise ValueError(f"Invalid release tag: {tag_name}")
+    release, version = match.groups()
+    return GitHubRelease(release=release, build_version=version)
+
+
+def find_latest_github_releases() -> list[GitHubRelease]:
     """Find latest 'latest' and 'stable' releases."""
     gh_repo = get_gh_repo()
-    releases = {}
-    for release in gh_repo.get_releases():
-        release, version = release.tag_name.split("-")
-        if release not in releases:
-            releases[release] = version
+    releases: dict[str, str] = {}
+    for gh_release in gh_repo.get_releases():
+        release = parse_release_tag(gh_release.tag_name)
+        if release.release not in releases:
+            releases[release.release] = release.build_version
             logger.info(
                 "Found last GitHub release for %s: %s",
-                release,
-                version,
+                release.release,
+                release.build_version,
             )
             if len(releases) == 2:
                 # have stable and latest releases for tws and gateway
@@ -146,7 +166,7 @@ def find_latest_github_releases() -> List[GitHubRelease]:
     ]
 
 
-def create_github_releases() -> List[IBRelease]:
+def create_github_releases() -> list[IBRelease]:
     """Create GitHub releases for new stable/latest releases."""
     gh_repo = get_gh_repo()
     last_releases = {r.release: r.build_version for r in find_latest_github_releases()}
@@ -166,7 +186,7 @@ def create_github_releases() -> List[IBRelease]:
                 )
     if not new_releases:
         logger.info("No new releases found.")
-        return
+        return []
 
     version_programs = defaultdict(list)
     for r in new_releases:
@@ -177,7 +197,7 @@ def create_github_releases() -> List[IBRelease]:
             files = list(executor.map(download_release_file, ib_releases))
         logger.info("Finished downloading files.")
         tag = f"{release}-{version}"
-        message = "\n".join([r.description for r in new_releases])
+        message = "\n".join([r.description for r in ib_releases])
         logger.info(f"Creating release on GitHub ({tag}):\n{message}")
         gh_release = gh_repo.create_git_release(
             tag=tag,
@@ -185,7 +205,7 @@ def create_github_releases() -> List[IBRelease]:
             message=message,
         )
 
-        def upload_release_file(file):
+        def upload_release_file(file: Path) -> None:
             logger.info(f"Uploading {file}")
             gh_release.upload_asset(path=str(file), label=file.name, name=file.name)
             hash_file = file.with_suffix(file.suffix + ".sha256")
@@ -203,7 +223,7 @@ def create_github_releases() -> List[IBRelease]:
     return new_releases
 
 
-def build_image(params):
+def build_image(params: tuple[str, str, str]) -> None:
     program, release, version = params
     image_name = {"ibgateway": "ib-gateway", "tws": "ib-tws"}[program]
     # tag with latest or stable as well as version number.
@@ -215,7 +235,9 @@ def build_image(params):
     cmd = (
         # "docker buildx build --platform linux/amd64 "
         "docker buildx build --platform linux/amd64,linux/arm64 "
-        f"--build-arg PROGRAM={program} --build-arg RELEASE={release} --build-arg VERSION={version} "
+        f"--build-arg PROGRAM={program} "
+        f"--build-arg RELEASE={release} "
+        f"--build-arg VERSION={version} "
         f"-t {img_tags} --push ."
     )
     logger.info(f"Building image: {cmd}")
@@ -231,8 +253,8 @@ def build_image(params):
 
 
 def build_images(
-    releases: List[Union[IBRelease, GitHubRelease]], parallel: bool = False
-):
+    releases: list[IBRelease | GitHubRelease], parallel: bool = False
+) -> None:
     """Build Docker images for each release."""
     params = []
     for release in releases:
@@ -241,8 +263,11 @@ def build_images(
                 params.append((prog, release.release, release.build_version))
         else:
             params.append((release.program, release.release, release.build_version))
+    if not params:
+        logger.info("No images to build.")
+        return
     if parallel:
-        n_workers = min(os.cpu_count(), len(params))
+        n_workers = min(os.cpu_count() or 1, len(params))
         logger.info(f"Building images with {n_workers} workers.")
         with ThreadPoolExecutor(max_workers=n_workers) as executor:
             executor.map(build_image, params)
@@ -252,19 +277,18 @@ def build_images(
     logger.info("Finished building images.")
 
 
-def build_release_images(tag: str):
-    """Build image for release with provided tag, or most recent 'latest' and 'stable' releases if no tag is provided GitHub."""
+def build_release_images(tag: str | None) -> None:
+    """Build images for a release tag, or the most recent GitHub releases."""
     if tag:
         logger.info(f"Building images for provided release: {tag}")
-        release, build_version = tag.split("-")
-        releases = [GitHubRelease(release=release, build_version=build_version)]
+        releases: list[IBRelease | GitHubRelease] = [parse_release_tag(tag)]
     else:
         logger.info("No release provided. Finding latest GitHub releases.")
         releases = find_latest_github_releases()
     build_images(releases)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
     # Release subcommand

@@ -1,3 +1,4 @@
+import ast
 import importlib.util
 import os
 import subprocess
@@ -8,6 +9,7 @@ from types import ModuleType
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+CI_PATH = REPO_ROOT / "ci.py"
 INIT_SETTINGS_PATH = REPO_ROOT / "build" / "programs" / "init_container_settings.py"
 IB_UTILS_PATH = REPO_ROOT / "build" / "programs" / "ib_utils.sh"
 ENTRYPOINT_PATH = REPO_ROOT / "build" / "programs" / "entrypoint.sh"
@@ -1211,6 +1213,49 @@ def test_release_workflows_require_major_minor_tag() -> None:
 
         assert extraction < validation < output
         assert 'if [ -z "$major_minor_version" ]; then' in content
+
+
+def test_ci_module_does_not_read_secrets_at_import_time() -> None:
+    """CI helpers should be importable without runtime-only secret environment."""
+    tree = ast.parse(CI_PATH.read_text())
+    top_level_nodes = [
+        node
+        for node in tree.body
+        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.Expr))
+    ]
+
+    for node in top_level_nodes:
+        source = ast.get_source_segment(CI_PATH.read_text(), node)
+        assert source is not None
+        assert 'os.environ["GITHUB_TOKEN"]' not in source
+        assert 'os.environ["DOCKERHUB_USERNAME"]' not in source
+        assert 'os.environ["DOCKERHUB_TOKEN"]' not in source
+        assert "downloads_dir.mkdir" not in source
+
+
+def test_ci_validates_release_tags_before_building() -> None:
+    """CI build helpers should reject malformed release tags before image builds."""
+    content = CI_PATH.read_text()
+
+    assert "RELEASE_TAG_RE = re.compile" in content
+    assert "def parse_release_tag(tag_name: str) -> GitHubRelease:" in content
+    assert 'raise ValueError(f"Invalid release tag: {tag_name}")' in content
+    assert (
+        "releases: list[IBRelease | GitHubRelease] = [parse_release_tag(tag)]"
+        in content
+    )
+
+
+def test_ci_download_and_fetch_errors_are_fatal() -> None:
+    """Release automation should not continue after failed network operations."""
+    content = CI_PATH.read_text()
+
+    assert 'raise RuntimeError(f"Error fetching URL {url}: {exc}") from exc' in content
+    assert (
+        'raise RuntimeError(f"Error downloading file {url}: {exc}") from exc' in content
+    )
+    assert 'logger.info(f"Error fetching URL' not in content
+    assert 'logger.info(f"Error downloading file' not in content
 
 
 def test_build_context_ignores_generated_python_artifacts() -> None:
