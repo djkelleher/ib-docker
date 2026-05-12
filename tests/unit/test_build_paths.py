@@ -1718,6 +1718,7 @@ def test_ci_downloads_are_atomic_and_nonempty() -> None:
     """Release downloads should not reuse partial or empty cached assets."""
     content = CI_PATH.read_text()
 
+    assert "save_path.parent.mkdir(parents=True, exist_ok=True)" in content
     assert "save_path.stat().st_size > 0" in content
     assert "Existing download is empty" in content
     assert (
@@ -1727,6 +1728,44 @@ def test_ci_downloads_are_atomic_and_nonempty() -> None:
     assert 'raise RuntimeError("downloaded file is empty")' in content
     assert "temporary_path.replace(save_path)" in content
     assert "temporary_path.unlink()" in content
+
+
+def test_ci_download_creates_parent_and_replaces_atomically(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Direct downloads should not require callers to create target directories."""
+    ci_module = load_ci_module(monkeypatch)
+    save_path = tmp_path / "nested" / "installer.sh"
+
+    def fake_urlretrieve(url: str, filename: Path) -> None:
+        assert url == "https://example.test/installer.sh"
+        filename.write_text("installer")
+
+    monkeypatch.setattr(ci_module, "urlretrieve", fake_urlretrieve)
+
+    ci_module.download("https://example.test/installer.sh", save_path)
+
+    assert save_path.read_text() == "installer"
+    assert not save_path.with_suffix(".sh.tmp").exists()
+
+
+def test_ci_download_rejects_empty_files_and_removes_temp(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Empty direct downloads should not leave a cacheable artifact behind."""
+    ci_module = load_ci_module(monkeypatch)
+    save_path = tmp_path / "downloads" / "empty.sh"
+
+    def fake_urlretrieve(url: str, filename: Path) -> None:
+        filename.write_text("")
+
+    monkeypatch.setattr(ci_module, "urlretrieve", fake_urlretrieve)
+
+    with pytest.raises(RuntimeError, match="downloaded file is empty"):
+        ci_module.download("https://example.test/empty.sh", save_path)
+
+    assert not save_path.exists()
+    assert not save_path.with_suffix(".sh.tmp").exists()
 
 
 def test_ci_sha256_assets_are_line_oriented() -> None:
