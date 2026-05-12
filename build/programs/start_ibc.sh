@@ -5,7 +5,8 @@ source /usr/local/lib/ib_utils
 start_ibc() {
 	local ibc_args=()
 
-	TWOFA_TIMEOUT_ACTION="${TWOFA_TIMEOUT_ACTION:-exit}"
+	TRADING_MODE="$(ib_trading_mode)"
+	TWOFA_TIMEOUT_ACTION="$(ib_twofa_timeout_action)"
 	if [ "$PROGRAM" = "ibgateway" ]; then
 		ibc_args+=("-g")
 	fi

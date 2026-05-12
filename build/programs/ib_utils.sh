@@ -20,6 +20,36 @@ ib_product_executable() {
 	esac
 }
 
+ib_trading_mode() {
+	case "${TRADING_MODE:-paper}" in
+	paper)
+		printf '%s\n' "paper"
+		;;
+	live)
+		printf '%s\n' "live"
+		;;
+	*)
+		log "ERROR: Unsupported TRADING_MODE: ${TRADING_MODE}"
+		exit 1
+		;;
+	esac
+}
+
+ib_twofa_timeout_action() {
+	case "${TWOFA_TIMEOUT_ACTION:-exit}" in
+	exit)
+		printf '%s\n' "exit"
+		;;
+	restart)
+		printf '%s\n' "restart"
+		;;
+	*)
+		log "ERROR: Unsupported TWOFA_TIMEOUT_ACTION: ${TWOFA_TIMEOUT_ACTION}"
+		exit 1
+		;;
+	esac
+}
+
 resolve_ib_release_dir() {
 	local release_dir="${IB_RELEASE_DIR:-}"
 	local app_name

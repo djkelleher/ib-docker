@@ -174,6 +174,39 @@ def test_shell_product_validation_rejects_unsupported_program() -> None:
     assert "Unsupported IB program: desktop" in result.stdout
 
 
+def test_ibc_startup_defaults_and_validates_runtime_choices() -> None:
+    """IBC startup choices should be normalized before they are passed to IBC."""
+    default_result = run_bash(
+        f"""
+        source "{IB_UTILS_PATH}"
+        unset TRADING_MODE
+        unset TWOFA_TIMEOUT_ACTION
+        ib_trading_mode
+        ib_twofa_timeout_action
+        """
+    )
+    invalid_mode = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        TRADING_MODE=demo
+        ib_trading_mode
+        """
+    )
+    invalid_action = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        TWOFA_TIMEOUT_ACTION=wait
+        ib_twofa_timeout_action
+        """
+    )
+
+    assert default_result.stdout.splitlines() == ["paper", "exit"]
+    assert invalid_mode.returncode == 1
+    assert "Unsupported TRADING_MODE: demo" in invalid_mode.stdout
+    assert invalid_action.returncode == 1
+    assert "Unsupported TWOFA_TIMEOUT_ACTION: wait" in invalid_action.stdout
+
+
 def test_x_display_number_strips_screen_suffix() -> None:
     """X11 artifact paths should use the display number, not the screen suffix."""
     result = run_bash(
