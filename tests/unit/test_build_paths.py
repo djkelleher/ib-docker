@@ -655,6 +655,30 @@ def test_gateway_vmoptions_updates_primary_and_compatibility_files(
     assert template_path.exists()
 
 
+def test_gateway_layout_validation_requires_compatibility_vmoptions(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Python runtime validation should match Gateway startup layout checks."""
+    home = tmp_path / "home" / "ibuser"
+    release_dir = tmp_path / "opt" / "ibgateway" / "stable"
+    home.mkdir(parents=True)
+    create_ib_release_dir(release_dir, "ibgateway")
+    (release_dir / "tws.vmoptions").unlink()
+    (home / "vmoptions.j2").write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "ibgateway")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(home / "tws_settings"))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+
+    with pytest.raises(RuntimeError, match="expected vmoptions file"):
+        init_settings.set_java_vmoptions()
+
+    assert (release_dir / "ibgateway.vmoptions").read_text() == "-Xmx256m\n"
+    assert not (release_dir / "tws.vmoptions").exists()
+
+
 def test_tws_vmoptions_updates_tws_file_only(
     init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

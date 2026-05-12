@@ -211,7 +211,7 @@ def validate_ib_release_layout(program: str, ib_release_dir: Path) -> None:
     require_directory(ib_release_dir, "IB release")
     executable_path = ib_release_dir / program
     jars_path = ib_release_dir / "jars"
-    primary_vmoptions_path = ib_release_dir / f"{program}.vmoptions"
+    expected_vmoptions_paths = vmoptions_paths(program, ib_release_dir)
 
     if not jars_path.is_dir():
         raise RuntimeError(f"IB release directory is invalid: expected {jars_path}")
@@ -223,11 +223,12 @@ def validate_ib_release_layout(program: str, ib_release_dir: Path) -> None:
         raise RuntimeError(
             f"IB release directory is invalid: executable is not runnable {executable_path}"
         )
-    if not primary_vmoptions_path.is_file():
-        raise RuntimeError(
-            "IB release directory is invalid: "
-            f"expected vmoptions file {primary_vmoptions_path}"
-        )
+    for vmoptions_path in expected_vmoptions_paths:
+        if not vmoptions_path.is_file():
+            raise RuntimeError(
+                "IB release directory is invalid: "
+                f"expected vmoptions file {vmoptions_path}"
+            )
 
 
 def validate_runtime_environment() -> None:
