@@ -590,6 +590,11 @@ def test_vnc_password_is_not_passed_on_process_command_line() -> None:
     assert '-rfbport "$vnc_listen_port"' in content
     assert 'chmod 600 "$vnc_password_file"' in content
     assert "unset VNC_PWD" in content
+    assert "cleanup_vnc_password_file" in content
+    assert 'rm -f "$path"' in content
+    assert "trap 'cleanup_vnc_password_file \"$vnc_password_file\"' EXIT" in content
+    assert 'trap \'stop_vnc "$vnc_password_file" "$vnc_pid"\' TERM INT' in content
+    assert 'wait "$vnc_pid"' in content
 
 
 def test_vnc_startup_requires_home_before_xauth_setup() -> None:

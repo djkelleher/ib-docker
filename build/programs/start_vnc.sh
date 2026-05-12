@@ -3,9 +3,29 @@ set -euo pipefail
 
 source /usr/local/lib/ib_utils
 
+cleanup_vnc_password_file() {
+	local path="$1"
+
+	if [ -n "$path" ] && [ -f "$path" ]; then
+		rm -f "$path"
+	fi
+}
+
+stop_vnc() {
+	local path="$1"
+	local pid="$2"
+
+	cleanup_vnc_password_file "$path"
+	kill "$pid" 2>/dev/null || true
+	wait "$pid" 2>/dev/null || true
+	exit 143
+}
+
 start_vnc() {
 	local vnc_password_file
 	local vnc_listen_port
+	local vnc_pid
+	local -a x11vnc_args
 
 	if [[ -z ${VNC_PWD:-} ]]; then
 		log "VNC password is not set (VNC_PWD). VNC is disabled."
@@ -27,7 +47,24 @@ start_vnc() {
 	chmod 600 "$vnc_password_file"
 	printf '%s\n' "$VNC_PWD" >"$vnc_password_file"
 	unset VNC_PWD
-	exec /usr/bin/x11vnc -ncache 10 -ncache_cr -passwdfile "$vnc_password_file" -display "$DISPLAY" -rfbport "$vnc_listen_port" -forever -shared -noipv6 -noxdamage
+	trap 'cleanup_vnc_password_file "$vnc_password_file"' EXIT
+	x11vnc_args=(
+		-ncache 10
+		-ncache_cr
+		-passwdfile "$vnc_password_file"
+		-display "$DISPLAY"
+		-rfbport "$vnc_listen_port"
+		-forever
+		-shared
+		-noipv6
+		-noxdamage
+	)
+	/usr/bin/x11vnc "${x11vnc_args[@]}" &
+	vnc_pid="$!"
+	trap 'stop_vnc "$vnc_password_file" "$vnc_pid"' TERM INT
+	sleep 2
+	cleanup_vnc_password_file "$vnc_password_file"
+	wait "$vnc_pid"
 }
 
 start_vnc
