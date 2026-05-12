@@ -1287,6 +1287,16 @@ def test_ci_docker_build_failures_are_fatal() -> None:
     assert "check=False" in content
 
 
+def test_ci_consumes_parallel_worker_results() -> None:
+    """Parallel release automation should propagate worker exceptions."""
+    content = CI_PATH.read_text()
+
+    assert "list(executor.map(upload_release_file, files))" in content
+    assert "list(executor.map(build_image, params))" in content
+    assert "\n            executor.map(upload_release_file, files)\n" not in content
+    assert "\n            executor.map(build_image, params)\n" not in content
+
+
 def test_release_workflow_uses_only_release_check_requirements() -> None:
     """Daily release checks should not require unused DockerHub secrets."""
     content = (REPO_ROOT / ".github" / "workflows" / "release.yml").read_text()

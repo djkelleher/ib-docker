@@ -227,7 +227,7 @@ def create_github_releases() -> list[IBRelease]:
             )
 
         with ThreadPoolExecutor(max_workers=len(files)) as executor:
-            executor.map(upload_release_file, files)
+            list(executor.map(upload_release_file, files))
     logger.info("Done!")
     return new_releases
 
@@ -282,7 +282,7 @@ def build_images(
         n_workers = min(os.cpu_count() or 1, len(params))
         logger.info(f"Building images with {n_workers} workers.")
         with ThreadPoolExecutor(max_workers=n_workers) as executor:
-            executor.map(build_image, params)
+            list(executor.map(build_image, params))
     else:
         for param in params:
             build_image(param)
