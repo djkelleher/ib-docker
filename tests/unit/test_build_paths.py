@@ -1308,6 +1308,22 @@ def test_release_workflows_require_major_minor_tag() -> None:
         assert 'if [ -z "$major_minor_version" ]; then' in content
 
 
+def test_release_workflows_do_not_publish_broad_beta_aliases() -> None:
+    """Beta builds should not overwrite broad major or major/minor Docker tags."""
+    for workflow_path, image_name in [
+        (GATEWAY_WORKFLOW_PATH, "ib-gateway"),
+        (TWS_WORKFLOW_PATH, "ib-tws"),
+    ]:
+        content = workflow_path.read_text()
+
+        assert 'major_version="${version%%.*}"' in content
+        assert "Could not extract major version" in content
+        assert "major_version=$major_version" in content
+        assert "outputs.release_type != 'beta'" in content
+        assert "outputs.release_type == 'latest'" in content
+        assert f"format('{{0}}/{image_name}:{{1}}'" in content
+
+
 def test_ci_module_does_not_read_secrets_at_import_time() -> None:
     """CI helpers should be importable without runtime-only secret environment."""
     tree = ast.parse(CI_PATH.read_text())
@@ -1467,6 +1483,19 @@ def test_ci_build_validates_release_channel_and_product_before_docker() -> None:
     assert "Invalid IB release channel from {source}: {release}" in content
     assert 'release = parse_release_channel(release, "Docker image build")' in content
     assert 'raise ValueError(f"Unsupported PROGRAM: {program}")' in content
+
+
+def test_ci_docker_tags_do_not_give_beta_broad_aliases() -> None:
+    """Manual CI builds should match workflow beta tag behavior."""
+    content = CI_PATH.read_text()
+
+    assert "def docker_tags(release: str, version: str) -> list[str]:" in content
+    assert "tags = [release, version]" in content
+    assert 'if release != "beta":' in content
+    assert 'tags.append(f"{major}.{minor}")' in content
+    assert 'if release == "latest":' in content
+    assert "tags.append(major)" in content
+    assert "tags = docker_tags(release, version)" in content
 
 
 def test_ci_download_and_fetch_errors_are_fatal() -> None:

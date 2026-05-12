@@ -34,8 +34,15 @@ jobs:
               echo "Could not extract major/minor version from release tag: $release_name" >&2
               exit 1
             fi
+            major_version="${version%%.*}"
+            if [ -z "$major_version" ]; then
+              echo "Could not extract major version from release tag: $release_name" >&2
+              exit 1
+            fi
             echo "Extracted major+minor version: $major_minor_version"
             echo "major_minor_version=$major_minor_version" >> $GITHUB_OUTPUT
+            echo "Extracted major version: $major_version"
+            echo "major_version=$major_version" >> $GITHUB_OUTPUT
           shell: bash
 
         - name: Checkout
@@ -67,4 +74,5 @@ jobs:
             tags: |
                 ${{ secrets.DOCKERHUB_USERNAME }}/ib-gateway:${{ steps.parse_release_name.outputs.release_type }}
                 ${{ secrets.DOCKERHUB_USERNAME }}/ib-gateway:${{ steps.parse_release_name.outputs.version }}
-                ${{ secrets.DOCKERHUB_USERNAME }}/ib-gateway:${{ steps.parse_release_name.outputs.major_minor_version }}
+                ${{ steps.parse_release_name.outputs.release_type != 'beta' && format('{0}/ib-gateway:{1}', secrets.DOCKERHUB_USERNAME, steps.parse_release_name.outputs.major_minor_version) || '' }}
+                ${{ steps.parse_release_name.outputs.release_type == 'latest' && format('{0}/ib-gateway:{1}', secrets.DOCKERHUB_USERNAME, steps.parse_release_name.outputs.major_version) || '' }}

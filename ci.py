@@ -229,6 +229,19 @@ def docker_platforms(program: str) -> str:
     raise ValueError(f"Unsupported PROGRAM: {program}")
 
 
+def docker_tags(release: str, version: str) -> list[str]:
+    """Return Docker tags for a release without giving beta broad aliases."""
+    release = parse_release_channel(release, "Docker image build")
+    version = parse_build_version(version, "Docker image build")
+    major, minor, _ = version.split(".")
+    tags = [release, version]
+    if release != "beta":
+        tags.append(f"{major}.{minor}")
+    if release == "latest":
+        tags.append(major)
+    return tags
+
+
 def find_latest_github_releases() -> list[GitHubRelease]:
     """Find latest 'latest' and 'stable' releases."""
     gh_repo = get_gh_repo()
@@ -330,16 +343,10 @@ def create_github_releases() -> list[IBRelease]:
 
 def build_image(params: tuple[str, str, str]) -> None:
     program, release, version = params
-    release = parse_release_channel(release, "Docker image build")
-    version = parse_build_version(version, "Docker image build")
+    tags = docker_tags(release, version)
     dockerhub_username = require_env("DOCKERHUB_USERNAME")
     image_name = f"{dockerhub_username}/{docker_image_repository(program)}"
     platforms = docker_platforms(program)
-    # tag with latest or stable as well as version number.
-    major, minor, _ = version.split(".")
-    tags = [release, version, f"{major}.{minor}"]
-    if release == "latest":
-        tags.append(major)
 
     cmd = [
         "docker",
