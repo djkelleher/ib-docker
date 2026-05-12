@@ -668,6 +668,31 @@ def test_main_rejects_relative_config_paths_before_rendering(
     assert not (tmp_path / "ibc.ini").exists()
 
 
+def test_main_rejects_relative_ibc_path_before_template_lookup(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Relative IBC_PATH should not control fallback template lookup."""
+    home = tmp_path / "home" / "ibuser"
+    settings_dir = tmp_path / "settings"
+    ibc_ini = tmp_path / "ibc" / "ibc.ini"
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    home.mkdir(parents=True)
+    create_ib_release_dir(release_dir, "tws")
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "tws")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("IBC_PATH", "opt/ibc")
+    monkeypatch.setenv("IBC_INI", str(ibc_ini))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(settings_dir))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+
+    with pytest.raises(RuntimeError, match="IBC_PATH must be an absolute path"):
+        init_settings.main()
+
+    assert not ibc_ini.exists()
+
+
 def test_vmoptions_paths_rejects_unsupported_program(
     init_settings: ModuleType, tmp_path: Path
 ) -> None:

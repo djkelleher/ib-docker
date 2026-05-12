@@ -215,6 +215,8 @@ def validate_ib_release_layout(program: str, ib_release_dir: Path) -> None:
 def validate_runtime_environment() -> None:
     """Validate runtime settings that should prevent config generation."""
     program = require_env("PROGRAM")
+    if "IBC_PATH" in os.environ:
+        require_absolute_path(Path(require_env("IBC_PATH")), "IBC_PATH")
     vmoptions_names(program)
     validate_ib_release_layout(program, Path(require_env("IB_RELEASE_DIR")))
     require_absolute_path(Path(require_env("IBC_INI")), "IBC_INI")
