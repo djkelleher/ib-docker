@@ -1408,6 +1408,15 @@ def test_ci_downloads_are_atomic_and_nonempty() -> None:
     assert "temporary_path.unlink()" in content
 
 
+def test_ci_sha256_assets_are_line_oriented() -> None:
+    """Generated sha256 sidecars should be valid line-oriented checksum files."""
+    content = CI_PATH.read_text()
+
+    assert (
+        'f"{hashlib.sha256(file.read_bytes()).hexdigest()} {file.name}\\n"' in content
+    )
+
+
 def test_ci_docker_build_failures_are_fatal() -> None:
     """CI image builds should fail when docker buildx returns a non-zero status."""
     content = CI_PATH.read_text()
