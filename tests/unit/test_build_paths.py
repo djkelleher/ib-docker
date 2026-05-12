@@ -1246,6 +1246,23 @@ def test_ci_validates_release_tags_before_building() -> None:
     )
 
 
+def test_ci_build_platforms_match_workflow_support() -> None:
+    """Manual CI image builds should not attempt unsupported TWS arm64 builds."""
+    ci_content = CI_PATH.read_text()
+    gateway_workflow = GATEWAY_WORKFLOW_PATH.read_text()
+    tws_workflow = TWS_WORKFLOW_PATH.read_text()
+
+    assert (
+        'if program == "ibgateway":\n        return "linux/amd64,linux/arm64"'
+        in ci_content
+    )
+    assert 'if program == "tws":\n        return "linux/amd64"' in ci_content
+    assert "docker buildx build --platform {platforms}" in ci_content
+    assert "platforms: linux/amd64,linux/arm64" in gateway_workflow
+    assert "platforms: linux/amd64\n" in tws_workflow
+    assert "platforms: linux/amd64,linux/arm64" not in tws_workflow
+
+
 def test_ci_download_and_fetch_errors_are_fatal() -> None:
     """Release automation should not continue after failed network operations."""
     content = CI_PATH.read_text()

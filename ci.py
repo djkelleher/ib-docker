@@ -144,6 +144,15 @@ def parse_release_tag(tag_name: str) -> GitHubRelease:
     return GitHubRelease(release=release, build_version=version)
 
 
+def docker_platforms(program: str) -> str:
+    """Return supported Docker platforms for an IB product image."""
+    if program == "ibgateway":
+        return "linux/amd64,linux/arm64"
+    if program == "tws":
+        return "linux/amd64"
+    raise ValueError(f"Unsupported PROGRAM: {program}")
+
+
 def find_latest_github_releases() -> list[GitHubRelease]:
     """Find latest 'latest' and 'stable' releases."""
     gh_repo = get_gh_repo()
@@ -226,6 +235,7 @@ def create_github_releases() -> list[IBRelease]:
 def build_image(params: tuple[str, str, str]) -> None:
     program, release, version = params
     image_name = {"ibgateway": "ib-gateway", "tws": "ib-tws"}[program]
+    platforms = docker_platforms(program)
     # tag with latest or stable as well as version number.
     major, minor, _ = version.split(".")
     tags = [release, version, f"{major}.{minor}"]
@@ -234,7 +244,7 @@ def build_image(params: tuple[str, str, str]) -> None:
     img_tags = " -t ".join([f"{image_name}:{tag}" for tag in tags])
     cmd = (
         # "docker buildx build --platform linux/amd64 "
-        "docker buildx build --platform linux/amd64,linux/arm64 "
+        f"docker buildx build --platform {platforms} "
         f"--build-arg PROGRAM={program} "
         f"--build-arg RELEASE={release} "
         f"--build-arg VERSION={version} "
