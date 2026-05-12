@@ -9,6 +9,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 INIT_SETTINGS_PATH = REPO_ROOT / "build" / "programs" / "init_container_settings.py"
 IB_UTILS_PATH = REPO_ROOT / "build" / "programs" / "ib_utils.sh"
+ENTRYPOINT_PATH = REPO_ROOT / "build" / "programs" / "entrypoint.sh"
 DOCKERFILE_PATH = REPO_ROOT / "build" / "Dockerfile"
 BUILD_DOCKERIGNORE_PATH = REPO_ROOT / "build" / ".dockerignore"
 VMOPTIONS_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "vmoptions.j2"
@@ -196,6 +197,17 @@ def test_x_display_number_rejects_invalid_display() -> None:
 
     assert result.returncode == 1
     assert "Invalid DISPLAY value" in result.stdout
+
+
+def test_entrypoint_uses_display_specific_x_cleanup() -> None:
+    """Entrypoint cleanup should match the normalized display path handling."""
+    content = ENTRYPOINT_PATH.read_text()
+
+    assert 'display_no="$(x_display_number "$DISPLAY")"' in content
+    assert "rm -rf /tmp/.X*-lock" not in content
+    assert "rm -rf /tmp/.X11-unix/*" not in content
+    assert 'rm -f "/tmp/.X${display_no}-lock"' in content
+    assert 'rm -f "/tmp/.X11-unix/X${display_no}"' in content
 
 
 def test_gateway_vmoptions_updates_primary_and_compatibility_files(

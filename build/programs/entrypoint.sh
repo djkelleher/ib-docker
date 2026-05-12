@@ -2,23 +2,28 @@
 
 # Container entrypoint script to handle initialization and cleanup
 
+source /usr/local/lib/ib_utils
+
 log() {
 	timestamp=$(date +"%Y-%m-%d %H:%M:%S")
 	echo "$timestamp [ENTRYPOINT] $1"
 }
 
 cleanup_x_server() {
+	local display_no
+
 	log "Performing initial X server cleanup..."
+	display_no="$(x_display_number "$DISPLAY")"
 
 	# Kill any existing X server processes
-	pkill -9 -f "Xvfb" 2>/dev/null || true
+	pkill -9 -f "Xvfb.*${DISPLAY}" 2>/dev/null || true
 	pkill -9 -f "x11vnc" 2>/dev/null || true
 
 	# Clean up X server files and locks
-	rm -rf /tmp/.X*-lock 2>/dev/null || true
-	rm -rf /tmp/.X11-unix/* 2>/dev/null || true
-	rm -rf /var/run/X* 2>/dev/null || true
-	rm -rf /var/lock/X* 2>/dev/null || true
+	rm -f "/tmp/.X${display_no}-lock" 2>/dev/null || true
+	rm -f "/tmp/.X11-unix/X${display_no}" 2>/dev/null || true
+	rm -f "/var/run/X${display_no}" 2>/dev/null || true
+	rm -f "/var/lock/X${display_no}" 2>/dev/null || true
 
 	# Recreate X11 directory with correct permissions
 	mkdir -p /tmp/.X11-unix
@@ -30,12 +35,12 @@ cleanup_x_server() {
 	log "X server cleanup completed"
 }
 
-# Perform initial cleanup
-cleanup_x_server
-
 # Use DISPLAY environment variable or default to :1
 DISPLAY="${DISPLAY:-:1}"
 export DISPLAY
+
+# Perform initial cleanup
+cleanup_x_server
 
 log "Initializing runtime configuration"
 init_container_settings
