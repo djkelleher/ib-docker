@@ -1256,6 +1256,23 @@ def test_ci_release_discovery_skips_unsupported_tags() -> None:
     assert "continue" in content
 
 
+def test_ci_shared_release_tags_require_both_products() -> None:
+    """Shared release tags should not be created with only one product artifact."""
+    content = CI_PATH.read_text()
+
+    assert (
+        "release_programs = {ib_release.program for ib_release in ib_releases}"
+        in content
+    )
+    assert 'release_programs != {"ibgateway", "tws"}' in content
+    assert (
+        "Skipping %s-%s release until both Gateway and TWS artifacts are available"
+        in content
+    )
+    assert "ThreadPoolExecutor(max_workers=len(ib_releases))" in content
+    assert "ThreadPoolExecutor(max_workers=len(new_releases))" not in content
+
+
 def test_ci_build_platforms_match_workflow_support() -> None:
     """Manual CI image builds should not attempt unsupported TWS arm64 builds."""
     ci_content = CI_PATH.read_text()

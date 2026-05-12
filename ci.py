@@ -207,8 +207,17 @@ def create_github_releases() -> list[IBRelease]:
     for r in new_releases:
         version_programs[(r.build_version, r.release)].append(r)
     for (version, release), ib_releases in version_programs.items():
+        release_programs = {ib_release.program for ib_release in ib_releases}
+        if release_programs != {"ibgateway", "tws"}:
+            logger.info(
+                "Skipping %s-%s release until both Gateway and TWS artifacts are available: %s",
+                release,
+                version,
+                sorted(release_programs),
+            )
+            continue
         logger.info(f"Found releases for {release} {version}: {ib_releases}.")
-        with ThreadPoolExecutor(max_workers=len(new_releases)) as executor:
+        with ThreadPoolExecutor(max_workers=len(ib_releases)) as executor:
             files = list(executor.map(download_release_file, ib_releases))
         logger.info("Finished downloading files.")
         tag = f"{release}-{version}"
