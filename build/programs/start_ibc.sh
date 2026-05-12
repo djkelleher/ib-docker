@@ -3,11 +3,11 @@
 source /usr/local/lib/ib_utils
 
 start_ibc() {
+	local ibc_args=()
+
 	TWOFA_TIMEOUT_ACTION="${TWOFA_TIMEOUT_ACTION:-exit}"
 	if [ "$PROGRAM" = "ibgateway" ]; then
-		PROGRAM_FLAG="-g"
-	else
-		PROGRAM_FLAG=""
+		ibc_args+=("-g")
 	fi
 	IB_RELEASE_DIR="$(resolve_ib_release_dir)"
 	IB_BASE_DIR="$(resolve_ibc_tws_path "$IB_RELEASE_DIR")"
@@ -29,8 +29,8 @@ start_ibc() {
 	echo ".>		tws-settings-path: ${TWS_SETTINGS_PATH}"
 	echo ".>		on2fatimeout: ${TWOFA_TIMEOUT_ACTION}"
 
-	# start IBC -g for gateway
-	"${IBC_PATH}/scripts/ibcstart.sh" "${IB_RELEASE}" ${PROGRAM_FLAG} \
+	# start IBC with -g for gateway
+	"${IBC_PATH}/scripts/ibcstart.sh" "${IB_RELEASE}" "${ibc_args[@]}" \
 		"--tws-path=${IB_BASE_DIR}" \
 		"--ibc-ini=${IBC_INI}" \
 		"--ibc-path=${IBC_PATH}" \

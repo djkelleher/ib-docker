@@ -35,6 +35,15 @@ def run_bash(script: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def create_ib_release_dir(path: Path, app_name: str) -> None:
+    """Create the minimal installer layout required by runtime path checks."""
+    (path / "jars").mkdir(parents=True)
+    executable_path = path / app_name
+    executable_path.write_text("#!/bin/sh\n")
+    executable_path.chmod(0o755)
+    (path / f"{app_name}.vmoptions").write_text("-Xmx256m\n")
+
+
 @pytest.fixture(name="init_settings")
 def fixture_init_settings() -> ModuleType:
     """Return the init_container_settings module."""
@@ -61,7 +70,7 @@ def test_env_substitution_uses_defaults_for_empty_values(
 def test_gateway_ibc_path_resolves_to_parent_expected_by_ibc(tmp_path: Path) -> None:
     """Gateway IBC startup should find /opt/ibgateway/<release> without fallback."""
     release_dir = tmp_path / "opt" / "ibgateway" / "stable"
-    (release_dir / "jars").mkdir(parents=True)
+    create_ib_release_dir(release_dir, "ibgateway")
 
     result = run_bash(
         f"""
@@ -80,7 +89,7 @@ def test_gateway_ibc_path_resolves_to_parent_expected_by_ibc(tmp_path: Path) -> 
 def test_tws_ibc_path_resolves_to_product_dir_expected_by_ibc(tmp_path: Path) -> None:
     """TWS IBC startup should find /opt/tws/<release>."""
     release_dir = tmp_path / "opt" / "tws" / "stable"
-    (release_dir / "jars").mkdir(parents=True)
+    create_ib_release_dir(release_dir, "tws")
 
     result = run_bash(
         f"""
@@ -94,6 +103,37 @@ def test_tws_ibc_path_resolves_to_product_dir_expected_by_ibc(tmp_path: Path) ->
     )
 
     assert result.stdout.strip().endswith(f"{os.sep}opt{os.sep}tws")
+
+
+def test_release_dir_validation_rejects_incomplete_installer_layout(
+    tmp_path: Path,
+) -> None:
+    """Runtime should fail early if a custom release path is missing product files."""
+    release_dir = tmp_path / "opt" / "ibgateway" / "stable"
+    (release_dir / "jars").mkdir(parents=True)
+
+    result = subprocess.run(
+        [
+            "bash",
+            "-eu",
+            "-o",
+            "pipefail",
+            "-c",
+            f"""
+            source "{IB_UTILS_PATH}"
+            PROGRAM=ibgateway
+            IB_RELEASE=stable
+            IB_RELEASE_DIR="{release_dir}"
+            resolve_ib_release_dir
+            """,
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    assert "Expected executable" in result.stdout
 
 
 def test_gateway_vmoptions_updates_primary_and_compatibility_files(

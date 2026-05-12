@@ -5,16 +5,46 @@ log() {
 	echo "$timestamp  $1"
 }
 
+ib_product_executable() {
+	case "$PROGRAM" in
+	ibgateway)
+		printf '%s\n' "ibgateway"
+		;;
+	tws)
+		printf '%s\n' "tws"
+		;;
+	*)
+		log "ERROR: Unsupported IB program: ${PROGRAM}"
+		exit 1
+		;;
+	esac
+}
+
 resolve_ib_release_dir() {
 	local release_dir="${IB_RELEASE_DIR:-}"
+	local app_name
 
 	if [ -z "$release_dir" ]; then
 		release_dir="/opt/${PROGRAM}/${IB_RELEASE}"
 	fi
 
+	app_name="$(ib_product_executable)"
+
 	if [ ! -d "$release_dir/jars" ]; then
 		log "ERROR: IB release directory is invalid: ${release_dir}"
 		log "Expected to find jars under ${release_dir}/jars"
+		exit 1
+	fi
+
+	if [ ! -x "$release_dir/$app_name" ]; then
+		log "ERROR: IB release directory is invalid: ${release_dir}"
+		log "Expected executable ${release_dir}/${app_name}"
+		exit 1
+	fi
+
+	if [ ! -f "$release_dir/${app_name}.vmoptions" ]; then
+		log "ERROR: IB release directory is invalid: ${release_dir}"
+		log "Expected vmoptions file ${release_dir}/${app_name}.vmoptions"
 		exit 1
 	fi
 
