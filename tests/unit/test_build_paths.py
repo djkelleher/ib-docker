@@ -3,6 +3,7 @@ import importlib.util
 import os
 import subprocess
 import sys
+import types
 from pathlib import Path
 from types import ModuleType
 
@@ -36,6 +37,30 @@ def load_init_settings() -> ModuleType:
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_ci_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
+    """Load ci.py with a lightweight PyGithub stub for local unit tests."""
+    github_module = types.ModuleType("github")
+
+    class Github:
+        """Minimal stand-in for PyGithub's client class."""
+
+        def __init__(self, token: str) -> None:
+            self.token = token
+
+        def get_repo(self, repo_name: str) -> str:
+            return repo_name
+
+    github_module.Github = Github
+    monkeypatch.setitem(sys.modules, "github", github_module)
+    spec = importlib.util.spec_from_file_location("ci", CI_PATH)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["ci"] = module
     spec.loader.exec_module(module)
     return module
 
@@ -1362,6 +1387,20 @@ def test_ci_validates_release_tags_before_building() -> None:
     )
 
 
+def test_ci_parse_release_tag_rejects_invalid_tags(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Release tag validation should run before any build side effects."""
+    ci_module = load_ci_module(monkeypatch)
+
+    parsed = ci_module.parse_release_tag("stable-10.45.1e")
+
+    assert parsed.release == "stable"
+    assert parsed.build_version == "10.45.1e"
+    with pytest.raises(ValueError, match="Invalid release tag"):
+        ci_module.parse_release_tag("ibgateway-stable-10.45.1e")
+
+
 def test_ci_validates_upstream_build_versions_before_release_tags() -> None:
     """Release creation should reject unexpected upstream buildVersion strings."""
     content = CI_PATH.read_text()
@@ -1381,6 +1420,17 @@ def test_ci_validates_upstream_build_versions_before_release_tags() -> None:
     assert 'version = parse_build_version(version, "Docker image build")' in content
 
 
+def test_ci_parse_build_version_rejects_invalid_versions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Build version validation should reject strings that would make bad tags."""
+    ci_module = load_ci_module(monkeypatch)
+
+    assert ci_module.parse_build_version("10.45.1e", "test") == "10.45.1e"
+    with pytest.raises(ValueError, match="Invalid IB build version"):
+        ci_module.parse_build_version("10.45", "test")
+
+
 def test_ci_validates_upstream_build_timestamps_before_release_notes() -> None:
     """Release notes should not fail with raw timestamp parsing errors."""
     content = CI_PATH.read_text()
@@ -1395,6 +1445,21 @@ def test_ci_validates_upstream_build_timestamps_before_release_notes() -> None:
     assert "return parse_build_datetime(" in content
 
 
+def test_ci_parse_build_datetime_rejects_invalid_timestamps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Release note timestamp validation should report its source clearly."""
+    ci_module = load_ci_module(monkeypatch)
+
+    parsed = ci_module.parse_build_datetime("2026-05-12T13:45:00", "test metadata")
+
+    assert parsed.isoformat() == "2026-05-12T13:45:00"
+    with pytest.raises(
+        ValueError, match="Invalid IB build datetime from test metadata"
+    ):
+        ci_module.parse_build_datetime("not-a-date", "test metadata")
+
+
 def test_ci_metadata_parser_rejects_missing_or_non_string_values() -> None:
     """Release metadata parsing should not assume upstream JSON shape blindly."""
     content = CI_PATH.read_text()
@@ -1403,6 +1468,24 @@ def test_ci_metadata_parser_rejects_missing_or_non_string_values() -> None:
     assert "if not isinstance(value, str):" in content
     assert 'raise ValueError(f"Invalid {key} from {source}: {value}")' in content
     assert "return value.strip()" in content
+
+
+def test_ci_release_meta_value_rejects_missing_or_non_string_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Release metadata extraction should fail before raw indexing errors leak."""
+    ci_module = load_ci_module(monkeypatch)
+
+    assert (
+        ci_module.release_meta_value(
+            {"buildVersion": " 10.45.1e "}, "buildVersion", "test"
+        )
+        == "10.45.1e"
+    )
+    with pytest.raises(RuntimeError, match="Missing buildVersion from test"):
+        ci_module.release_meta_value({}, "buildVersion", "test")
+    with pytest.raises(ValueError, match="Invalid buildVersion from test"):
+        ci_module.release_meta_value({"buildVersion": 1045}, "buildVersion", "test")
 
 
 def test_ci_release_discovery_skips_unsupported_tags() -> None:
@@ -1501,6 +1584,28 @@ def test_ci_docker_tags_do_not_give_beta_broad_aliases() -> None:
     assert 'if release == "latest":' in content
     assert "tags.append(major)" in content
     assert "tags = docker_tags(release, version)" in content
+
+
+def test_ci_docker_tags_match_release_channel_policy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Docker tag generation should avoid broad aliases for beta releases."""
+    ci_module = load_ci_module(monkeypatch)
+
+    assert ci_module.docker_tags("beta", "10.45.1e") == ["beta", "10.45.1e"]
+    assert ci_module.docker_tags("stable", "10.45.1e") == [
+        "stable",
+        "10.45.1e",
+        "10.45",
+    ]
+    assert ci_module.docker_tags("latest", "10.45.1e") == [
+        "latest",
+        "10.45.1e",
+        "10.45",
+        "10",
+    ]
+    with pytest.raises(ValueError, match="Invalid IB release channel"):
+        ci_module.docker_tags("preview", "10.45.1e")
 
 
 def test_ci_download_and_fetch_errors_are_fatal() -> None:
