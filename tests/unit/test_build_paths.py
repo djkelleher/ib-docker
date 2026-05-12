@@ -9,6 +9,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 INIT_SETTINGS_PATH = REPO_ROOT / "build" / "programs" / "init_container_settings.py"
 IB_UTILS_PATH = REPO_ROOT / "build" / "programs" / "ib_utils.sh"
+DOCKERFILE_PATH = REPO_ROOT / "build" / "Dockerfile"
 VMOPTIONS_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "vmoptions.j2"
 SUPERVISORD_CONF_PATH = REPO_ROOT / "build" / "config" / "supervisord.conf"
 
@@ -30,6 +31,16 @@ def run_bash(script: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["bash", "-eu", "-o", "pipefail", "-c", script],
         check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def run_bash_unchecked(script: str) -> subprocess.CompletedProcess[str]:
+    """Run a bash snippet without raising for a non-zero exit code."""
+    return subprocess.run(
+        ["bash", "-eu", "-o", "pipefail", "-c", script],
+        check=False,
         capture_output=True,
         text=True,
     )
@@ -112,28 +123,32 @@ def test_release_dir_validation_rejects_incomplete_installer_layout(
     release_dir = tmp_path / "opt" / "ibgateway" / "stable"
     (release_dir / "jars").mkdir(parents=True)
 
-    result = subprocess.run(
-        [
-            "bash",
-            "-eu",
-            "-o",
-            "pipefail",
-            "-c",
-            f"""
-            source "{IB_UTILS_PATH}"
-            PROGRAM=ibgateway
-            IB_RELEASE=stable
-            IB_RELEASE_DIR="{release_dir}"
-            resolve_ib_release_dir
-            """,
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
+    result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        PROGRAM=ibgateway
+        IB_RELEASE=stable
+        IB_RELEASE_DIR="{release_dir}"
+        resolve_ib_release_dir
+        """
     )
 
     assert result.returncode == 1
     assert "Expected executable" in result.stdout
+
+
+def test_shell_product_validation_rejects_unsupported_program() -> None:
+    """Shared shell helpers should fail explicitly on unsupported products."""
+    result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        PROGRAM=desktop
+        ib_product_executable
+        """
+    )
+
+    assert result.returncode == 1
+    assert "Unsupported IB program: desktop" in result.stdout
 
 
 def test_gateway_vmoptions_updates_primary_and_compatibility_files(
@@ -192,6 +207,14 @@ def test_tws_vmoptions_updates_tws_file_only(
     assert "-Xmx2048m" in vmoptions_content
     assert "-Xms512m" in vmoptions_content
     assert not (release_dir / "ibgateway.vmoptions").exists()
+
+
+def test_vmoptions_paths_rejects_unsupported_program(
+    init_settings: ModuleType, tmp_path: Path
+) -> None:
+    """Python vmoptions generation should fail before writing unknown product files."""
+    with pytest.raises(ValueError, match="Unsupported PROGRAM"):
+        init_settings.vmoptions_paths("desktop", tmp_path)
 
 
 def test_main_renders_ini_files_from_templates_each_start(
@@ -314,3 +337,14 @@ def test_supervisor_config_uses_supported_startup_coordination() -> None:
     assert "[program:settings]" not in content
     assert "[unix_http_server]" in content
     assert "serverurl=unix:///tmp/supervisor.sock" in content
+
+
+def test_dockerfile_validates_build_args_before_downloads() -> None:
+    """Builds should reject invalid products/releases before installer downloads."""
+    content = DOCKERFILE_PATH.read_text()
+    first_validation = content.index("Unsupported PROGRAM")
+    first_download = content.index("wget -q -O /ib.sh")
+
+    assert first_validation < first_download
+    assert "Unsupported RELEASE" in content
+    assert "Versioned release artifacts are only available for ARCH=x64" in content

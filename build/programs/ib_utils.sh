@@ -6,7 +6,7 @@ log() {
 }
 
 ib_product_executable() {
-	case "$PROGRAM" in
+	case "${PROGRAM:-}" in
 	ibgateway)
 		printf '%s\n' "ibgateway"
 		;;
@@ -14,7 +14,7 @@ ib_product_executable() {
 		printf '%s\n' "tws"
 		;;
 	*)
-		log "ERROR: Unsupported IB program: ${PROGRAM}"
+		log "ERROR: Unsupported IB program: ${PROGRAM:-<unset>}"
 		exit 1
 		;;
 	esac

@@ -8,6 +8,14 @@ ARG RELEASE=stable          # stable | latest | beta
 ARG ARCH=x64                # x64 only effectively supported here
 ARG IBC_VERSION=3.23.0
 
+RUN set -eu; \
+    case "$PROGRAM" in ibgateway|tws) ;; *) echo "Unsupported PROGRAM: $PROGRAM" >&2; exit 1 ;; esac; \
+    case "$RELEASE" in stable|latest|beta) ;; *) echo "Unsupported RELEASE: $RELEASE" >&2; exit 1 ;; esac; \
+    if [ "$VERSION" != "NULL" ] && [ "$ARCH" != "x64" ]; then \
+      echo "Versioned release artifacts are only available for ARCH=x64" >&2; \
+      exit 1; \
+    fi
+
 # Keep only essential build deps in this stage
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     wget ca-certificates unzip locales \
@@ -87,6 +95,10 @@ ARG PROGRAM=ibgateway
 ARG RELEASE=stable
 ARG VERSION=NULL
 ARG IBC_VERSION=3.23.0
+
+RUN set -eu; \
+    case "$PROGRAM" in ibgateway|tws) ;; *) echo "Unsupported PROGRAM: $PROGRAM" >&2; exit 1 ;; esac; \
+    case "$RELEASE" in stable|latest|beta) ;; *) echo "Unsupported RELEASE: $RELEASE" >&2; exit 1 ;; esac
 
 LABEL org.opencontainers.image.title="Interactive Brokers ${PROGRAM}" \
       org.opencontainers.image.description="Interactive Brokers ${PROGRAM} (${RELEASE}) with IBC ${IBC_VERSION}" \
