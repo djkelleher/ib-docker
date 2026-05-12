@@ -592,6 +592,16 @@ def test_vnc_password_is_not_passed_on_process_command_line() -> None:
     assert "unset VNC_PWD" in content
 
 
+def test_vnc_startup_requires_home_before_xauth_setup() -> None:
+    """VNC startup should validate HOME before using it for X authority files."""
+    content = START_VNC_PATH.read_text()
+
+    validation = content.index("ensure_absolute_path HOME")
+    xauth = content.index('export XAUTHORITY="$HOME/.Xauthority"')
+
+    assert validation < xauth
+
+
 def test_startup_scripts_use_strict_shell_mode() -> None:
     """Startup scripts should fail on setup errors instead of continuing."""
     for script_path in [
