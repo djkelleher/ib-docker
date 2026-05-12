@@ -179,6 +179,13 @@ def vmoptions_paths(program: str, ib_release_dir: Path) -> list[Path]:
     return [ib_release_dir / name for name in vmoptions_names(program)]
 
 
+def validate_runtime_environment() -> None:
+    """Validate runtime settings that should prevent config generation."""
+    program = require_env("PROGRAM")
+    vmoptions_names(program)
+    require_directory(Path(require_env("IB_RELEASE_DIR")), "IB release")
+
+
 def render_vmoptions(
     template_content: str,
     java_heap_size: str,
@@ -232,6 +239,8 @@ def set_java_vmoptions() -> None:
 
 
 def main() -> None:
+    validate_runtime_environment()
+
     ibc_ini_path = Path(require_env("IBC_INI"))
     default_ibc_dir = Path(os.environ.get("IBC_PATH", str(ibc_ini_path.parent)))
     default_ibc_template_path = default_ibc_dir / "ibc.ini.template"
