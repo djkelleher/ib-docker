@@ -57,7 +57,12 @@ resolve_ibc_tws_path() {
 
 	product_dir="$(dirname "$release_dir")"
 
-	if [ "$PROGRAM" = "ibgateway" ] && [ "$(basename "$product_dir")" = "ibgateway" ]; then
+	if [ "$PROGRAM" = "ibgateway" ]; then
+		if [ "$(basename "$product_dir")" != "ibgateway" ]; then
+			log "ERROR: Gateway release directory must be nested under an ibgateway directory: ${release_dir}"
+			log "IBC resolves Gateway as <tws-path>/ibgateway/<release>"
+			exit 1
+		fi
 		# IBC appends /ibgateway/<version> for Gateway, but only /<version> for TWS.
 		dirname "$product_dir"
 	else

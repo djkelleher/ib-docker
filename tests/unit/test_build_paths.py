@@ -116,6 +116,26 @@ def test_tws_ibc_path_resolves_to_product_dir_expected_by_ibc(tmp_path: Path) ->
     assert result.stdout.strip().endswith(f"{os.sep}opt{os.sep}tws")
 
 
+def test_gateway_ibc_path_rejects_parent_not_named_ibgateway(tmp_path: Path) -> None:
+    """Gateway custom release dirs must match the path shape IBC reconstructs."""
+    release_dir = tmp_path / "opt" / "gateway" / "stable"
+    create_ib_release_dir(release_dir, "ibgateway")
+
+    result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        PROGRAM=ibgateway
+        IB_RELEASE=stable
+        IB_RELEASE_DIR="{release_dir}"
+        release_dir="$(resolve_ib_release_dir)"
+        resolve_ibc_tws_path "$release_dir"
+        """
+    )
+
+    assert result.returncode == 1
+    assert "must be nested under an ibgateway directory" in result.stdout
+
+
 def test_release_dir_validation_rejects_incomplete_installer_layout(
     tmp_path: Path,
 ) -> None:
