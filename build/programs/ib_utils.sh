@@ -5,18 +5,6 @@ log() {
 	echo "$timestamp  $1"
 }
 
-required_env() {
-	local name="$1"
-	local value="${!name:-}"
-
-	if [ -z "$value" ]; then
-		log "ERROR: Required environment variable ${name} is not set"
-		exit 1
-	fi
-
-	printf '%s\n' "$value"
-}
-
 ensure_env() {
 	local name="$1"
 

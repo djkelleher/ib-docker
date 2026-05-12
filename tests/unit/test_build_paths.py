@@ -186,7 +186,7 @@ def test_shell_product_validation_rejects_unsupported_program() -> None:
     assert "Unsupported IB program: desktop" in result.stdout
 
 
-def test_required_env_fails_with_clear_error() -> None:
+def test_ensure_env_fails_with_clear_error() -> None:
     """Strict-mode scripts should report missing required env names clearly."""
     result = run_bash_unchecked(
         f"""
