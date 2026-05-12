@@ -43,6 +43,8 @@ class IBRelease:
         release: ScheduledReleaseChannel,
         program: Literal["ibgateway", "tws"],
     ) -> None:
+        if release not in ("latest", "stable"):
+            raise ValueError(f"Unsupported scheduled RELEASE: {release}")
         if program not in ("ibgateway", "tws"):
             raise ValueError(f"Unsupported PROGRAM: {program}")
         self.release = release

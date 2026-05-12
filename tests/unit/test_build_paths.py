@@ -1411,6 +1411,16 @@ def test_ci_ib_release_rejects_invalid_program_immediately(
         ci_module.IBRelease(release="stable", program="desktop")
 
 
+def test_ci_ib_release_rejects_invalid_scheduled_channel_immediately(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Scheduled release metadata should not build URLs for unknown channels."""
+    ci_module = load_ci_module(monkeypatch)
+
+    with pytest.raises(ValueError, match="Unsupported scheduled RELEASE: beta"):
+        ci_module.IBRelease(release="beta", program="ibgateway")
+
+
 def test_ci_validates_upstream_build_versions_before_release_tags() -> None:
     """Release creation should reject unexpected upstream buildVersion strings."""
     content = CI_PATH.read_text()
