@@ -1006,6 +1006,14 @@ def test_supervisor_config_uses_supported_startup_coordination() -> None:
     assert "serverurl=unix:///tmp/supervisor.sock" in content
 
 
+def test_dockerfile_healthcheck_uses_supervisor_service_status() -> None:
+    """Healthcheck should fail when IBC is not running under supervisord."""
+    content = DOCKERFILE_PATH.read_text()
+
+    assert "supervisorctl status xvfb ibc" in content
+    assert "pgrep -f supervisord" not in content
+
+
 def test_dockerfile_validates_build_args_before_downloads() -> None:
     """Builds should reject invalid products/releases before installer downloads."""
     content = DOCKERFILE_PATH.read_text()

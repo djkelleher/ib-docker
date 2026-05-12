@@ -183,8 +183,8 @@ RUN chmod +x /usr/local/bin/init_container_settings /usr/local/bin/start_xvfb /u
 USER ibuser
 WORKDIR /home/ibuser
 
-# Healthcheck: ensure supervisord running AND Xvfb display active
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 CMD pgrep -f supervisord >/dev/null 2>&1 && xset q >/dev/null 2>&1 || exit 1
+# Healthcheck: ensure supervised core services are running and Xvfb display is active
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 CMD supervisorctl status xvfb ibc >/dev/null 2>&1 && xset q >/dev/null 2>&1 || exit 1
 
 EXPOSE 5900
 
