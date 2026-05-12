@@ -1194,6 +1194,14 @@ def test_compose_passes_documented_env_to_runtime_services() -> None:
         assert content.count(f"{env_name}: ${{{env_name}") == 2
 
 
+def test_compose_requires_credentials_before_startup() -> None:
+    """Compose should fail fast when required IB credentials are missing."""
+    content = DOCKER_COMPOSE_PATH.read_text()
+
+    assert content.count("IB_USER: ${IB_USER:?IB_USER is required}") == 2
+    assert content.count("IB_PASSWORD: ${IB_PASSWORD:?IB_PASSWORD is required}") == 2
+
+
 def test_compose_uses_distinct_vnc_ports_for_host_network_services() -> None:
     """Enabling VNC on both compose services should not collide on host networking."""
     content = DOCKER_COMPOSE_PATH.read_text()

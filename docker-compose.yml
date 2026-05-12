@@ -31,8 +31,8 @@ services:
       TWOFA_EXIT_INTERVAL: ${TWOFA_EXIT_INTERVAL:-60}
       JAVA_HEAP_SIZE: ${JAVA_HEAP_SIZE:-}
       CUSTOM_JVM_OPTS: ${CUSTOM_JVM_OPTS:-}
-      IB_USER: ${IB_USER}
-      IB_PASSWORD: ${IB_PASSWORD}
+      IB_USER: ${IB_USER:?IB_USER is required}
+      IB_PASSWORD: ${IB_PASSWORD:?IB_PASSWORD is required}
   ib-tws:
     image: ib-tws
     build:
@@ -68,5 +68,5 @@ services:
       TWOFA_EXIT_INTERVAL: ${TWOFA_EXIT_INTERVAL:-60}
       JAVA_HEAP_SIZE: ${JAVA_HEAP_SIZE:-}
       CUSTOM_JVM_OPTS: ${CUSTOM_JVM_OPTS:-}
-      IB_USER: ${IB_USER}
-      IB_PASSWORD: ${IB_PASSWORD}
+      IB_USER: ${IB_USER:?IB_USER is required}
+      IB_PASSWORD: ${IB_PASSWORD:?IB_PASSWORD is required}
