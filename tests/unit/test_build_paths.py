@@ -10,6 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 INIT_SETTINGS_PATH = REPO_ROOT / "build" / "programs" / "init_container_settings.py"
 IB_UTILS_PATH = REPO_ROOT / "build" / "programs" / "ib_utils.sh"
 ENTRYPOINT_PATH = REPO_ROOT / "build" / "programs" / "entrypoint.sh"
+START_VNC_PATH = REPO_ROOT / "build" / "programs" / "start_vnc.sh"
 START_XVFB_PATH = REPO_ROOT / "build" / "programs" / "start_xvfb.sh"
 DOCKERFILE_PATH = REPO_ROOT / "build" / "Dockerfile"
 BUILD_DOCKERIGNORE_PATH = REPO_ROOT / "build" / ".dockerignore"
@@ -280,6 +281,16 @@ def test_x_screen_dimension_defaults_and_validates() -> None:
     assert custom_result.stdout.strip() == "1920x1080x24"
     assert invalid_result.returncode == 1
     assert "Invalid VNC_SCREEN_DIMENSION" in invalid_result.stdout
+
+
+def test_vnc_password_is_not_passed_on_process_command_line() -> None:
+    """VNC password should not remain in x11vnc argv or inherited env."""
+    content = START_VNC_PATH.read_text()
+
+    assert '-passwd "$VNC_PWD"' not in content
+    assert '-passwdfile "$vnc_password_file"' in content
+    assert 'chmod 600 "$vnc_password_file"' in content
+    assert "unset VNC_PWD" in content
 
 
 def test_gateway_vmoptions_updates_primary_and_compatibility_files(
