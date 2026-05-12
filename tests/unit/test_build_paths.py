@@ -1257,6 +1257,17 @@ def test_ci_release_discovery_skips_unsupported_tags() -> None:
     assert "continue" in content
 
 
+def test_ci_scheduled_release_discovery_ignores_beta_tags() -> None:
+    """Daily release checks should still discover latest and stable when beta exists."""
+    content = CI_PATH.read_text()
+
+    assert 'if release.release == "beta":' in content
+    assert "Skipping beta release during scheduled release discovery" in content
+    assert content.index('if release.release == "beta":') < content.index(
+        "if release.release not in releases:"
+    )
+
+
 def test_ci_shared_release_tags_require_both_products() -> None:
     """Shared release tags should not be created with only one product artifact."""
     content = CI_PATH.read_text()
