@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Container entrypoint script to handle initialization and cleanup
 

@@ -1,11 +1,12 @@
 #!/bin/bash
+set -euo pipefail
 
 source /usr/local/lib/ib_utils
 
 start_vnc() {
 	local vnc_password_file
 
-	if [[ -z $VNC_PWD ]]; then
+	if [[ -z ${VNC_PWD:-} ]]; then
 		log "VNC password is not set (VNC_PWD). VNC is disabled."
 		exec sleep infinity
 	fi

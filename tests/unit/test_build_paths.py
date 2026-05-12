@@ -12,6 +12,7 @@ IB_UTILS_PATH = REPO_ROOT / "build" / "programs" / "ib_utils.sh"
 ENTRYPOINT_PATH = REPO_ROOT / "build" / "programs" / "entrypoint.sh"
 START_VNC_PATH = REPO_ROOT / "build" / "programs" / "start_vnc.sh"
 START_XVFB_PATH = REPO_ROOT / "build" / "programs" / "start_xvfb.sh"
+START_IBC_PATH = REPO_ROOT / "build" / "programs" / "start_ibc.sh"
 DOCKERFILE_PATH = REPO_ROOT / "build" / "Dockerfile"
 BUILD_DOCKERIGNORE_PATH = REPO_ROOT / "build" / ".dockerignore"
 VMOPTIONS_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "vmoptions.j2"
@@ -311,6 +312,25 @@ def test_vnc_password_is_not_passed_on_process_command_line() -> None:
     assert '-passwdfile "$vnc_password_file"' in content
     assert 'chmod 600 "$vnc_password_file"' in content
     assert "unset VNC_PWD" in content
+
+
+def test_startup_scripts_use_strict_shell_mode() -> None:
+    """Startup scripts should fail on setup errors instead of continuing."""
+    for script_path in [
+        ENTRYPOINT_PATH,
+        START_IBC_PATH,
+        START_VNC_PATH,
+        START_XVFB_PATH,
+    ]:
+        content = script_path.read_text()
+        assert content.startswith("#!/bin/bash\nset -euo pipefail\n")
+
+
+def test_vnc_password_optional_under_strict_shell_mode() -> None:
+    """Unset VNC_PWD should still disable VNC without tripping nounset."""
+    content = START_VNC_PATH.read_text()
+
+    assert "if [[ -z ${VNC_PWD:-} ]]; then" in content
 
 
 def test_gateway_vmoptions_updates_primary_and_compatibility_files(

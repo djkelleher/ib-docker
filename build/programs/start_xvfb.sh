@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 source /usr/local/lib/ib_utils
 
