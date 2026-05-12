@@ -1338,6 +1338,7 @@ def test_ci_shared_release_tags_require_both_products() -> None:
     """Shared release tags should not be created with only one product artifact."""
     content = CI_PATH.read_text()
 
+    assert "created_releases = []" in content
     assert (
         "release_programs = {ib_release.program for ib_release in ib_releases}"
         in content
@@ -1349,6 +1350,8 @@ def test_ci_shared_release_tags_require_both_products() -> None:
     )
     assert "ThreadPoolExecutor(max_workers=len(ib_releases))" in content
     assert "ThreadPoolExecutor(max_workers=len(new_releases))" not in content
+    assert "created_releases.extend(ib_releases)" in content
+    assert "return created_releases" in content
 
 
 def test_ci_build_platforms_match_workflow_support() -> None:

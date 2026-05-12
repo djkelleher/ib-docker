@@ -221,6 +221,7 @@ def create_github_releases() -> list[IBRelease]:
         logger.info("No new releases found.")
         return []
 
+    created_releases = []
     version_programs = defaultdict(list)
     for r in new_releases:
         version_programs[(r.build_version, r.release)].append(r)
@@ -261,8 +262,9 @@ def create_github_releases() -> list[IBRelease]:
 
         with ThreadPoolExecutor(max_workers=len(files)) as executor:
             list(executor.map(upload_release_file, files))
+        created_releases.extend(ib_releases)
     logger.info("Done!")
-    return new_releases
+    return created_releases
 
 
 def build_image(params: tuple[str, str, str]) -> None:
