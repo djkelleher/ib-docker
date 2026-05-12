@@ -12,8 +12,8 @@ services:
     restart: always
     network_mode: host
     environment:
-      # VNC server password. If not defined, then VNC server will NOT start.
-      VNC_PWD: tws
+      # VNC is disabled unless VNC_PWD is set in .env.
+      VNC_PWD: ${VNC_PWD:-}
       VNC_SCREEN_DIMENSION: ${VNC_SCREEN_DIMENSION:-1600x1200x24}
       # live or paper.
       TRADING_MODE: ${TRADING_MODE:-paper}
@@ -35,12 +35,8 @@ services:
       - seccomp:unconfined
     shm_size: 2g
     environment:
-      # User `uid` to run the container as (1000 is host user)
-      PUID: 1000
-      # User `gid` to run the container as (1000 is host user)
-      PGID: 1000
-      # VNC server password. If not defined, then VNC server will NOT start.
-      VNC_PWD: tws
+      # VNC is disabled unless VNC_PWD is set in .env.
+      VNC_PWD: ${VNC_PWD:-}
       VNC_SCREEN_DIMENSION: ${VNC_SCREEN_DIMENSION:-1600x1200x24}
       # live or paper.
       TRADING_MODE: ${TRADING_MODE:-paper}

@@ -14,7 +14,7 @@ Reliable, high-performance Docker images for running Interactive Brokers Gateway
 
 **Images:** `danklabs/ib-gateway` • `danklabs/ib-tws`
 
-VNC_PWD must be set, or VNC will not start. `IB_USER` and `IB_PASSWORD` must be provided.
+`IB_USER` and `IB_PASSWORD` must be provided. VNC is disabled unless `VNC_PWD` is set.
 
 ```bash
 # 1. Get the project
@@ -31,18 +31,6 @@ docker compose up -d
 # 4. Connect your trading app to localhost:4002 (paper) or localhost:4001 (live)
 ```
 
-### Supervisord Web Interface
-Enable the web interface to monitor all processes:
-
-```yaml
-environment:
-  SUPERVISORD_UI_PORT: 9001
-  SUPERVISORD_UI_USER: admin    # Optional
-  SUPERVISORD_UI_PASS: secret   # Optional
-```
-
-**Access:** `http://localhost:9001`
-
 View process status & logs:
 ```bash
 docker compose exec ib-gateway supervisorctl status
@@ -53,7 +41,7 @@ docker compose exec ib-gateway supervisorctl tail -f ibc
 
 - **🔄 Full Automation** - [IBC](https://github.com/IbcAlpha/IBC) handles login and session management
 - **🖥️ Headless Operation** - [Xvfb](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml) virtual display + [x11vnc](https://wiki.archlinux.org/title/x11vnc) for remote GUI access
-- **📊 Process Management** - [Supervisord](http://supervisord.org/) with auto-recovery and web monitoring
+- **📊 Process Management** - [Supervisord](http://supervisord.org/) with auto-recovery and per-process logs
 - **🌐 Flexible Networking** - Host networking or bridge mode configurations
 - **📈 Production Ready** - Health checks, logging, and high-availability patterns
 - **🐳 Multi-stage Build** - All install logic embedded in `build/Dockerfile` (legacy `install.sh` removed)
@@ -61,9 +49,9 @@ docker compose exec ib-gateway supervisorctl tail -f ibc
 ### Process Management with Supervisord
 **Benefits:**
 - Auto-recovery of failed processes
-- Web interface at `http://localhost:9001` (optional)
+- `supervisorctl` process status and log access
 - Independent logging for each service
-- Proper startup dependencies
+- Ordered startup for Xvfb, VNC, and IBC
 
 ## 🔧 Building Locally
 
@@ -119,7 +107,7 @@ services:
 ## 🔐 Security Best Practices
 1. **Credentials**: Use `.env` files, never commit passwords
 2. **VNC**: Set strong `VNC_PWD` if enabling VNC server
-3. **Monitoring**: Enable supervisord web interface only on trusted networks
+3. **Monitoring**: Use `supervisorctl` inside the container for process status and logs
 4. **Updates**: Regularly update container images and dependencies
 
 # Configuration Guide
@@ -129,11 +117,9 @@ services:
 ### Basic Configuration
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PUID` | `1000` | User ID to run container as |
-| `PGID` | `1000` | Group ID to run container as |
-| `TZ` | `America/New_York` | Container timezone |
 | `TRADING_MODE` | `paper` | Trading mode: `paper` or `live` |
 | `ACCEPT_NON_BROKERAGE_WARNING` | `yes` | Auto-accept paper trading account warning dialog |
+| `TIME_ZONE` | `UTC` | Login timezone passed to IBC/TWS settings |
 
 ### IB Credentials
 | Variable | Required | Description |
@@ -145,8 +131,8 @@ services:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `VNC_PWD` | - | VNC server password (enables VNC if set) |
-| `VNC_SCREEN_DIMENSION` | `1600x1200x16` | VNC screen resolution |
-| `DISPLAY` | `:0` | X11 display number |
+| `VNC_SCREEN_DIMENSION` | `1600x1200x24` | VNC/Xvfb screen resolution |
+| `DISPLAY` | `:1` | X11 display number |
 
 ### IBC Configuration
 | Variable | Default | Description |
@@ -161,13 +147,6 @@ services:
 | `RELOGIN_AFTER_TWOFA_TIMEOUT` | `no` | Auto-relogin after 2FA timeout |
 | `TWOFA_EXIT_INTERVAL` | `60` | 2FA timeout interval (seconds) |
 
-### Supervisord Configuration
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SUPERVISORD_UI_PORT` | - | Enable supervisord web interface on port |
-| `SUPERVISORD_UI_USER` | - | Web interface username |
-| `SUPERVISORD_UI_PASS` | - | Web interface password |
-
 ### Ports
 | Service | Port | Description |
 |---------|------|-------------|
@@ -176,15 +155,15 @@ services:
 | TWS Live | 7496 | Live trading API |
 | TWS Paper | 7497 | Paper trading API |
 | VNC | 5900 | Remote desktop access |
-| Supervisord UI | 9001 | Process management web UI (optional) |
 
 ## 🔌 API Access (Summary)
 Same as Ports table above. Map or expose as required.
 
 ### JVM Tuning
 ```bash
-# Example custom Java options
-JAVA_OPTS="-Xmx2g -Xms1g -XX:+UseG1GC"
+# Set a fixed heap, or leave empty to auto-size from container memory.
+JAVA_HEAP_SIZE=2g
+CUSTOM_JVM_OPTS="-XX:+UseG1GC"
 ```
 
 ## Network Architecture Guide
