@@ -10,6 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 INIT_SETTINGS_PATH = REPO_ROOT / "build" / "programs" / "init_container_settings.py"
 IB_UTILS_PATH = REPO_ROOT / "build" / "programs" / "ib_utils.sh"
 DOCKERFILE_PATH = REPO_ROOT / "build" / "Dockerfile"
+BUILD_DOCKERIGNORE_PATH = REPO_ROOT / "build" / ".dockerignore"
 VMOPTIONS_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "vmoptions.j2"
 SUPERVISORD_CONF_PATH = REPO_ROOT / "build" / "config" / "supervisord.conf"
 
@@ -410,3 +411,12 @@ def test_dockerfile_validates_build_args_before_downloads() -> None:
     assert first_validation < first_download
     assert "Unsupported RELEASE" in content
     assert "Versioned release artifacts are only available for ARCH=x64" in content
+
+
+def test_build_context_ignores_generated_python_artifacts() -> None:
+    """The build context should not include local Python cache artifacts."""
+    ignored_patterns = set(BUILD_DOCKERIGNORE_PATH.read_text().splitlines())
+
+    assert "__pycache__/" in ignored_patterns
+    assert "*.py[cod]" in ignored_patterns
+    assert ".pytest_cache/" in ignored_patterns

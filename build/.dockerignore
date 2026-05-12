@@ -1,0 +1,16 @@
+# Python/test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Editor/OS noise
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Local logs and temporary downloads
+*.log
+*.tmp
+*.tar.gz
+*.zip
