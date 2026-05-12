@@ -11,8 +11,8 @@ ARG IBC_VERSION=3.23.0
 RUN set -eu; \
     case "$PROGRAM" in ibgateway|tws) ;; *) echo "Unsupported PROGRAM: $PROGRAM" >&2; exit 1 ;; esac; \
     case "$RELEASE" in stable|latest|beta) ;; *) echo "Unsupported RELEASE: $RELEASE" >&2; exit 1 ;; esac; \
-    if [ "$VERSION" != "NULL" ] && [ "$ARCH" != "x64" ]; then \
-      echo "Versioned release artifacts are only available for ARCH=x64" >&2; \
+    if [ "$ARCH" != "x64" ]; then \
+      echo "IB installer artifacts are only supported with ARCH=x64" >&2; \
       exit 1; \
     fi
 

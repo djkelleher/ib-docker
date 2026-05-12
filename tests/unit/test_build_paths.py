@@ -602,7 +602,7 @@ def test_dockerfile_validates_build_args_before_downloads() -> None:
 
     assert first_validation < first_download
     assert "Unsupported RELEASE" in content
-    assert "Versioned release artifacts are only available for ARCH=x64" in content
+    assert "IB installer artifacts are only supported with ARCH=x64" in content
 
 
 def test_build_context_ignores_generated_python_artifacts() -> None:
