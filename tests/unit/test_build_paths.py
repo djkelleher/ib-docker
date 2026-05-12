@@ -1258,6 +1258,17 @@ def test_ci_download_and_fetch_errors_are_fatal() -> None:
     assert 'logger.info(f"Error downloading file' not in content
 
 
+def test_release_workflow_uses_only_release_check_requirements() -> None:
+    """Daily release checks should not require unused DockerHub secrets."""
+    content = (REPO_ROOT / ".github" / "workflows" / "release.yml").read_text()
+
+    assert "pip install pygithub\n" in content
+    assert "pip install pygithub docker jinja2" not in content
+    assert "GITHUB_TOKEN: ${{ secrets.GH_PAT }}" in content
+    assert "DOCKERHUB_USERNAME" not in content
+    assert "DOCKERHUB_TOKEN" not in content
+
+
 def test_build_context_ignores_generated_python_artifacts() -> None:
     """The build context should not include local Python cache artifacts."""
     ignored_patterns = set(BUILD_DOCKERIGNORE_PATH.read_text().splitlines())
