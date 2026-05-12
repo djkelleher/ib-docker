@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from functools import cache, cached_property
 from pathlib import Path
-from subprocess import run
+from subprocess import CompletedProcess, run
 from typing import Any, Literal
 from urllib.request import urlopen, urlretrieve
 
@@ -281,19 +281,28 @@ def build_image(params: tuple[str, str, str]) -> None:
     tags = [release, version, f"{major}.{minor}"]
     if release == "latest":
         tags.append(major)
-    img_tags = " -t ".join([f"{image_name}:{tag}" for tag in tags])
-    cmd = (
-        # "docker buildx build --platform linux/amd64 "
-        f"docker buildx build --platform {platforms} "
-        f"--build-arg PROGRAM={program} "
-        f"--build-arg RELEASE={release} "
-        f"--build-arg VERSION={version} "
-        f"-t {img_tags} --push ."
-    )
-    logger.info(f"Building image: {cmd}")
+
+    cmd = [
+        "docker",
+        "buildx",
+        "build",
+        "--platform",
+        platforms,
+        "--build-arg",
+        f"PROGRAM={program}",
+        "--build-arg",
+        f"RELEASE={release}",
+        "--build-arg",
+        f"VERSION={version}",
+    ]
+    for tag in tags:
+        cmd.extend(["-t", f"{image_name}:{tag}"])
+    cmd.extend(["--push", "."])
+
+    logger.info("Building image: %s", " ".join(cmd))
     build_dir = Path(__file__).parent.joinpath("build").resolve()
-    res = run(
-        cmd.split(), capture_output=True, check=False, text=True, cwd=str(build_dir)
+    res: CompletedProcess[str] = run(
+        cmd, capture_output=True, check=False, text=True, cwd=str(build_dir)
     )
     if info := res.stdout.strip():
         logger.info(info)
@@ -301,7 +310,7 @@ def build_image(params: tuple[str, str, str]) -> None:
         logger.error(err)
     if res.returncode != 0:
         raise RuntimeError(f"Docker image build failed with exit code {res.returncode}")
-    logger.info(f"Finished running image build: {cmd}")
+    logger.info("Finished running image build: %s", " ".join(cmd))
 
 
 def build_images(

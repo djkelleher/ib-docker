@@ -1362,7 +1362,7 @@ def test_ci_build_platforms_match_workflow_support() -> None:
         in ci_content
     )
     assert 'if program == "tws":\n        return "linux/amd64"' in ci_content
-    assert "docker buildx build --platform {platforms}" in ci_content
+    assert '"--platform",\n        platforms,' in ci_content
     assert "platforms: linux/amd64,linux/arm64" in gateway_workflow
     assert "platforms: linux/amd64\n" in tws_workflow
     assert "platforms: linux/amd64,linux/arm64" not in tws_workflow
@@ -1400,6 +1400,7 @@ def test_ci_docker_build_failures_are_fatal() -> None:
         in content
     )
     assert "check=False" in content
+    assert "cmd.split()" not in content
 
 
 def test_ci_consumes_parallel_worker_results() -> None:
