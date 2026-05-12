@@ -239,6 +239,8 @@ def test_entrypoint_uses_display_specific_x_cleanup() -> None:
     content = ENTRYPOINT_PATH.read_text()
 
     assert 'display_no="$(x_display_number "$DISPLAY")"' in content
+    assert 'xvfb_pattern="$(x_display_process_pattern Xvfb "$DISPLAY")"' in content
+    assert 'x11vnc_pattern="$(x_display_process_pattern x11vnc "$DISPLAY")"' in content
     assert "rm -rf /tmp/.X*-lock" not in content
     assert "rm -rf /tmp/.X11-unix/*" not in content
     assert 'rm -f "/tmp/.X${display_no}-lock"' in content
@@ -249,8 +251,26 @@ def test_xvfb_cleanup_is_display_specific() -> None:
     """Xvfb startup should not kill unrelated Xvfb processes on other displays."""
     content = START_XVFB_PATH.read_text()
 
-    assert 'pkill -9 -f "Xvfb.*${DISPLAY}"' in content
+    assert 'xvfb_pattern="$(x_display_process_pattern Xvfb "$DISPLAY")"' in content
+    assert 'pkill -9 -f "$xvfb_pattern"' in content
+    assert 'pkill -9 -f "Xvfb.*${DISPLAY}"' not in content
     assert 'pkill -9 -f "Xvfb" 2>/dev/null || true' not in content
+
+
+def test_x_display_process_pattern_uses_normalized_display_number() -> None:
+    """Process cleanup regexes should not use raw DISPLAY as regex input."""
+    result = run_bash(
+        f"""
+        source "{IB_UTILS_PATH}"
+        x_display_process_pattern Xvfb ":1.0"
+        x_display_process_pattern x11vnc "localhost:2.1"
+        """
+    )
+
+    assert result.stdout.splitlines() == [
+        "Xvfb.*:1([[:space:].]|$)",
+        "x11vnc.*:2([[:space:].]|$)",
+    ]
 
 
 def test_x_screen_dimension_defaults_and_validates() -> None:

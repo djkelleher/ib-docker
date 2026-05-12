@@ -3,6 +3,8 @@
 source /usr/local/lib/ib_utils
 
 start_xvfb() {
+	local xvfb_pattern
+
 	# Ensure X11 dir exists with correct ownership and perms early
 	if [ ! -d /tmp/.X11-unix ]; then
 		mkdir -p /tmp/.X11-unix
@@ -19,13 +21,14 @@ start_xvfb() {
 
 	log "Starting Xvfb server. Using display: $DISPLAY"
 	display_no="$(x_display_number "$DISPLAY")"
+	xvfb_pattern="$(x_display_process_pattern Xvfb "$DISPLAY")"
 
 	# More thorough cleanup of existing X server processes and files
 	log "Cleaning up any existing X server processes and files..."
 
 	# Kill any existing Xvfb processes completely (with retries)
 	for _ in {1..3}; do
-		pkill -9 -f "Xvfb.*${DISPLAY}" 2>/dev/null || true
+		pkill -9 -f "$xvfb_pattern" 2>/dev/null || true
 		sleep 1
 	done
 
@@ -36,9 +39,9 @@ start_xvfb() {
 	rm -f "/var/lock/X${display_no}" 2>/dev/null || true
 
 	# Additional cleanup - check for any lingering processes
-	if pgrep -f "Xvfb.*${DISPLAY}" >/dev/null 2>&1; then
+	if pgrep -f "$xvfb_pattern" >/dev/null 2>&1; then
 		log "Warning: Found lingering Xvfb processes, attempting forceful cleanup"
-		pkill -KILL -f "Xvfb.*${DISPLAY}" 2>/dev/null || true
+		pkill -KILL -f "$xvfb_pattern" 2>/dev/null || true
 		sleep 2
 	fi
 

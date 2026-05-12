@@ -11,13 +11,17 @@ log() {
 
 cleanup_x_server() {
 	local display_no
+	local xvfb_pattern
+	local x11vnc_pattern
 
 	log "Performing initial X server cleanup..."
 	display_no="$(x_display_number "$DISPLAY")"
+	xvfb_pattern="$(x_display_process_pattern Xvfb "$DISPLAY")"
+	x11vnc_pattern="$(x_display_process_pattern x11vnc "$DISPLAY")"
 
 	# Kill any existing X server processes
-	pkill -9 -f "Xvfb.*${DISPLAY}" 2>/dev/null || true
-	pkill -9 -f "x11vnc" 2>/dev/null || true
+	pkill -9 -f "$xvfb_pattern" 2>/dev/null || true
+	pkill -9 -f "$x11vnc_pattern" 2>/dev/null || true
 
 	# Clean up X server files and locks
 	rm -f "/tmp/.X${display_no}-lock" 2>/dev/null || true

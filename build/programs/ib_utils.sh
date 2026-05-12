@@ -127,6 +127,15 @@ x_screen_dimension() {
 	printf '%s\n' "$dimension"
 }
 
+x_display_process_pattern() {
+	local process_name="$1"
+	local display="${2:-${DISPLAY:-:1}}"
+	local display_no
+
+	display_no="$(x_display_number "$display")"
+	printf '%s.*:%s([[:space:].]|$)\n' "$process_name" "$display_no"
+}
+
 wait_for_x_server() {
 	log "Waiting for X server on display ${DISPLAY}..."
 
