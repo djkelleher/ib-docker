@@ -26,7 +26,6 @@ start_xvfb() {
 	# Kill any existing Xvfb processes completely (with retries)
 	for _ in {1..3}; do
 		pkill -9 -f "Xvfb.*${DISPLAY}" 2>/dev/null || true
-		pkill -9 -f "Xvfb" 2>/dev/null || true
 		sleep 1
 	done
 

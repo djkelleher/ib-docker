@@ -10,6 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 INIT_SETTINGS_PATH = REPO_ROOT / "build" / "programs" / "init_container_settings.py"
 IB_UTILS_PATH = REPO_ROOT / "build" / "programs" / "ib_utils.sh"
 ENTRYPOINT_PATH = REPO_ROOT / "build" / "programs" / "entrypoint.sh"
+START_XVFB_PATH = REPO_ROOT / "build" / "programs" / "start_xvfb.sh"
 DOCKERFILE_PATH = REPO_ROOT / "build" / "Dockerfile"
 BUILD_DOCKERIGNORE_PATH = REPO_ROOT / "build" / ".dockerignore"
 VMOPTIONS_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "vmoptions.j2"
@@ -208,6 +209,14 @@ def test_entrypoint_uses_display_specific_x_cleanup() -> None:
     assert "rm -rf /tmp/.X11-unix/*" not in content
     assert 'rm -f "/tmp/.X${display_no}-lock"' in content
     assert 'rm -f "/tmp/.X11-unix/X${display_no}"' in content
+
+
+def test_xvfb_cleanup_is_display_specific() -> None:
+    """Xvfb startup should not kill unrelated Xvfb processes on other displays."""
+    content = START_XVFB_PATH.read_text()
+
+    assert 'pkill -9 -f "Xvfb.*${DISPLAY}"' in content
+    assert 'pkill -9 -f "Xvfb" 2>/dev/null || true' not in content
 
 
 def test_gateway_vmoptions_updates_primary_and_compatibility_files(
