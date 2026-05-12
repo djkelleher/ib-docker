@@ -59,6 +59,8 @@ def create_ib_release_dir(path: Path, app_name: str) -> None:
     executable_path.write_text("#!/bin/sh\n")
     executable_path.chmod(0o755)
     (path / f"{app_name}.vmoptions").write_text("-Xmx256m\n")
+    if app_name == "ibgateway":
+        (path / "tws.vmoptions").write_text("-Xmx256m\n")
 
 
 @pytest.fixture(name="init_settings")
@@ -231,6 +233,25 @@ def test_release_dir_validation_rejects_incomplete_installer_layout(
 
     assert result.returncode == 1
     assert "Expected executable" in result.stdout
+
+
+def test_gateway_release_dir_requires_compatibility_vmoptions(tmp_path: Path) -> None:
+    """Gateway startup should fail clearly if IBC's tws.vmoptions file is missing."""
+    release_dir = tmp_path / "opt" / "ibgateway" / "stable"
+    create_ib_release_dir(release_dir, "ibgateway")
+    (release_dir / "tws.vmoptions").unlink()
+
+    result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        PROGRAM=ibgateway
+        IB_RELEASE_DIR="{release_dir}"
+        resolve_ib_release_dir
+        """
+    )
+
+    assert result.returncode == 1
+    assert "Expected Gateway compatibility vmoptions file" in result.stdout
 
 
 def test_shell_product_validation_rejects_unsupported_program() -> None:
@@ -503,7 +524,6 @@ def test_gateway_vmoptions_updates_primary_and_compatibility_files(
     release_dir = tmp_path / "opt" / "ibgateway" / "stable"
     home.mkdir(parents=True)
     create_ib_release_dir(release_dir, "ibgateway")
-    (release_dir / "tws.vmoptions").write_text("-Xmx256m\n")
     template_path = home / "vmoptions.j2"
     template_path.write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
 
