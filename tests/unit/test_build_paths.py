@@ -19,6 +19,7 @@ BUILD_DOCKERIGNORE_PATH = REPO_ROOT / "build" / ".dockerignore"
 VMOPTIONS_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "vmoptions.j2"
 SUPERVISORD_CONF_PATH = REPO_ROOT / "build" / "config" / "supervisord.conf"
 DOCKER_COMPOSE_PATH = REPO_ROOT / "docker-compose.yml"
+IBC_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "ibc.ini"
 
 
 def load_init_settings() -> ModuleType:
@@ -85,6 +86,27 @@ def test_env_substitution_uses_defaults_for_empty_values(
     )
 
     assert rendered == "TradingMode=paper\nFIX=no\nIbLoginId=\n"
+
+
+def test_ibc_template_defaults_match_documented_runtime_defaults(
+    init_settings: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Documented runtime defaults should render even when env vars are absent."""
+    for var_name in [
+        "TWOFA_EXIT_INTERVAL",
+        "READ_ONLY_API",
+        "BYPASS_WARNING",
+        "SAVE_TWS_SETTINGS",
+    ]:
+        monkeypatch.delenv(var_name, raising=False)
+
+    rendered = init_settings.sub_env_vars(IBC_TEMPLATE_PATH.read_text())
+
+    assert "SecondFactorAuthenticationExitInterval=60" in rendered
+    assert "ReadOnlyApi=no" in rendered
+    assert "BypassOrderPrecautions=yes" in rendered
+    assert "BypassNoOverfillProtectionPrecaution=yes" in rendered
+    assert "SaveTwsSettingsAt=Every 30 mins" in rendered
 
 
 def test_python_required_env_fails_with_clear_error(
