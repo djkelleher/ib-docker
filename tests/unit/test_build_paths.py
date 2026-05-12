@@ -41,6 +41,23 @@ def fixture_init_settings() -> ModuleType:
     return load_init_settings()
 
 
+def test_env_substitution_uses_defaults_for_empty_values(
+    init_settings: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Shell-style defaults should apply when an env var is unset or empty."""
+    monkeypatch.delenv("TRADING_MODE", raising=False)
+    monkeypatch.setenv("FIX", "")
+    monkeypatch.setenv("IB_USER", "")
+
+    rendered = init_settings.sub_env_vars(
+        "TradingMode=${TRADING_MODE:-paper}\n"
+        "FIX=${FIX:-no}\n"
+        "IbLoginId=${IB_USER}\n"
+    )
+
+    assert rendered == "TradingMode=paper\nFIX=no\nIbLoginId=\n"
+
+
 def test_gateway_ibc_path_resolves_to_parent_expected_by_ibc(tmp_path: Path) -> None:
     """Gateway IBC startup should find /opt/ibgateway/<release> without fallback."""
     release_dir = tmp_path / "opt" / "ibgateway" / "stable"

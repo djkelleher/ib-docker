@@ -1,10 +1,6 @@
 #!/bin/bash
 
-log() {
-	#local timestamp
-	timestamp=$(date +"%Y-%m-%d %H:%M:%S")
-	echo "$timestamp  $1"
-}
+source /usr/local/lib/ib_utils
 
 start_xvfb() {
 	# Ensure X11 dir exists with correct ownership and perms early

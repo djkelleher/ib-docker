@@ -18,7 +18,10 @@ def sub_env_vars(txt: str) -> str:
     def replace_match(match: re.Match[str]) -> str:
         var_name = match.group(1)
         default = match.group(2) or ""
-        return os.getenv(var_name, default)
+        env_value = os.getenv(var_name)
+        if env_value:
+            return env_value
+        return default
 
     return VARS_REG.sub(replace_match, txt)
 
