@@ -94,6 +94,16 @@ def test_python_required_env_fails_with_clear_error(
         init_settings.require_env("IBC_INI")
 
 
+def test_python_required_directory_fails_with_clear_error(
+    init_settings: ModuleType, tmp_path: Path
+) -> None:
+    """Python startup config should not fail with a raw file write error."""
+    missing_path = tmp_path / "opt" / "tws" / "stable"
+
+    with pytest.raises(RuntimeError, match="IB release directory does not exist"):
+        init_settings.require_directory(missing_path, "IB release")
+
+
 def test_python_initializer_cli_reports_errors_without_traceback() -> None:
     """The runtime config command should print actionable errors without tracebacks."""
     result = subprocess.run(
@@ -446,6 +456,27 @@ def test_tws_vmoptions_updates_tws_file_only(
     assert "-Xmx2048m" in vmoptions_content
     assert "-Xms512m" in vmoptions_content
     assert not (release_dir / "ibgateway.vmoptions").exists()
+
+
+def test_vmoptions_generation_rejects_missing_release_dir(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A bad IB_RELEASE_DIR should fail before writing product vmoptions files."""
+    home = tmp_path / "home" / "ibuser"
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    home.mkdir(parents=True)
+    (home / "vmoptions.j2").write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "tws")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(home / "tws_settings"))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+
+    with pytest.raises(RuntimeError, match="IB release directory does not exist"):
+        init_settings.set_java_vmoptions()
+
+    assert not release_dir.exists()
 
 
 def test_vmoptions_paths_rejects_unsupported_program(

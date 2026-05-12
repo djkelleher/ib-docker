@@ -24,6 +24,12 @@ def require_env(name: str) -> str:
     return value
 
 
+def require_directory(path: Path, label: str) -> None:
+    """Fail with a clear message when a required runtime directory is missing."""
+    if not path.is_dir():
+        raise RuntimeError(f"{label} directory does not exist: {path}")
+
+
 def sub_env_vars(txt: str) -> str:
     def replace_match(match: re.Match[str]) -> str:
         var_name = match.group(1)
@@ -199,6 +205,7 @@ def set_java_vmoptions() -> None:
     program = require_env("PROGRAM")
     ib_release_dir = Path(require_env("IB_RELEASE_DIR"))
     tws_settings_path = Path(require_env("TWS_SETTINGS_PATH"))
+    require_directory(ib_release_dir, "IB release")
     java_heap_size = calculate_java_heap_size()
     initial_heap = calculate_initial_heap_size(java_heap_size)
 
