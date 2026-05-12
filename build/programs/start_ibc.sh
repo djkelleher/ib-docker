@@ -4,16 +4,25 @@ set -euo pipefail
 source /usr/local/lib/ib_utils
 
 start_ibc() {
+	local app_name
+	local home_dir
 	local ibc_args=()
 
+	app_name="$(ib_product_executable)"
 	TRADING_MODE="$(ib_trading_mode)"
 	TWOFA_TIMEOUT_ACTION="$(ib_twofa_timeout_action)"
-	if [ "$PROGRAM" = "ibgateway" ]; then
+	ensure_env IB_RELEASE
+	ensure_env IBC_VERSION
+	ensure_env IBC_PATH
+	ensure_env IBC_INI
+	if [ "$app_name" = "ibgateway" ]; then
 		ibc_args+=("-g")
 	fi
 	IB_RELEASE_DIR="$(resolve_ib_release_dir)"
 	IB_BASE_DIR="$(resolve_ibc_tws_path "$IB_RELEASE_DIR")"
-	TWS_SETTINGS_PATH="${TWS_SETTINGS_PATH:-${HOME}/tws_settings}"
+	ensure_env HOME
+	home_dir="$HOME"
+	TWS_SETTINGS_PATH="${TWS_SETTINGS_PATH:-${home_dir}/tws_settings}"
 	mkdir -p "$TWS_SETTINGS_PATH"
 
 	# Set up X11 environment for IBC
@@ -23,7 +32,7 @@ start_ibc() {
 	log ".> Starting IBC in ${TRADING_MODE} mode, with params:"
 	echo ".>		Version: ${IB_RELEASE}"
 	echo ".>		IBC version: ${IBC_VERSION}"
-	echo ".>		program: ${PROGRAM}"
+	echo ".>		program: ${app_name}"
 	echo ".>		ib-release-dir: ${IB_RELEASE_DIR}"
 	echo ".>		tws-path: ${IB_BASE_DIR}"
 	echo ".>		ibc-path: ${IBC_PATH}"

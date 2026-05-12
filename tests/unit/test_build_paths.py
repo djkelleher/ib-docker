@@ -176,6 +176,37 @@ def test_shell_product_validation_rejects_unsupported_program() -> None:
     assert "Unsupported IB program: desktop" in result.stdout
 
 
+def test_required_env_fails_with_clear_error() -> None:
+    """Strict-mode scripts should report missing required env names clearly."""
+    result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        unset IB_RELEASE
+        ensure_env IB_RELEASE
+        """
+    )
+
+    assert result.returncode == 1
+    assert "Required environment variable IB_RELEASE is not set" in result.stdout
+
+
+def test_release_dir_default_requires_release_without_nounset() -> None:
+    """Default release dir construction should fail clearly if IB_RELEASE is unset."""
+    result = run_bash_unchecked(
+        f"""
+        set -u
+        source "{IB_UTILS_PATH}"
+        PROGRAM=tws
+        unset IB_RELEASE
+        unset IB_RELEASE_DIR
+        resolve_ib_release_dir
+        """
+    )
+
+    assert result.returncode == 1
+    assert "Required environment variable IB_RELEASE is not set" in result.stdout
+
+
 def test_ibc_startup_defaults_and_validates_runtime_choices() -> None:
     """IBC startup choices should be normalized before they are passed to IBC."""
     default_result = run_bash(

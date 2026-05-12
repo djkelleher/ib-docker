@@ -5,6 +5,27 @@ log() {
 	echo "$timestamp  $1"
 }
 
+required_env() {
+	local name="$1"
+	local value="${!name:-}"
+
+	if [ -z "$value" ]; then
+		log "ERROR: Required environment variable ${name} is not set"
+		exit 1
+	fi
+
+	printf '%s\n' "$value"
+}
+
+ensure_env() {
+	local name="$1"
+
+	if [ -z "${!name:-}" ]; then
+		log "ERROR: Required environment variable ${name} is not set"
+		exit 1
+	fi
+}
+
 ib_product_executable() {
 	case "${PROGRAM:-}" in
 	ibgateway)
@@ -53,12 +74,14 @@ ib_twofa_timeout_action() {
 resolve_ib_release_dir() {
 	local release_dir="${IB_RELEASE_DIR:-}"
 	local app_name
-
-	if [ -z "$release_dir" ]; then
-		release_dir="/opt/${PROGRAM}/${IB_RELEASE}"
-	fi
+	local ib_release
 
 	app_name="$(ib_product_executable)"
+	if [ -z "$release_dir" ]; then
+		ensure_env IB_RELEASE
+		ib_release="$IB_RELEASE"
+		release_dir="/opt/${app_name}/${ib_release}"
+	fi
 
 	if [ ! -d "$release_dir/jars" ]; then
 		log "ERROR: IB release directory is invalid: ${release_dir}"
@@ -83,11 +106,13 @@ resolve_ib_release_dir() {
 
 resolve_ibc_tws_path() {
 	local release_dir="$1"
+	local app_name
 	local product_dir
 
+	app_name="$(ib_product_executable)"
 	product_dir="$(dirname "$release_dir")"
 
-	if [ "$PROGRAM" = "ibgateway" ]; then
+	if [ "$app_name" = "ibgateway" ]; then
 		if [ "$(basename "$product_dir")" != "ibgateway" ]; then
 			log "ERROR: Gateway release directory must be nested under an ibgateway directory: ${release_dir}"
 			log "IBC resolves Gateway as <tws-path>/ibgateway/<release>"
@@ -137,6 +162,9 @@ x_display_process_pattern() {
 }
 
 wait_for_x_server() {
+	DISPLAY="${DISPLAY:-:1}"
+	export DISPLAY
+
 	log "Waiting for X server on display ${DISPLAY}..."
 
 	# Set up X11 environment
