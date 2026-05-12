@@ -18,6 +18,7 @@ DOCKERFILE_PATH = REPO_ROOT / "build" / "Dockerfile"
 BUILD_DOCKERIGNORE_PATH = REPO_ROOT / "build" / ".dockerignore"
 VMOPTIONS_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "vmoptions.j2"
 SUPERVISORD_CONF_PATH = REPO_ROOT / "build" / "config" / "supervisord.conf"
+DOCKER_COMPOSE_PATH = REPO_ROOT / "docker-compose.yml"
 
 
 def load_init_settings() -> ModuleType:
@@ -1045,3 +1046,11 @@ def test_build_context_ignores_generated_python_artifacts() -> None:
     assert "__pycache__/" in ignored_patterns
     assert "*.py[cod]" in ignored_patterns
     assert ".pytest_cache/" in ignored_patterns
+
+
+def test_compose_passes_env_file_to_runtime_services() -> None:
+    """Settings documented in .env.example should reach the containers."""
+    content = DOCKER_COMPOSE_PATH.read_text()
+
+    assert content.count("env_file:") == 2
+    assert content.count("- .env") == 2
