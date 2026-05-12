@@ -98,10 +98,7 @@ class IBRelease:
     def release_meta(self) -> dict[str, Any]:
         url = f"{self.base_url}/version.json"
         resp = fetch(url)
-        match = re.search(r"{.*}", resp)
-        if match is None:
-            raise RuntimeError(f"Could not parse release metadata from {url}")
-        return json.loads(match.group())
+        return parse_release_meta(resp, url)
 
     def __repr__(self) -> str:
         return self.tag
@@ -209,6 +206,27 @@ def release_meta_value(release_meta: dict[str, Any], key: str, source: str) -> s
     if not isinstance(value, str):
         raise ValueError(f"Invalid {key} from {source}: {value}")
     return value.strip()
+
+
+def parse_release_meta(content: str, source: str) -> dict[str, Any]:
+    """Parse and validate an upstream IB version metadata document."""
+    stripped_content = content.strip()
+    if stripped_content.startswith("["):
+        metadata_content = stripped_content
+    else:
+        match = re.search(r"{.*}", content, flags=re.DOTALL)
+        if match is None:
+            raise RuntimeError(f"Could not parse release metadata from {source}")
+        metadata_content = match.group()
+    try:
+        release_meta = json.loads(metadata_content)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"Invalid release metadata JSON from {source}: {exc}"
+        ) from exc
+    if not isinstance(release_meta, dict):
+        raise RuntimeError(f"Release metadata from {source} must be a JSON object")
+    return release_meta
 
 
 def docker_image_repository(program: str) -> str:

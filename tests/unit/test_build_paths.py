@@ -1464,10 +1464,35 @@ def test_ci_metadata_parser_rejects_missing_or_non_string_values() -> None:
     """Release metadata parsing should not assume upstream JSON shape blindly."""
     content = CI_PATH.read_text()
 
+    assert (
+        "def parse_release_meta(content: str, source: str) -> dict[str, Any]:"
+        in content
+    )
+    assert "return parse_release_meta(resp, url)" in content
+    assert "except json.JSONDecodeError as exc:" in content
+    assert "Invalid release metadata JSON from {source}: {exc}" in content
+    assert "Release metadata from {source} must be a JSON object" in content
     assert 'raise RuntimeError(f"Missing {key} from {source}") from exc' in content
     assert "if not isinstance(value, str):" in content
     assert 'raise ValueError(f"Invalid {key} from {source}: {value}")' in content
     assert "return value.strip()" in content
+
+
+def test_ci_parse_release_meta_rejects_invalid_documents(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Upstream version metadata should fail clearly when the JSON is malformed."""
+    ci_module = load_ci_module(monkeypatch)
+
+    assert ci_module.parse_release_meta(
+        'callback({"buildVersion": "10.45.1e"})', "test-url"
+    ) == {"buildVersion": "10.45.1e"}
+    with pytest.raises(RuntimeError, match="Could not parse release metadata"):
+        ci_module.parse_release_meta("no json here", "test-url")
+    with pytest.raises(RuntimeError, match="Invalid release metadata JSON"):
+        ci_module.parse_release_meta('callback({"buildVersion": })', "test-url")
+    with pytest.raises(RuntimeError, match="must be a JSON object"):
+        ci_module.parse_release_meta("[1, 2, 3]", "test-url")
 
 
 def test_ci_release_meta_value_rejects_missing_or_non_string_values(
