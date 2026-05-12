@@ -40,6 +40,16 @@ ensure_executable_file() {
 	fi
 }
 
+ensure_file() {
+	local path="$1"
+	local label="$2"
+
+	if [ ! -f "$path" ]; then
+		log "ERROR: ${label} is missing: ${path}"
+		exit 1
+	fi
+}
+
 ib_product_executable() {
 	case "${PROGRAM:-}" in
 	ibgateway)

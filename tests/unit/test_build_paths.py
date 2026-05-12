@@ -328,6 +328,20 @@ def test_ensure_executable_file_fails_clearly(tmp_path: Path) -> None:
     assert "IBC start script is missing or not executable" in result.stdout
 
 
+def test_ensure_file_fails_clearly(tmp_path: Path) -> None:
+    """Runtime file checks should report the missing path before handoff."""
+    missing_path = tmp_path / "ibc.ini"
+    result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        ensure_file "{missing_path}" "IBC config"
+        """
+    )
+
+    assert result.returncode == 1
+    assert "IBC config is missing" in result.stdout
+
+
 def test_wait_for_x_server_requires_home_before_xauth_setup() -> None:
     """Strict-mode X startup should fail clearly when HOME is missing."""
     result = run_bash_unchecked(
@@ -548,6 +562,7 @@ def test_ibc_startup_requires_absolute_runtime_paths() -> None:
         'ensure_executable_file "${IBC_PATH}/scripts/ibcstart.sh" "IBC start script"'
         in content
     )
+    assert 'ensure_file "$IBC_INI" "IBC config"' in content
     assert "ensure_absolute_path HOME" in content
     assert "ensure_absolute_path TWS_SETTINGS_PATH" in content
 
