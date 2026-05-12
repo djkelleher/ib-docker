@@ -502,8 +502,7 @@ def test_gateway_vmoptions_updates_primary_and_compatibility_files(
     home = tmp_path / "home" / "ibuser"
     release_dir = tmp_path / "opt" / "ibgateway" / "stable"
     home.mkdir(parents=True)
-    release_dir.mkdir(parents=True)
-    (release_dir / "ibgateway.vmoptions").write_text("-Xmx256m\n")
+    create_ib_release_dir(release_dir, "ibgateway")
     (release_dir / "tws.vmoptions").write_text("-Xmx256m\n")
     template_path = home / "vmoptions.j2"
     template_path.write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
@@ -572,6 +571,28 @@ def test_vmoptions_generation_rejects_missing_release_dir(
         init_settings.set_java_vmoptions()
 
     assert not release_dir.exists()
+
+
+def test_vmoptions_generation_rejects_incomplete_release_layout(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Direct vmoptions generation should validate the release layout too."""
+    home = tmp_path / "home" / "ibuser"
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    home.mkdir(parents=True)
+    (release_dir / "jars").mkdir(parents=True)
+    (home / "vmoptions.j2").write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "tws")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(home / "tws_settings"))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+
+    with pytest.raises(RuntimeError, match="expected executable"):
+        init_settings.set_java_vmoptions()
+
+    assert not (release_dir / "tws.vmoptions").exists()
 
 
 def test_main_rejects_missing_release_dir_before_rendering_configs(

@@ -250,7 +250,7 @@ def set_java_vmoptions() -> None:
     program = require_env("PROGRAM")
     ib_release_dir = Path(require_env("IB_RELEASE_DIR"))
     tws_settings_path = Path(require_env("TWS_SETTINGS_PATH"))
-    require_directory(ib_release_dir, "IB release")
+    validate_ib_release_layout(program, ib_release_dir)
     java_heap_size = calculate_java_heap_size()
     initial_heap = calculate_initial_heap_size(java_heap_size)
 
