@@ -306,7 +306,7 @@ def run() -> int:
     """Run runtime config initialization from the command line."""
     try:
         main()
-    except (RuntimeError, ValueError) as exc:
+    except (RuntimeError, ValueError, OSError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
     return 0

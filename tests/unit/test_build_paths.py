@@ -137,6 +137,24 @@ def test_python_initializer_cli_reports_errors_without_traceback() -> None:
     assert "Traceback" not in result.stderr
 
 
+def test_python_initializer_reports_filesystem_errors_without_traceback(
+    init_settings: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Runtime config filesystem errors should use the same concise CLI format."""
+
+    def fail_main() -> None:
+        raise OSError("disk is full")
+
+    monkeypatch.setattr(init_settings, "main", fail_main)
+
+    assert init_settings.run() == 1
+    captured = capsys.readouterr()
+    assert captured.err == "ERROR: disk is full\n"
+    assert "Traceback" not in captured.err
+
+
 def test_gateway_ibc_path_resolves_to_parent_expected_by_ibc(tmp_path: Path) -> None:
     """Gateway IBC startup should find /opt/ibgateway/<release> without fallback."""
     release_dir = tmp_path / "opt" / "ibgateway" / "stable"
