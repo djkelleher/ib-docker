@@ -71,6 +71,14 @@ resolve_ib_release_dir() {
 		release_dir="/opt/${app_name}/${ib_release}"
 	fi
 
+	case "$release_dir" in
+	/*) ;;
+	*)
+		log "ERROR: IB release directory must be an absolute path: ${release_dir}"
+		exit 1
+		;;
+	esac
+
 	if [ ! -d "$release_dir/jars" ]; then
 		log "ERROR: IB release directory is invalid: ${release_dir}"
 		log "Expected to find jars under ${release_dir}/jars"

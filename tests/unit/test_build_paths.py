@@ -104,6 +104,14 @@ def test_python_required_directory_fails_with_clear_error(
         init_settings.require_directory(missing_path, "IB release")
 
 
+def test_python_required_directory_rejects_relative_paths(
+    init_settings: ModuleType,
+) -> None:
+    """Python startup config should not accept relative release paths."""
+    with pytest.raises(RuntimeError, match="must be an absolute path"):
+        init_settings.require_directory(Path("opt/tws/stable"), "IB release")
+
+
 def test_python_initializer_cli_reports_errors_without_traceback() -> None:
     """The runtime config command should print actionable errors without tracebacks."""
     result = subprocess.run(
@@ -241,6 +249,25 @@ def test_release_dir_default_requires_release_without_nounset() -> None:
 
     assert result.returncode == 1
     assert "Required environment variable IB_RELEASE is not set" in result.stdout
+
+
+def test_release_dir_validation_rejects_relative_custom_path(tmp_path: Path) -> None:
+    """IBC path resolution should not pass relative install paths downstream."""
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    create_ib_release_dir(release_dir, "tws")
+
+    result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        cd "{tmp_path}"
+        PROGRAM=tws
+        IB_RELEASE_DIR="opt/tws/stable"
+        resolve_ib_release_dir
+        """
+    )
+
+    assert result.returncode == 1
+    assert "must be an absolute path" in result.stdout
 
 
 def test_ibc_startup_defaults_and_validates_runtime_choices() -> None:

@@ -26,6 +26,8 @@ def require_env(name: str) -> str:
 
 def require_directory(path: Path, label: str) -> None:
     """Fail with a clear message when a required runtime directory is missing."""
+    if not path.is_absolute():
+        raise RuntimeError(f"{label} directory must be an absolute path: {path}")
     if not path.is_dir():
         raise RuntimeError(f"{label} directory does not exist: {path}")
 
