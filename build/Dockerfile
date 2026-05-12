@@ -53,6 +53,24 @@ RUN set -eux; \
     fi; \
     rm -f /ib.sh
 
+# Verify the installer extracted the expected offline layout. IBC relies on these
+# paths and product-specific filenames when constructing its classpath.
+RUN set -eux; \
+    case "$PROGRAM" in \
+      ibgateway) app_name="ibgateway" ;; \
+      tws) app_name="tws" ;; \
+      *) echo "Unsupported PROGRAM: $PROGRAM" >&2; exit 1 ;; \
+    esac; \
+    test -d "$IB_RELEASE_DIR/jars"; \
+    test -x "$IB_RELEASE_DIR/$app_name"; \
+    test -f "$IB_RELEASE_DIR/$app_name.vmoptions"; \
+    test -d "$IB_RELEASE_DIR/.install4j"; \
+    if [ "$PROGRAM" = "ibgateway" ]; then \
+      test "$(dirname "$(dirname "$IB_RELEASE_DIR")")" = "/opt"; \
+    else \
+      test "$(dirname "$IB_RELEASE_DIR")" = "/opt/tws"; \
+    fi
+
 # Install IBC
 RUN set -eux; \
     wget -q -O /tmp/IBC.zip "https://github.com/IbcAlpha/IBC/releases/download/${IBC_VERSION}/IBCLinux-${IBC_VERSION}.zip"; \
