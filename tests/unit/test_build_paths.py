@@ -1401,6 +1401,16 @@ def test_ci_parse_release_tag_rejects_invalid_tags(
         ci_module.parse_release_tag("ibgateway-stable-10.45.1e")
 
 
+def test_ci_ib_release_rejects_invalid_program_immediately(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Scheduled release metadata should not build URLs for unknown products."""
+    ci_module = load_ci_module(monkeypatch)
+
+    with pytest.raises(ValueError, match="Unsupported PROGRAM: desktop"):
+        ci_module.IBRelease(release="stable", program="desktop")
+
+
 def test_ci_validates_upstream_build_versions_before_release_tags() -> None:
     """Release creation should reject unexpected upstream buildVersion strings."""
     content = CI_PATH.read_text()
@@ -1521,6 +1531,36 @@ def test_ci_release_discovery_skips_unsupported_tags() -> None:
     assert "Skipping release with unsupported tag: %s" in content
     assert "gh_release.tag_name" in content
     assert "continue" in content
+
+
+def test_ci_find_latest_releases_skips_unsupported_and_beta_tags(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Scheduled release discovery should return latest/stable only."""
+    ci_module = load_ci_module(monkeypatch)
+
+    class FakeRelease:
+        def __init__(self, tag_name: str) -> None:
+            self.tag_name = tag_name
+
+    class FakeRepo:
+        def get_releases(self) -> list[FakeRelease]:
+            return [
+                FakeRelease("ibgateway-stable-10.43.1"),
+                FakeRelease("beta-10.46.1"),
+                FakeRelease("stable-10.45.1e"),
+                FakeRelease("latest-10.46.1"),
+                FakeRelease("latest-10.45.2"),
+            ]
+
+    monkeypatch.setattr(ci_module, "get_gh_repo", lambda: FakeRepo())
+
+    releases = ci_module.find_latest_github_releases()
+
+    assert releases == [
+        ci_module.GitHubRelease(release="stable", build_version="10.45.1e"),
+        ci_module.GitHubRelease(release="latest", build_version="10.46.1"),
+    ]
 
 
 def test_ci_scheduled_release_discovery_ignores_beta_tags() -> None:

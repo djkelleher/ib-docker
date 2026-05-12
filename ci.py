@@ -43,6 +43,8 @@ class IBRelease:
         release: ScheduledReleaseChannel,
         program: Literal["ibgateway", "tws"],
     ) -> None:
+        if program not in ("ibgateway", "tws"):
+            raise ValueError(f"Unsupported PROGRAM: {program}")
         self.release = release
         self.program = program
         self.base_url = (
