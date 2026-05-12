@@ -158,7 +158,13 @@ def find_latest_github_releases() -> list[GitHubRelease]:
     gh_repo = get_gh_repo()
     releases: dict[str, str] = {}
     for gh_release in gh_repo.get_releases():
-        release = parse_release_tag(gh_release.tag_name)
+        try:
+            release = parse_release_tag(gh_release.tag_name)
+        except ValueError:
+            logger.info(
+                "Skipping release with unsupported tag: %s", gh_release.tag_name
+            )
+            continue
         if release.release not in releases:
             releases[release.release] = release.build_version
             logger.info(

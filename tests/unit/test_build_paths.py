@@ -1246,6 +1246,16 @@ def test_ci_validates_release_tags_before_building() -> None:
     )
 
 
+def test_ci_release_discovery_skips_unsupported_tags() -> None:
+    """Daily release discovery should tolerate old or unrelated GitHub release tags."""
+    content = CI_PATH.read_text()
+
+    assert "release = parse_release_tag(gh_release.tag_name)" in content
+    assert "Skipping release with unsupported tag: %s" in content
+    assert "gh_release.tag_name" in content
+    assert "continue" in content
+
+
 def test_ci_build_platforms_match_workflow_support() -> None:
     """Manual CI image builds should not attempt unsupported TWS arm64 builds."""
     ci_content = CI_PATH.read_text()
