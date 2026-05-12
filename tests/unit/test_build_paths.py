@@ -1093,6 +1093,8 @@ def test_dockerfile_validates_build_args_before_downloads() -> None:
     assert first_validation < first_download
     assert "Unsupported RELEASE" in content
     assert "IB installer artifacts are only supported with ARCH=x64" in content
+    assert "VERSION must be NULL or a packaged IB version" in content
+    assert "IBC_VERSION must not be empty" in content
 
 
 def test_dockerfile_verifies_ibc_start_script_during_build() -> None:

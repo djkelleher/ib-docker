@@ -11,6 +11,14 @@ ARG IBC_VERSION=3.23.0
 RUN set -eu; \
     case "$PROGRAM" in ibgateway|tws) ;; *) echo "Unsupported PROGRAM: $PROGRAM" >&2; exit 1 ;; esac; \
     case "$RELEASE" in stable|latest|beta) ;; *) echo "Unsupported RELEASE: $RELEASE" >&2; exit 1 ;; esac; \
+    if [ -z "$VERSION" ]; then \
+      echo "VERSION must be NULL or a packaged IB version" >&2; \
+      exit 1; \
+    fi; \
+    if [ -z "$IBC_VERSION" ]; then \
+      echo "IBC_VERSION must not be empty" >&2; \
+      exit 1; \
+    fi; \
     if [ "$ARCH" != "x64" ]; then \
       echo "IB installer artifacts are only supported with ARCH=x64" >&2; \
       exit 1; \
@@ -99,7 +107,15 @@ ARG IBC_VERSION=3.23.0
 
 RUN set -eu; \
     case "$PROGRAM" in ibgateway|tws) ;; *) echo "Unsupported PROGRAM: $PROGRAM" >&2; exit 1 ;; esac; \
-    case "$RELEASE" in stable|latest|beta) ;; *) echo "Unsupported RELEASE: $RELEASE" >&2; exit 1 ;; esac
+    case "$RELEASE" in stable|latest|beta) ;; *) echo "Unsupported RELEASE: $RELEASE" >&2; exit 1 ;; esac; \
+    if [ -z "$VERSION" ]; then \
+      echo "VERSION must be NULL or a packaged IB version" >&2; \
+      exit 1; \
+    fi; \
+    if [ -z "$IBC_VERSION" ]; then \
+      echo "IBC_VERSION must not be empty" >&2; \
+      exit 1; \
+    fi
 
 LABEL org.opencontainers.image.title="Interactive Brokers ${PROGRAM}" \
       org.opencontainers.image.description="Interactive Brokers ${PROGRAM} (${RELEASE}) with IBC ${IBC_VERSION}" \
