@@ -162,6 +162,7 @@ wait_for_x_server() {
 	export DISPLAY
 
 	log "Waiting for X server on display ${DISPLAY}..."
+	ensure_env HOME
 
 	# Set up X11 environment
 	XAUTHORITY="$HOME/.Xauthority"

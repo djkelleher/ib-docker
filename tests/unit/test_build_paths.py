@@ -234,6 +234,21 @@ def test_ensure_env_fails_with_clear_error() -> None:
     assert "Required environment variable IB_RELEASE is not set" in result.stdout
 
 
+def test_wait_for_x_server_requires_home_before_xauth_setup() -> None:
+    """Strict-mode X startup should fail clearly when HOME is missing."""
+    result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        unset HOME
+        wait_for_x_server
+        """
+    )
+
+    assert result.returncode == 1
+    assert "Required environment variable HOME is not set" in result.stdout
+    assert "unbound variable" not in result.stderr
+
+
 def test_release_dir_default_requires_release_without_nounset() -> None:
     """Default release dir construction should fail clearly if IB_RELEASE is unset."""
     result = run_bash_unchecked(
@@ -346,6 +361,7 @@ def test_xvfb_cleanup_is_display_specific() -> None:
     """Xvfb startup should not kill unrelated Xvfb processes on other displays."""
     content = START_XVFB_PATH.read_text()
 
+    assert "ensure_env HOME" in content
     assert 'xvfb_pattern="$(x_display_process_pattern Xvfb "$DISPLAY")"' in content
     assert 'pkill -9 -f "$xvfb_pattern"' in content
     assert 'pkill -9 -f "Xvfb.*${DISPLAY}"' not in content
