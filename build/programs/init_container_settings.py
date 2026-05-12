@@ -3,6 +3,7 @@
 import os
 import re
 import shlex
+import sys
 from pathlib import Path
 
 VARS_REG = re.compile(r"\$\{([a-zA-Z_][\w]*)(?::-(.*?))?\}")
@@ -247,5 +248,15 @@ def main() -> None:
     set_java_vmoptions()
 
 
+def run() -> int:
+    """Run runtime config initialization from the command line."""
+    try:
+        main()
+    except (RuntimeError, ValueError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
 if __name__ == "__main__":
-    main()
+    raise SystemExit(run())

@@ -1,6 +1,7 @@
 import importlib.util
 import os
 import subprocess
+import sys
 from pathlib import Path
 from types import ModuleType
 
@@ -91,6 +92,21 @@ def test_python_required_env_fails_with_clear_error(
 
     with pytest.raises(RuntimeError, match="Required environment variable IBC_INI"):
         init_settings.require_env("IBC_INI")
+
+
+def test_python_initializer_cli_reports_errors_without_traceback() -> None:
+    """The runtime config command should print actionable errors without tracebacks."""
+    result = subprocess.run(
+        [sys.executable, str(INIT_SETTINGS_PATH)],
+        check=False,
+        capture_output=True,
+        text=True,
+        env={},
+    )
+
+    assert result.returncode == 1
+    assert result.stderr == "ERROR: Required environment variable IBC_INI is not set\n"
+    assert "Traceback" not in result.stderr
 
 
 def test_gateway_ibc_path_resolves_to_parent_expected_by_ibc(tmp_path: Path) -> None:
