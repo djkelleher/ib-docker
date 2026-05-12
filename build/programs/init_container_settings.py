@@ -37,6 +37,24 @@ def require_directory(path: Path, label: str) -> None:
         raise RuntimeError(f"{label} directory does not exist: {path}")
 
 
+def home_path() -> Path:
+    """Return the required runtime home directory."""
+    home = Path(require_env("HOME"))
+    require_directory(home, "HOME")
+    return home
+
+
+def tws_settings_path() -> Path:
+    """Return the TWS settings path, matching the shell startup default."""
+    raw_path = os.environ.get("TWS_SETTINGS_PATH")
+    if raw_path:
+        settings_path = Path(raw_path)
+    else:
+        settings_path = home_path() / "tws_settings"
+    require_absolute_path(settings_path, "TWS_SETTINGS_PATH")
+    return settings_path
+
+
 def sub_env_vars(txt: str) -> str:
     def replace_match(match: re.Match[str]) -> str:
         var_name = match.group(1)
@@ -220,8 +238,8 @@ def validate_runtime_environment() -> None:
     vmoptions_names(program)
     validate_ib_release_layout(program, Path(require_env("IB_RELEASE_DIR")))
     require_absolute_path(Path(require_env("IBC_INI")), "IBC_INI")
-    require_absolute_path(Path(require_env("TWS_SETTINGS_PATH")), "TWS_SETTINGS_PATH")
-    require_directory(Path(require_env("HOME")), "HOME")
+    home_path()
+    tws_settings_path()
 
 
 def render_vmoptions(
@@ -249,12 +267,12 @@ def set_java_vmoptions() -> None:
     """Configure JVM options for IB Gateway/TWS with robust cgroup memory detection."""
     program = require_env("PROGRAM")
     ib_release_dir = Path(require_env("IB_RELEASE_DIR"))
-    tws_settings_path = Path(require_env("TWS_SETTINGS_PATH"))
+    settings_path = tws_settings_path()
     validate_ib_release_layout(program, ib_release_dir)
     java_heap_size = calculate_java_heap_size()
     initial_heap = calculate_initial_heap_size(java_heap_size)
 
-    template_path = Path.home() / "vmoptions.j2"
+    template_path = home_path() / "vmoptions.j2"
     if template_path.exists():
         template_content = template_path.read_text()
         custom_opts_env = os.getenv("CUSTOM_JVM_OPTS", "")
@@ -263,7 +281,7 @@ def set_java_vmoptions() -> None:
             template_content,
             java_heap_size,
             initial_heap,
-            tws_settings_path,
+            settings_path,
             custom_opts,
         )
         for vmoptions_file in vmoptions_paths(program, ib_release_dir):
@@ -289,9 +307,9 @@ def main() -> None:
         default_ibc_template_path,
     )
 
-    tws_settings_path = Path(require_env("TWS_SETTINGS_PATH"))
-    jts_ini_path = tws_settings_path / "jts.ini"
-    default_jts_template_path = Path.home() / "tws_settings" / "jts.ini.template"
+    settings_path = tws_settings_path()
+    jts_ini_path = settings_path / "jts.ini"
+    default_jts_template_path = home_path() / "tws_settings" / "jts.ini.template"
     render_config_template(
         jts_ini_path.with_suffix(".ini.template"),
         jts_ini_path,

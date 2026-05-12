@@ -623,6 +623,28 @@ def test_tws_vmoptions_updates_tws_file_only(
     assert not (release_dir / "ibgateway.vmoptions").exists()
 
 
+def test_vmoptions_generation_defaults_tws_settings_path_to_home(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Python vmoptions generation should match start_ibc's settings path default."""
+    home = tmp_path / "home" / "ibuser"
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    home.mkdir(parents=True)
+    create_ib_release_dir(release_dir, "tws")
+    (home / "vmoptions.j2").write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "tws")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.delenv("TWS_SETTINGS_PATH", raising=False)
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+
+    init_settings.set_java_vmoptions()
+
+    vmoptions_content = (release_dir / "tws.vmoptions").read_text()
+    assert f"-DjtsConfigDir={home / 'tws_settings'}" in vmoptions_content
+
+
 def test_vmoptions_generation_rejects_missing_release_dir(
     init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -836,6 +858,43 @@ def test_main_renders_ini_files_from_templates_each_start(
     assert ibc_ini.read_text() == "IbLoginId=second-user\n"
     assert jts_ini.read_text() == "TimeZone=UTC\n"
     assert ibc_ini.with_suffix(".ini.template").read_text() == "IbLoginId=${IB_USER}\n"
+
+
+def test_main_defaults_tws_settings_path_to_home(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Python config generation should use the same default settings dir as start_ibc."""
+    home = tmp_path / "home" / "ibuser"
+    default_settings_dir = home / "tws_settings"
+    ibc_dir = tmp_path / "ibc"
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    home.mkdir(parents=True)
+    ibc_dir.mkdir()
+    create_ib_release_dir(release_dir, "tws")
+
+    ibc_ini = ibc_dir / "ibc.ini"
+    ibc_ini.with_suffix(".ini.template").write_text("IbLoginId=${IB_USER}\n")
+    default_settings_dir.mkdir()
+    (default_settings_dir / "jts.ini.template").write_text(
+        "TimeZone=${TIME_ZONE:-UTC}\n"
+    )
+    (home / "vmoptions.j2").write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "tws")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("IBC_INI", str(ibc_ini))
+    monkeypatch.delenv("TWS_SETTINGS_PATH", raising=False)
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+    monkeypatch.setenv("IB_USER", "paper-user")
+    monkeypatch.setenv("TIME_ZONE", "America/New_York")
+
+    init_settings.main()
+
+    assert ibc_ini.read_text() == "IbLoginId=paper-user\n"
+    assert (
+        default_settings_dir / "jts.ini"
+    ).read_text() == "TimeZone=America/New_York\n"
 
 
 def test_render_config_template_bootstraps_existing_placeholder_config(
