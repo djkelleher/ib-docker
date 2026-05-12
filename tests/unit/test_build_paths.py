@@ -151,6 +151,32 @@ def test_shell_product_validation_rejects_unsupported_program() -> None:
     assert "Unsupported IB program: desktop" in result.stdout
 
 
+def test_x_display_number_strips_screen_suffix() -> None:
+    """X11 artifact paths should use the display number, not the screen suffix."""
+    result = run_bash(
+        f"""
+        source "{IB_UTILS_PATH}"
+        x_display_number ":1.0"
+        x_display_number "localhost:2.1"
+        """
+    )
+
+    assert result.stdout.splitlines() == ["1", "2"]
+
+
+def test_x_display_number_rejects_invalid_display() -> None:
+    """Invalid display values should fail before cleanup derives bad paths."""
+    result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        x_display_number "not-a-display"
+        """
+    )
+
+    assert result.returncode == 1
+    assert "Invalid DISPLAY value" in result.stdout
+
+
 def test_gateway_vmoptions_updates_primary_and_compatibility_files(
     init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

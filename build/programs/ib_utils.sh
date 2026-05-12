@@ -65,6 +65,21 @@ resolve_ibc_tws_path() {
 	fi
 }
 
+x_display_number() {
+	local display="${1:-${DISPLAY:-:1}}"
+	local display_no
+
+	display_no="${display##*:}"
+	display_no="${display_no%%.*}"
+
+	if [[ ! $display_no =~ ^[0-9]+$ ]]; then
+		log "ERROR: Invalid DISPLAY value: ${display}"
+		exit 1
+	fi
+
+	printf '%s\n' "$display_no"
+}
+
 wait_for_x_server() {
 	log "Waiting for X server on display ${DISPLAY}..."
 

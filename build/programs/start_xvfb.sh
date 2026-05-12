@@ -18,7 +18,7 @@ start_xvfb() {
 	export DISPLAY
 
 	log "Starting Xvfb server. Using display: $DISPLAY"
-	display_no="${DISPLAY#:}"
+	display_no="$(x_display_number "$DISPLAY")"
 
 	# More thorough cleanup of existing X server processes and files
 	log "Cleaning up any existing X server processes and files..."
