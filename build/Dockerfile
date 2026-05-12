@@ -23,6 +23,10 @@ RUN set -eu; \
       echo "IBC_VERSION must not be empty" >&2; \
       exit 1; \
     fi; \
+    if ! printf '%s' "$IBC_VERSION" | grep -Eq '^[0-9]+[.][0-9]+[.][0-9]+$'; then \
+      echo "IBC_VERSION must look like 3.23.0: $IBC_VERSION" >&2; \
+      exit 1; \
+    fi; \
     if [ "$ARCH" != "x64" ]; then \
       echo "IB installer artifacts are only supported with ARCH=x64" >&2; \
       exit 1; \
@@ -122,6 +126,10 @@ RUN set -eu; \
     fi; \
     if [ -z "$IBC_VERSION" ]; then \
       echo "IBC_VERSION must not be empty" >&2; \
+      exit 1; \
+    fi; \
+    if ! printf '%s' "$IBC_VERSION" | grep -Eq '^[0-9]+[.][0-9]+[.][0-9]+$'; then \
+      echo "IBC_VERSION must look like 3.23.0: $IBC_VERSION" >&2; \
       exit 1; \
     fi
 

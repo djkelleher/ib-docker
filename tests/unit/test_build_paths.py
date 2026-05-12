@@ -1220,6 +1220,8 @@ def test_dockerfile_validates_build_args_before_downloads() -> None:
     assert "VERSION must look like 10.45.1e or be NULL" in content
     assert "'^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'" in content
     assert "IBC_VERSION must not be empty" in content
+    assert "IBC_VERSION must look like 3.23.0" in content
+    assert "'^[0-9]+[.][0-9]+[.][0-9]+$'" in content
 
 
 def test_dockerfile_verifies_ibc_start_script_during_build() -> None:
