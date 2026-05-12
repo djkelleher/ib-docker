@@ -120,14 +120,26 @@ def fetch(url: str, as_text: bool = True) -> str | bytes:
 
 
 def download(url: str, save_path: Path) -> None:
-    if (not os.getenv("IB_DOCKER_OVERWRITE_DOWNLOADS")) and os.path.exists(save_path):
-        logger.info(f"File already exists: {save_path}. Skipping download.")
-        return
+    if (not os.getenv("IB_DOCKER_OVERWRITE_DOWNLOADS")) and save_path.exists():
+        if save_path.stat().st_size > 0:
+            logger.info(f"File already exists: {save_path}. Skipping download.")
+            return
+        logger.info(f"Existing download is empty: {save_path}. Re-downloading.")
+
+    temporary_path = save_path.with_suffix(save_path.suffix + ".tmp")
+    if temporary_path.exists():
+        temporary_path.unlink()
+
     logger.info(f"Starting Download: {url}")
     try:
-        urlretrieve(url, save_path)
+        urlretrieve(url, temporary_path)
+        if temporary_path.stat().st_size == 0:
+            raise RuntimeError("downloaded file is empty")
+        temporary_path.replace(save_path)
         logger.info(f"Downloaded successfully: {save_path}")
     except Exception as exc:
+        if temporary_path.exists():
+            temporary_path.unlink()
         raise RuntimeError(f"Error downloading file {url}: {exc}") from exc
 
 

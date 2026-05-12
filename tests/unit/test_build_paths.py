@@ -1393,6 +1393,21 @@ def test_ci_download_and_fetch_errors_are_fatal() -> None:
     assert 'logger.info(f"Error downloading file' not in content
 
 
+def test_ci_downloads_are_atomic_and_nonempty() -> None:
+    """Release downloads should not reuse partial or empty cached assets."""
+    content = CI_PATH.read_text()
+
+    assert "save_path.stat().st_size > 0" in content
+    assert "Existing download is empty" in content
+    assert (
+        'temporary_path = save_path.with_suffix(save_path.suffix + ".tmp")' in content
+    )
+    assert "urlretrieve(url, temporary_path)" in content
+    assert 'raise RuntimeError("downloaded file is empty")' in content
+    assert "temporary_path.replace(save_path)" in content
+    assert "temporary_path.unlink()" in content
+
+
 def test_ci_docker_build_failures_are_fatal() -> None:
     """CI image builds should fail when docker buildx returns a non-zero status."""
     content = CI_PATH.read_text()
