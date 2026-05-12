@@ -30,6 +30,10 @@ jobs:
             echo "Extracted version: $version"
 
             major_minor_version=$(echo "$version" | grep -oP '^\d+\.\d+')
+            if [ -z "$major_minor_version" ]; then
+              echo "Could not extract major/minor version from release tag: $release_name" >&2
+              exit 1
+            fi
             echo "Extracted major+minor version: $major_minor_version"
             echo "major_minor_version=$major_minor_version" >> $GITHUB_OUTPUT
           shell: bash

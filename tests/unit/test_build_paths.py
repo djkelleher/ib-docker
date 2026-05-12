@@ -1201,6 +1201,18 @@ def test_release_workflows_validate_tag_format_before_build_args() -> None:
         assert "^(stable|latest|beta)-[0-9]+[.][0-9]+[.][0-9]+[a-z]?$" in content
 
 
+def test_release_workflows_require_major_minor_tag() -> None:
+    """Release workflows should not push an empty major/minor Docker tag."""
+    for workflow_path in [GATEWAY_WORKFLOW_PATH, TWS_WORKFLOW_PATH]:
+        content = workflow_path.read_text()
+        extraction = content.index("major_minor_version=$(echo")
+        validation = content.index("Could not extract major/minor version")
+        output = content.index("major_minor_version=$major_minor_version")
+
+        assert extraction < validation < output
+        assert 'if [ -z "$major_minor_version" ]; then' in content
+
+
 def test_build_context_ignores_generated_python_artifacts() -> None:
     """The build context should not include local Python cache artifacts."""
     ignored_patterns = set(BUILD_DOCKERIGNORE_PATH.read_text().splitlines())
