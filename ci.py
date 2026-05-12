@@ -249,6 +249,8 @@ def build_image(params: tuple[str, str, str]) -> None:
         logger.info(info)
     if err := res.stderr.strip():
         logger.error(err)
+    if res.returncode != 0:
+        raise RuntimeError(f"Docker image build failed with exit code {res.returncode}")
     logger.info(f"Finished running image build: {cmd}")
 
 

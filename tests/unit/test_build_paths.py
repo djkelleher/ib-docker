@@ -1258,6 +1258,18 @@ def test_ci_download_and_fetch_errors_are_fatal() -> None:
     assert 'logger.info(f"Error downloading file' not in content
 
 
+def test_ci_docker_build_failures_are_fatal() -> None:
+    """CI image builds should fail when docker buildx returns a non-zero status."""
+    content = CI_PATH.read_text()
+
+    assert "if res.returncode != 0:" in content
+    assert (
+        'raise RuntimeError(f"Docker image build failed with exit code {res.returncode}")'
+        in content
+    )
+    assert "check=False" in content
+
+
 def test_release_workflow_uses_only_release_check_requirements() -> None:
     """Daily release checks should not require unused DockerHub secrets."""
     content = (REPO_ROOT / ".github" / "workflows" / "release.yml").read_text()
