@@ -1237,6 +1237,7 @@ def test_ci_validates_release_tags_before_building() -> None:
     """CI build helpers should reject malformed release tags before image builds."""
     content = CI_PATH.read_text()
 
+    assert "BUILD_VERSION_RE = re.compile" in content
     assert "RELEASE_TAG_RE = re.compile" in content
     assert "latest|stable|beta" in content
     assert "def parse_release_tag(tag_name: str) -> GitHubRelease:" in content
@@ -1245,6 +1246,17 @@ def test_ci_validates_release_tags_before_building() -> None:
         "releases: list[IBRelease | GitHubRelease] = [parse_release_tag(tag)]"
         in content
     )
+
+
+def test_ci_validates_upstream_build_versions_before_release_tags() -> None:
+    """Release creation should reject unexpected upstream buildVersion strings."""
+    content = CI_PATH.read_text()
+
+    assert "def parse_build_version(version: str, source: str) -> str:" in content
+    assert "if not BUILD_VERSION_RE.match(version):" in content
+    assert "Invalid IB build version from {source}: {version}" in content
+    assert "return parse_build_version(" in content
+    assert 'self.release_meta["buildVersion"].strip()' in content
 
 
 def test_ci_release_discovery_skips_unsupported_tags() -> None:

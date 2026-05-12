@@ -25,6 +25,7 @@ logger = logging.getLogger("CI")
 downloads_dir = Path(__file__).parent / "downloads"
 ReleaseChannel = Literal["latest", "stable", "beta"]
 ScheduledReleaseChannel = Literal["latest", "stable"]
+BUILD_VERSION_RE = re.compile(r"^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$")
 RELEASE_TAG_RE = re.compile(r"^(latest|stable|beta)-([0-9]+[.][0-9]+[.][0-9]+[a-z]?)$")
 
 
@@ -71,7 +72,10 @@ class IBRelease:
 
     @property
     def build_version(self) -> str:
-        return self.release_meta["buildVersion"].strip()
+        return parse_build_version(
+            self.release_meta["buildVersion"].strip(),
+            f"{self.program} {self.release} version metadata",
+        )
 
     @property
     def build_datetime(self) -> datetime:
@@ -146,6 +150,13 @@ def parse_release_tag(tag_name: str) -> GitHubRelease:
         raise ValueError(f"Invalid release tag: {tag_name}")
     release, version = match.groups()
     return GitHubRelease(release=release, build_version=version)
+
+
+def parse_build_version(version: str, source: str) -> str:
+    """Validate an IB build version string before using it in release tags."""
+    if not BUILD_VERSION_RE.match(version):
+        raise ValueError(f"Invalid IB build version from {source}: {version}")
+    return version
 
 
 def docker_platforms(program: str) -> str:
