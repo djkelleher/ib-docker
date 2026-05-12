@@ -215,6 +215,13 @@ def custom_jvm_opts() -> list[str]:
         raise ValueError(f"CUSTOM_JVM_OPTS is invalid: {exc}") from exc
 
 
+def validate_java_heap_size() -> None:
+    """Validate configured Java heap size before rendering config files."""
+    java_heap_size = os.getenv("JAVA_HEAP_SIZE")
+    if java_heap_size:
+        parse_memory_mb(java_heap_size)
+
+
 def validate_ib_release_layout(program: str, ib_release_dir: Path) -> None:
     """Validate the installed IB product layout before mutating runtime config."""
     require_directory(ib_release_dir, "IB release")
@@ -253,6 +260,7 @@ def validate_runtime_environment() -> None:
     home_path()
     tws_settings_path()
     custom_jvm_opts()
+    validate_java_heap_size()
 
 
 def render_vmoptions(
