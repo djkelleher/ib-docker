@@ -197,6 +197,52 @@ def test_render_config_template_bootstraps_existing_placeholder_config(
     assert template_path.read_text() == "IbLoginId=${IB_USER}\n"
 
 
+def test_main_bootstraps_custom_config_paths_from_default_templates(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Custom runtime config paths should be created from bundled templates."""
+    home = tmp_path / "home" / "ibuser"
+    default_settings_dir = home / "tws_settings"
+    custom_settings_dir = tmp_path / "custom" / "settings"
+    default_ibc_dir = tmp_path / "opt" / "ibc"
+    custom_ibc_ini = tmp_path / "custom" / "ibc" / "custom.ini"
+    release_dir = tmp_path / "opt" / "ibgateway" / "stable"
+    default_settings_dir.mkdir(parents=True)
+    default_ibc_dir.mkdir(parents=True)
+    release_dir.mkdir(parents=True)
+
+    default_ibc_template = default_ibc_dir / "ibc.ini.template"
+    default_jts_template = default_settings_dir / "jts.ini.template"
+    default_ibc_template.write_text("IbLoginId=${IB_USER}\n")
+    default_jts_template.write_text("TimeZone=${TIME_ZONE:-UTC}\n")
+    (home / "vmoptions.j2").write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "ibgateway")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("IBC_PATH", str(default_ibc_dir))
+    monkeypatch.setenv("IBC_INI", str(custom_ibc_ini))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(custom_settings_dir))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+    monkeypatch.setenv("IB_USER", "custom-user")
+    monkeypatch.setenv("TIME_ZONE", "America/New_York")
+
+    init_settings.main()
+
+    custom_jts_ini = custom_settings_dir / "jts.ini"
+    assert custom_ibc_ini.read_text() == "IbLoginId=custom-user\n"
+    assert custom_jts_ini.read_text() == "TimeZone=America/New_York\n"
+    assert (
+        custom_ibc_ini.with_suffix(".ini.template").read_text()
+        == default_ibc_template.read_text()
+    )
+    assert (
+        custom_jts_ini.with_suffix(".ini.template").read_text()
+        == default_jts_template.read_text()
+    )
+    assert (release_dir / "ibgateway.vmoptions").exists()
+
+
 def test_java_heap_size_rejects_invalid_values(init_settings: ModuleType) -> None:
     """Invalid heap values should fail before writing broken vmoptions."""
     with pytest.raises(ValueError, match="JAVA_HEAP_SIZE"):

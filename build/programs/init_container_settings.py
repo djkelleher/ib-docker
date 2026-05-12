@@ -23,11 +23,25 @@ def sub_env_vars(txt: str) -> str:
     return VARS_REG.sub(replace_match, txt)
 
 
-def render_config_template(template_path: Path, output_path: Path, label: str) -> None:
+def render_config_template(
+    template_path: Path,
+    output_path: Path,
+    label: str,
+    fallback_template_path: Path | None = None,
+) -> None:
     """Render an environment-expanded config from a persistent template."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
     try:
         template_content = template_path.read_text()
     except FileNotFoundError:
+        if fallback_template_path is not None and fallback_template_path.exists():
+            template_content = fallback_template_path.read_text()
+            template_path.write_text(template_content)
+            output_path.write_text(sub_env_vars(template_content))
+            print(f"Rendered {label} from {fallback_template_path} -> {output_path}")
+            return
+
         try:
             current_content = output_path.read_text()
         except FileNotFoundError:
@@ -192,14 +206,23 @@ def set_java_vmoptions() -> None:
 
 def main() -> None:
     ibc_ini_path = Path(os.environ["IBC_INI"])
+    default_ibc_dir = Path(os.environ.get("IBC_PATH", str(ibc_ini_path.parent)))
+    default_ibc_template_path = default_ibc_dir / "ibc.ini.template"
     render_config_template(
-        ibc_ini_path.with_suffix(".ini.template"), ibc_ini_path, "ibc.ini"
+        ibc_ini_path.with_suffix(".ini.template"),
+        ibc_ini_path,
+        "ibc.ini",
+        default_ibc_template_path,
     )
 
     tws_settings_path = Path(os.environ["TWS_SETTINGS_PATH"])
     jts_ini_path = tws_settings_path / "jts.ini"
+    default_jts_template_path = Path.home() / "tws_settings" / "jts.ini.template"
     render_config_template(
-        jts_ini_path.with_suffix(".ini.template"), jts_ini_path, "jts.ini"
+        jts_ini_path.with_suffix(".ini.template"),
+        jts_ini_path,
+        "jts.ini",
+        default_jts_template_path,
     )
 
     set_java_vmoptions()
