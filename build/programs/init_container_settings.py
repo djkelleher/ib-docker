@@ -206,6 +206,15 @@ def vmoptions_paths(program: str, ib_release_dir: Path) -> list[Path]:
     return [ib_release_dir / name for name in vmoptions_names(program)]
 
 
+def custom_jvm_opts() -> list[str]:
+    """Parse custom JVM options from the environment."""
+    custom_opts_env = os.getenv("CUSTOM_JVM_OPTS", "")
+    try:
+        return shlex.split(custom_opts_env)
+    except ValueError as exc:
+        raise ValueError(f"CUSTOM_JVM_OPTS is invalid: {exc}") from exc
+
+
 def validate_ib_release_layout(program: str, ib_release_dir: Path) -> None:
     """Validate the installed IB product layout before mutating runtime config."""
     require_directory(ib_release_dir, "IB release")
@@ -243,6 +252,7 @@ def validate_runtime_environment() -> None:
     require_absolute_path(Path(require_env("IBC_INI")), "IBC_INI")
     home_path()
     tws_settings_path()
+    custom_jvm_opts()
 
 
 def render_vmoptions(
@@ -278,14 +288,12 @@ def set_java_vmoptions() -> None:
     template_path = home_path() / "vmoptions.j2"
     if template_path.exists():
         template_content = template_path.read_text()
-        custom_opts_env = os.getenv("CUSTOM_JVM_OPTS", "")
-        custom_opts = shlex.split(custom_opts_env)
         vmoptions_content = render_vmoptions(
             template_content,
             java_heap_size,
             initial_heap,
             settings_path,
-            custom_opts,
+            custom_jvm_opts(),
         )
         for vmoptions_file in vmoptions_paths(program, ib_release_dir):
             vmoptions_file.write_text(vmoptions_content)
