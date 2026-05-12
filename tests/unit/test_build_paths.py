@@ -21,6 +21,8 @@ SUPERVISORD_CONF_PATH = REPO_ROOT / "build" / "config" / "supervisord.conf"
 DOCKER_COMPOSE_PATH = REPO_ROOT / "docker-compose.yml"
 IBC_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "ibc.ini"
 README_PATH = REPO_ROOT / "README.md"
+GATEWAY_WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "build_gateway.yml"
+TWS_WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "build_tws.yml"
 
 
 def load_init_settings() -> ModuleType:
@@ -1160,6 +1162,18 @@ def test_dockerfile_verifies_ibc_start_script_during_build() -> None:
     assert (
         "chmod -R u+x ${IBC_PATH}/*.sh ${IBC_PATH}/scripts/*.sh || true" not in content
     )
+
+
+def test_release_workflows_validate_tag_format_before_build_args() -> None:
+    """Release workflows should reject malformed tags before passing build args."""
+    for workflow_path in [GATEWAY_WORKFLOW_PATH, TWS_WORKFLOW_PATH]:
+        content = workflow_path.read_text()
+        validation = content.index("Release tag must look like")
+        release_type = content.index('release_type="${release_name%%-*}"')
+        docker_build = content.index("docker/build-push-action")
+
+        assert validation < release_type < docker_build
+        assert "^(stable|latest|beta)-[0-9]+[.][0-9]+[.][0-9]+[a-z]?$" in content
 
 
 def test_build_context_ignores_generated_python_artifacts() -> None:
