@@ -329,6 +329,22 @@ def test_java_heap_size_rejects_invalid_values(init_settings: ModuleType) -> Non
         init_settings.parse_memory_mb("2gb")
 
 
+def test_auto_java_heap_size_has_safe_minimum(
+    init_settings: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Tiny cgroup limits should not render zero or near-zero max heap values."""
+    monkeypatch.delenv("JAVA_HEAP_SIZE", raising=False)
+    monkeypatch.setattr(init_settings, "detect_memory_mb", lambda: 128)
+
+    assert init_settings.calculate_java_heap_size() == "256"
+
+
+def test_initial_heap_never_exceeds_max_heap(init_settings: ModuleType) -> None:
+    """Small explicit heap values should still render a valid Xms/Xmx pair."""
+    assert init_settings.calculate_initial_heap_size("64m") == 64
+    assert init_settings.calculate_initial_heap_size("256m") == 128
+
+
 def test_supervisor_config_uses_supported_startup_coordination() -> None:
     """Supervisor config should avoid unsupported dependency keys."""
     content = SUPERVISORD_CONF_PATH.read_text()

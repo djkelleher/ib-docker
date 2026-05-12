@@ -12,6 +12,7 @@ CUSTOM_OPTS_BLOCK = """{% if custom_opts %}
 {{ opt }}
 {% endfor %}
 {% endif %}"""
+MIN_AUTO_HEAP_MB = 256
 
 
 def sub_env_vars(txt: str) -> str:
@@ -126,23 +127,24 @@ def calculate_java_heap_size() -> str:
         return "2048"
 
     if mem_mb <= 2048:
-        java_heap_size = str(int(mem_mb * 0.75))
+        java_heap_size = int(mem_mb * 0.75)
     elif mem_mb <= 4096:
-        java_heap_size = str(int(mem_mb * 0.6))
+        java_heap_size = int(mem_mb * 0.6)
     elif mem_mb <= 8192:
-        java_heap_size = str(int(mem_mb * 0.5))
+        java_heap_size = int(mem_mb * 0.5)
     else:
-        java_heap_size = str(min(4096, int(mem_mb * 0.4)))
+        java_heap_size = min(4096, int(mem_mb * 0.4))
 
+    java_heap_size = max(MIN_AUTO_HEAP_MB, java_heap_size)
     print(f"Detected cgroup memory: {mem_mb}MB; heap={java_heap_size}MB")
-    return java_heap_size
+    return str(java_heap_size)
 
 
 def calculate_initial_heap_size(java_heap_size: str) -> int:
     """Return the initial Java heap size for a maximum heap size."""
     heap_size_int = parse_memory_mb(java_heap_size)
     if heap_size_int <= 1024:
-        return max(128, heap_size_int // 2)
+        return min(heap_size_int, max(128, heap_size_int // 2))
     if heap_size_int <= 2048:
         return 512
     return 768
