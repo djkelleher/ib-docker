@@ -252,6 +252,36 @@ def test_xvfb_cleanup_is_display_specific() -> None:
     assert 'pkill -9 -f "Xvfb" 2>/dev/null || true' not in content
 
 
+def test_x_screen_dimension_defaults_and_validates() -> None:
+    """Xvfb screen dimensions should fail before invoking Xvfb with bad args."""
+    default_result = run_bash(
+        f"""
+        source "{IB_UTILS_PATH}"
+        unset VNC_SCREEN_DIMENSION
+        x_screen_dimension
+        """
+    )
+    custom_result = run_bash(
+        f"""
+        source "{IB_UTILS_PATH}"
+        VNC_SCREEN_DIMENSION=1920x1080x24
+        x_screen_dimension
+        """
+    )
+    invalid_result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        VNC_SCREEN_DIMENSION=1920x0x24
+        x_screen_dimension
+        """
+    )
+
+    assert default_result.stdout.strip() == "1600x1200x24"
+    assert custom_result.stdout.strip() == "1920x1080x24"
+    assert invalid_result.returncode == 1
+    assert "Invalid VNC_SCREEN_DIMENSION" in invalid_result.stdout
+
+
 def test_gateway_vmoptions_updates_primary_and_compatibility_files(
     init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -115,6 +115,18 @@ x_display_number() {
 	printf '%s\n' "$display_no"
 }
 
+x_screen_dimension() {
+	local dimension="${VNC_SCREEN_DIMENSION:-1600x1200x24}"
+
+	if [[ ! $dimension =~ ^[1-9][0-9]*x[1-9][0-9]*x[1-9][0-9]*$ ]]; then
+		log "ERROR: Invalid VNC_SCREEN_DIMENSION: ${dimension}"
+		log "Expected format: WIDTHxHEIGHTxDEPTH, for example 1600x1200x24"
+		exit 1
+	fi
+
+	printf '%s\n' "$dimension"
+}
+
 wait_for_x_server() {
 	log "Waiting for X server on display ${DISPLAY}..."
 

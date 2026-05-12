@@ -43,7 +43,7 @@ start_xvfb() {
 	fi
 
 	# Allow override of screen depth & size. Default to 1600x1200x24 for better color fidelity.
-	VNC_SCREEN_DIMENSION="${VNC_SCREEN_DIMENSION:-1600x1200x24}"
+	VNC_SCREEN_DIMENSION="$(x_screen_dimension)"
 	log "Starting virtual frame buffer. Display $DISPLAY. Screen dimension: $VNC_SCREEN_DIMENSION"
 
 	# Create Xauth file for the user
