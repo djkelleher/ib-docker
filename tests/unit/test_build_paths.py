@@ -1194,6 +1194,15 @@ def test_compose_passes_documented_env_to_runtime_services() -> None:
         assert content.count(f"{env_name}: ${{{env_name}") == 2
 
 
+def test_compose_timezone_default_matches_image_default() -> None:
+    """Compose should not silently change the image timezone default."""
+    compose_content = DOCKER_COMPOSE_PATH.read_text()
+    env_example_content = (REPO_ROOT / ".env.example").read_text()
+
+    assert compose_content.count("TIME_ZONE: ${TIME_ZONE:-UTC}") == 2
+    assert "TIME_ZONE=UTC" in env_example_content
+
+
 def test_compose_requires_credentials_before_startup() -> None:
     """Compose should fail fast when required IB credentials are missing."""
     content = DOCKER_COMPOSE_PATH.read_text()
