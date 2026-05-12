@@ -716,9 +716,46 @@ def test_main_rejects_missing_release_dir_before_rendering_configs(
     monkeypatch.setenv("TWS_SETTINGS_PATH", str(settings_dir))
     monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
     monkeypatch.setenv("IB_USER", "new-user")
+    monkeypatch.setenv("IB_PASSWORD", "paper-password")
     monkeypatch.setenv("TIME_ZONE", "America/New_York")
 
     with pytest.raises(RuntimeError, match="IB release directory does not exist"):
+        init_settings.main()
+
+    assert ibc_ini.read_text() == "IbLoginId=old\n"
+    assert jts_ini.read_text() == "TimeZone=old\n"
+
+
+def test_main_rejects_missing_credentials_before_rendering_configs(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Missing IB credentials should fail before rendering blank login config."""
+    home = tmp_path / "home" / "ibuser"
+    settings_dir = tmp_path / "settings"
+    ibc_dir = tmp_path / "ibc"
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    home.mkdir(parents=True)
+    settings_dir.mkdir()
+    ibc_dir.mkdir()
+    create_ib_release_dir(release_dir, "tws")
+
+    ibc_ini = ibc_dir / "ibc.ini"
+    jts_ini = settings_dir / "jts.ini"
+    ibc_ini.write_text("IbLoginId=old\n")
+    jts_ini.write_text("TimeZone=old\n")
+    ibc_ini.with_suffix(".ini.template").write_text("IbLoginId=${IB_USER}\n")
+    jts_ini.with_suffix(".ini.template").write_text("TimeZone=${TIME_ZONE:-UTC}\n")
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "tws")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("IBC_INI", str(ibc_ini))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(settings_dir))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+    monkeypatch.delenv("IB_USER", raising=False)
+    monkeypatch.setenv("IB_PASSWORD", "paper-password")
+
+    with pytest.raises(RuntimeError, match="Required environment variable IB_USER"):
         init_settings.main()
 
     assert ibc_ini.read_text() == "IbLoginId=old\n"
@@ -752,6 +789,7 @@ def test_main_rejects_incomplete_release_layout_before_rendering_configs(
     monkeypatch.setenv("TWS_SETTINGS_PATH", str(settings_dir))
     monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
     monkeypatch.setenv("IB_USER", "new-user")
+    monkeypatch.setenv("IB_PASSWORD", "paper-password")
     monkeypatch.setenv("TIME_ZONE", "America/New_York")
 
     with pytest.raises(RuntimeError, match="expected executable"):
@@ -776,6 +814,8 @@ def test_main_rejects_relative_config_paths_before_rendering(
     monkeypatch.setenv("IBC_INI", "ibc.ini")
     monkeypatch.setenv("TWS_SETTINGS_PATH", str(home / "tws_settings"))
     monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+    monkeypatch.setenv("IB_USER", "paper-user")
+    monkeypatch.setenv("IB_PASSWORD", "paper-password")
 
     with pytest.raises(RuntimeError, match="IBC_INI must be an absolute path"):
         init_settings.main()
@@ -801,6 +841,8 @@ def test_main_rejects_relative_ibc_path_before_template_lookup(
     monkeypatch.setenv("IBC_INI", str(ibc_ini))
     monkeypatch.setenv("TWS_SETTINGS_PATH", str(settings_dir))
     monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+    monkeypatch.setenv("IB_USER", "paper-user")
+    monkeypatch.setenv("IB_PASSWORD", "paper-password")
 
     with pytest.raises(RuntimeError, match="IBC_PATH must be an absolute path"):
         init_settings.main()
@@ -844,6 +886,7 @@ def test_main_renders_ini_files_from_templates_each_start(
     monkeypatch.setenv("TWS_SETTINGS_PATH", str(settings_dir))
     monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
     monkeypatch.setenv("IB_USER", "first-user")
+    monkeypatch.setenv("IB_PASSWORD", "paper-password")
     monkeypatch.setenv("TIME_ZONE", "America/New_York")
 
     init_settings.main()
@@ -888,6 +931,7 @@ def test_main_defaults_tws_settings_path_to_home(
     monkeypatch.delenv("TWS_SETTINGS_PATH", raising=False)
     monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
     monkeypatch.setenv("IB_USER", "paper-user")
+    monkeypatch.setenv("IB_PASSWORD", "paper-password")
     monkeypatch.setenv("TIME_ZONE", "America/New_York")
 
     init_settings.main()
@@ -957,6 +1001,7 @@ def test_main_bootstraps_custom_config_paths_from_default_templates(
     monkeypatch.setenv("TWS_SETTINGS_PATH", str(custom_settings_dir))
     monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
     monkeypatch.setenv("IB_USER", "custom-user")
+    monkeypatch.setenv("IB_PASSWORD", "paper-password")
     monkeypatch.setenv("TIME_ZONE", "America/New_York")
 
     init_settings.main()
