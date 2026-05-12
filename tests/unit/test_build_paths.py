@@ -314,6 +314,20 @@ def test_ensure_absolute_path_rejects_relative_values() -> None:
     assert "IBC_PATH must be an absolute path: opt/ibc" in result.stdout
 
 
+def test_ensure_executable_file_fails_clearly(tmp_path: Path) -> None:
+    """Runtime script checks should fail before invoking missing executables."""
+    missing_path = tmp_path / "ibc" / "scripts" / "ibcstart.sh"
+    result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        ensure_executable_file "{missing_path}" "IBC start script"
+        """
+    )
+
+    assert result.returncode == 1
+    assert "IBC start script is missing or not executable" in result.stdout
+
+
 def test_wait_for_x_server_requires_home_before_xauth_setup() -> None:
     """Strict-mode X startup should fail clearly when HOME is missing."""
     result = run_bash_unchecked(
@@ -530,6 +544,10 @@ def test_ibc_startup_requires_absolute_runtime_paths() -> None:
     assert 'IB_RELEASE="$(ib_release_version_from_dir "$IB_RELEASE_DIR")"' in content
     assert "ensure_absolute_path IBC_PATH" in content
     assert "ensure_absolute_path IBC_INI" in content
+    assert (
+        'ensure_executable_file "${IBC_PATH}/scripts/ibcstart.sh" "IBC start script"'
+        in content
+    )
     assert "ensure_absolute_path HOME" in content
     assert "ensure_absolute_path TWS_SETTINGS_PATH" in content
 

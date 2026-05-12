@@ -30,6 +30,16 @@ ensure_absolute_path() {
 	esac
 }
 
+ensure_executable_file() {
+	local path="$1"
+	local label="$2"
+
+	if [ ! -x "$path" ]; then
+		log "ERROR: ${label} is missing or not executable: ${path}"
+		exit 1
+	fi
+}
+
 ib_product_executable() {
 	case "${PROGRAM:-}" in
 	ibgateway)
