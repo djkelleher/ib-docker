@@ -143,12 +143,16 @@ def render_vmoptions(
     template_content: str,
     java_heap_size: str,
     initial_heap: int,
+    tws_settings_path: Path,
     custom_opts: list[str],
 ) -> str:
     """Render the lightweight vmoptions template."""
     vmoptions_content = template_content.replace("{{ max_heap }}", java_heap_size)
     vmoptions_content = vmoptions_content.replace(
         "{{ initial_heap }}", str(initial_heap)
+    )
+    vmoptions_content = vmoptions_content.replace(
+        "{{ tws_settings_path }}", str(tws_settings_path)
     )
     custom_section = (
         ("# Custom options\n" + "\n".join(custom_opts)) if custom_opts else ""
@@ -160,6 +164,7 @@ def set_java_vmoptions() -> None:
     """Configure JVM options for IB Gateway/TWS with robust cgroup memory detection."""
     program = os.environ["PROGRAM"]
     ib_release_dir = Path(os.environ["IB_RELEASE_DIR"])
+    tws_settings_path = Path(os.environ["TWS_SETTINGS_PATH"])
     java_heap_size = calculate_java_heap_size()
     initial_heap = calculate_initial_heap_size(java_heap_size)
 
@@ -169,7 +174,11 @@ def set_java_vmoptions() -> None:
         custom_opts_env = os.getenv("CUSTOM_JVM_OPTS", "")
         custom_opts = shlex.split(custom_opts_env)
         vmoptions_content = render_vmoptions(
-            template_content, java_heap_size, initial_heap, custom_opts
+            template_content,
+            java_heap_size,
+            initial_heap,
+            tws_settings_path,
+            custom_opts,
         )
         for vmoptions_file in vmoptions_paths(program, ib_release_dir):
             vmoptions_file.write_text(vmoptions_content)

@@ -10,6 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 INIT_SETTINGS_PATH = REPO_ROOT / "build" / "programs" / "init_container_settings.py"
 IB_UTILS_PATH = REPO_ROOT / "build" / "programs" / "ib_utils.sh"
 VMOPTIONS_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "vmoptions.j2"
+SUPERVISORD_CONF_PATH = REPO_ROOT / "build" / "config" / "supervisord.conf"
 
 
 def load_init_settings() -> ModuleType:
@@ -94,6 +95,7 @@ def test_gateway_vmoptions_updates_primary_and_compatibility_files(
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("PROGRAM", "ibgateway")
     monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(home / "custom_settings"))
     monkeypatch.setenv("JAVA_HEAP_SIZE", "1g")
     monkeypatch.setenv("CUSTOM_JVM_OPTS", "-Dcustom=true '-Dquoted=value with spaces'")
 
@@ -104,6 +106,7 @@ def test_gateway_vmoptions_updates_primary_and_compatibility_files(
     assert primary_content == compatibility_content
     assert "-Xmx1024m" in primary_content
     assert "-Xms512m" in primary_content
+    assert f"-DjtsConfigDir={home / 'custom_settings'}" in primary_content
     assert "-Dcustom=true" in primary_content
     assert "-Dquoted=value with spaces" in primary_content
     assert template_path.exists()
@@ -123,6 +126,7 @@ def test_tws_vmoptions_updates_tws_file_only(
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("PROGRAM", "tws")
     monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(home / "tws_settings"))
     monkeypatch.setenv("JAVA_HEAP_SIZE", "2048")
 
     init_settings.set_java_vmoptions()
@@ -197,3 +201,13 @@ def test_java_heap_size_rejects_invalid_values(init_settings: ModuleType) -> Non
     """Invalid heap values should fail before writing broken vmoptions."""
     with pytest.raises(ValueError, match="JAVA_HEAP_SIZE"):
         init_settings.parse_memory_mb("2gb")
+
+
+def test_supervisor_config_uses_supported_startup_coordination() -> None:
+    """Supervisor config should avoid unsupported dependency keys."""
+    content = SUPERVISORD_CONF_PATH.read_text()
+
+    assert "depends_on" not in content
+    assert "[program:settings]" not in content
+    assert "[unix_http_server]" in content
+    assert "serverurl=unix:///tmp/supervisor.sock" in content

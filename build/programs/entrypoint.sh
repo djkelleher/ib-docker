@@ -22,7 +22,10 @@ cleanup_x_server() {
 
 	# Recreate X11 directory with correct permissions
 	mkdir -p /tmp/.X11-unix
-	chmod 1777 /tmp/.X11-unix
+	if [ "$(id -u)" = "0" ]; then
+		chown root:root /tmp/.X11-unix 2>/dev/null || true
+		chmod 1777 /tmp/.X11-unix 2>/dev/null || true
+	fi
 
 	log "X server cleanup completed"
 }
@@ -33,6 +36,9 @@ cleanup_x_server
 # Use DISPLAY environment variable or default to :1
 DISPLAY="${DISPLAY:-:1}"
 export DISPLAY
+
+log "Initializing runtime configuration"
+init_container_settings
 
 log "Starting supervisord with DISPLAY=$DISPLAY"
 
