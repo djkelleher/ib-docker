@@ -1345,12 +1345,43 @@ def test_ci_validates_upstream_build_versions_before_release_tags() -> None:
     """Release creation should reject unexpected upstream buildVersion strings."""
     content = CI_PATH.read_text()
 
+    assert (
+        "def release_meta_value(release_meta: dict[str, Any], key: str, source: str)"
+        in content
+    )
     assert "def parse_build_version(version: str, source: str) -> str:" in content
     assert "if not BUILD_VERSION_RE.match(version):" in content
     assert "Invalid IB build version from {source}: {version}" in content
+    assert (
+        'release_meta_value(\n                self.release_meta,\n                "buildVersion",'
+        in content
+    )
     assert "return parse_build_version(" in content
-    assert 'self.release_meta["buildVersion"].strip()' in content
     assert 'version = parse_build_version(version, "Docker image build")' in content
+
+
+def test_ci_validates_upstream_build_timestamps_before_release_notes() -> None:
+    """Release notes should not fail with raw timestamp parsing errors."""
+    content = CI_PATH.read_text()
+
+    assert "def parse_build_datetime(value: str, source: str) -> datetime:" in content
+    assert "return datetime.fromisoformat(value.strip())" in content
+    assert "Invalid IB build datetime from {source}: {value}" in content
+    assert (
+        'release_meta_value(\n                self.release_meta,\n                "buildDateTime",'
+        in content
+    )
+    assert "return parse_build_datetime(" in content
+
+
+def test_ci_metadata_parser_rejects_missing_or_non_string_values() -> None:
+    """Release metadata parsing should not assume upstream JSON shape blindly."""
+    content = CI_PATH.read_text()
+
+    assert 'raise RuntimeError(f"Missing {key} from {source}") from exc' in content
+    assert "if not isinstance(value, str):" in content
+    assert 'raise ValueError(f"Invalid {key} from {source}: {value}")' in content
+    assert "return value.strip()" in content
 
 
 def test_ci_release_discovery_skips_unsupported_tags() -> None:
@@ -1416,9 +1447,26 @@ def test_ci_build_tags_use_dockerhub_namespace() -> None:
     content = CI_PATH.read_text()
 
     assert 'dockerhub_username = require_env("DOCKERHUB_USERNAME")' in content
-    assert 'f"{dockerhub_username}/"' in content
-    assert '"ibgateway": "ib-gateway"' in content
-    assert '"tws": "ib-tws"' in content
+    assert "def docker_image_repository(program: str) -> str:" in content
+    assert 'return "ib-gateway"' in content
+    assert 'return "ib-tws"' in content
+    assert (
+        'image_name = f"{dockerhub_username}/{docker_image_repository(program)}"'
+        in content
+    )
+
+
+def test_ci_build_validates_release_channel_and_product_before_docker() -> None:
+    """Manual CI builds should fail clearly for invalid direct-call build params."""
+    content = CI_PATH.read_text()
+
+    assert (
+        "def parse_release_channel(release: str, source: str) -> ReleaseChannel:"
+        in content
+    )
+    assert "Invalid IB release channel from {source}: {release}" in content
+    assert 'release = parse_release_channel(release, "Docker image build")' in content
+    assert 'raise ValueError(f"Unsupported PROGRAM: {program}")' in content
 
 
 def test_ci_download_and_fetch_errors_are_fatal() -> None:

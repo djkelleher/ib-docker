@@ -56,6 +56,8 @@ class IBRelease:
             program = "Gateway"
         elif self.program == "tws":
             program = "TWS"
+        else:
+            raise ValueError(f"Unsupported PROGRAM: {self.program}")
         return f"{program} {self.release.capitalize()} {self.build_version}"
 
     @property
@@ -73,13 +75,24 @@ class IBRelease:
     @property
     def build_version(self) -> str:
         return parse_build_version(
-            self.release_meta["buildVersion"].strip(),
+            release_meta_value(
+                self.release_meta,
+                "buildVersion",
+                f"{self.program} {self.release} metadata",
+            ),
             f"{self.program} {self.release} version metadata",
         )
 
     @property
     def build_datetime(self) -> datetime:
-        return datetime.fromisoformat(self.release_meta["buildDateTime"].strip())
+        return parse_build_datetime(
+            release_meta_value(
+                self.release_meta,
+                "buildDateTime",
+                f"{self.program} {self.release} metadata",
+            ),
+            f"{self.program} {self.release} metadata",
+        )
 
     @cached_property
     def release_meta(self) -> dict[str, Any]:
@@ -161,7 +174,15 @@ def parse_release_tag(tag_name: str) -> GitHubRelease:
     if match is None:
         raise ValueError(f"Invalid release tag: {tag_name}")
     release, version = match.groups()
+    release = parse_release_channel(release, "release tag")
     return GitHubRelease(release=release, build_version=version)
+
+
+def parse_release_channel(release: str, source: str) -> ReleaseChannel:
+    """Validate an IB release channel before using it in tags or build args."""
+    if release in ("latest", "stable", "beta"):
+        return release
+    raise ValueError(f"Invalid IB release channel from {source}: {release}")
 
 
 def parse_build_version(version: str, source: str) -> str:
@@ -169,6 +190,34 @@ def parse_build_version(version: str, source: str) -> str:
     if not BUILD_VERSION_RE.match(version):
         raise ValueError(f"Invalid IB build version from {source}: {version}")
     return version
+
+
+def parse_build_datetime(value: str, source: str) -> datetime:
+    """Validate an upstream IB build timestamp before publishing release notes."""
+    try:
+        return datetime.fromisoformat(value.strip())
+    except ValueError as exc:
+        raise ValueError(f"Invalid IB build datetime from {source}: {value}") from exc
+
+
+def release_meta_value(release_meta: dict[str, Any], key: str, source: str) -> str:
+    """Return a required string value from upstream release metadata."""
+    try:
+        value = release_meta[key]
+    except KeyError as exc:
+        raise RuntimeError(f"Missing {key} from {source}") from exc
+    if not isinstance(value, str):
+        raise ValueError(f"Invalid {key} from {source}: {value}")
+    return value.strip()
+
+
+def docker_image_repository(program: str) -> str:
+    """Return the DockerHub repository name for an IB product image."""
+    if program == "ibgateway":
+        return "ib-gateway"
+    if program == "tws":
+        return "ib-tws"
+    raise ValueError(f"Unsupported PROGRAM: {program}")
 
 
 def docker_platforms(program: str) -> str:
@@ -281,15 +330,10 @@ def create_github_releases() -> list[IBRelease]:
 
 def build_image(params: tuple[str, str, str]) -> None:
     program, release, version = params
+    release = parse_release_channel(release, "Docker image build")
     version = parse_build_version(version, "Docker image build")
     dockerhub_username = require_env("DOCKERHUB_USERNAME")
-    image_name = (
-        f"{dockerhub_username}/"
-        + {
-            "ibgateway": "ib-gateway",
-            "tws": "ib-tws",
-        }[program]
-    )
+    image_name = f"{dockerhub_username}/{docker_image_repository(program)}"
     platforms = docker_platforms(program)
     # tag with latest or stable as well as version number.
     major, minor, _ = version.split(".")
