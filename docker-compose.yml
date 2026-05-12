@@ -11,8 +11,6 @@ services:
     container_name: gateway
     restart: always
     network_mode: host
-    env_file:
-      - .env
     environment:
       # VNC is disabled unless VNC_PWD is set in .env.
       VNC_PWD: ${VNC_PWD:-}
@@ -20,6 +18,19 @@ services:
       VNC_SCREEN_DIMENSION: ${VNC_SCREEN_DIMENSION:-1600x1200x24}
       # live or paper.
       TRADING_MODE: ${TRADING_MODE:-paper}
+      ACCEPT_NON_BROKERAGE_WARNING: ${ACCEPT_NON_BROKERAGE_WARNING:-yes}
+      READ_ONLY_API: ${READ_ONLY_API:-no}
+      TIME_ZONE: ${TIME_ZONE:-America/New_York}
+      TWOFA_TIMEOUT_ACTION: ${TWOFA_TIMEOUT_ACTION:-exit}
+      AUTO_RESTART_TIME: ${AUTO_RESTART_TIME:-}
+      AUTO_LOGOFF_TIME: ${AUTO_LOGOFF_TIME:-}
+      COLD_RESTART_TIME: ${COLD_RESTART_TIME:-}
+      BYPASS_WARNING: ${BYPASS_WARNING:-yes}
+      SAVE_TWS_SETTINGS: ${SAVE_TWS_SETTINGS:-Every 30 mins}
+      RELOGIN_AFTER_TWOFA_TIMEOUT: ${RELOGIN_AFTER_TWOFA_TIMEOUT:-no}
+      TWOFA_EXIT_INTERVAL: ${TWOFA_EXIT_INTERVAL:-60}
+      JAVA_HEAP_SIZE: ${JAVA_HEAP_SIZE:-}
+      CUSTOM_JVM_OPTS: ${CUSTOM_JVM_OPTS:-}
       IB_USER: ${IB_USER}
       IB_PASSWORD: ${IB_PASSWORD}
   ib-tws:
@@ -37,8 +48,6 @@ services:
     security_opt:
       - seccomp:unconfined
     shm_size: 2g
-    env_file:
-      - .env
     environment:
       # VNC is disabled unless VNC_PWD is set in .env.
       VNC_PWD: ${VNC_PWD:-}
@@ -46,5 +55,18 @@ services:
       VNC_SCREEN_DIMENSION: ${VNC_SCREEN_DIMENSION:-1600x1200x24}
       # live or paper.
       TRADING_MODE: ${TRADING_MODE:-paper}
+      ACCEPT_NON_BROKERAGE_WARNING: ${ACCEPT_NON_BROKERAGE_WARNING:-yes}
+      READ_ONLY_API: ${READ_ONLY_API:-no}
+      TIME_ZONE: ${TIME_ZONE:-America/New_York}
+      TWOFA_TIMEOUT_ACTION: ${TWOFA_TIMEOUT_ACTION:-exit}
+      AUTO_RESTART_TIME: ${AUTO_RESTART_TIME:-}
+      AUTO_LOGOFF_TIME: ${AUTO_LOGOFF_TIME:-}
+      COLD_RESTART_TIME: ${COLD_RESTART_TIME:-}
+      BYPASS_WARNING: ${BYPASS_WARNING:-yes}
+      SAVE_TWS_SETTINGS: ${SAVE_TWS_SETTINGS:-Every 30 mins}
+      RELOGIN_AFTER_TWOFA_TIMEOUT: ${RELOGIN_AFTER_TWOFA_TIMEOUT:-no}
+      TWOFA_EXIT_INTERVAL: ${TWOFA_EXIT_INTERVAL:-60}
+      JAVA_HEAP_SIZE: ${JAVA_HEAP_SIZE:-}
+      CUSTOM_JVM_OPTS: ${CUSTOM_JVM_OPTS:-}
       IB_USER: ${IB_USER}
       IB_PASSWORD: ${IB_PASSWORD}

@@ -1171,12 +1171,27 @@ def test_build_context_ignores_generated_python_artifacts() -> None:
     assert ".pytest_cache/" in ignored_patterns
 
 
-def test_compose_passes_env_file_to_runtime_services() -> None:
-    """Settings documented in .env.example should reach the containers."""
+def test_compose_passes_documented_env_to_runtime_services() -> None:
+    """Documented .env settings should reach containers without requiring env_file."""
     content = DOCKER_COMPOSE_PATH.read_text()
 
-    assert content.count("env_file:") == 2
-    assert content.count("- .env") == 2
+    assert "env_file:" not in content
+    for env_name in [
+        "ACCEPT_NON_BROKERAGE_WARNING",
+        "READ_ONLY_API",
+        "TIME_ZONE",
+        "TWOFA_TIMEOUT_ACTION",
+        "AUTO_RESTART_TIME",
+        "AUTO_LOGOFF_TIME",
+        "COLD_RESTART_TIME",
+        "BYPASS_WARNING",
+        "SAVE_TWS_SETTINGS",
+        "RELOGIN_AFTER_TWOFA_TIMEOUT",
+        "TWOFA_EXIT_INTERVAL",
+        "JAVA_HEAP_SIZE",
+        "CUSTOM_JVM_OPTS",
+    ]:
+        assert content.count(f"{env_name}: ${{{env_name}") == 2
 
 
 def test_compose_uses_distinct_vnc_ports_for_host_network_services() -> None:
