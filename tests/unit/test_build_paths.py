@@ -2474,6 +2474,8 @@ def test_release_workflow_uses_only_release_check_requirements() -> None:
     """Daily release checks should not require unused DockerHub secrets."""
     content = (REPO_ROOT / ".github" / "workflows" / "release.yml").read_text()
 
+    assert 'python-version: "3.12"' in content
+    assert 'python-version: "3.11"' not in content
     assert "pip install pygithub\n" in content
     assert "pip install pygithub docker jinja2" not in content
     assert "GITHUB_TOKEN: ${{ secrets.GH_PAT }}" in content
