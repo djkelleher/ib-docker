@@ -122,6 +122,12 @@ def fixture_init_settings() -> ModuleType:
     return load_init_settings()
 
 
+@pytest.fixture(autouse=True)
+def fixture_runtime_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Provide image defaults that most runtime validation tests assume."""
+    monkeypatch.setenv("IBC_VERSION", "3.23.0")
+
+
 def test_env_substitution_uses_defaults_for_empty_values(
     init_settings: ModuleType, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -992,6 +998,43 @@ def test_main_rejects_missing_credentials_before_rendering_configs(
     monkeypatch.setenv("IB_PASSWORD", "paper-password")
 
     with pytest.raises(RuntimeError, match="Required environment variable IB_USER"):
+        init_settings.main()
+
+    assert ibc_ini.read_text() == "IbLoginId=old\n"
+    assert jts_ini.read_text() == "TimeZone=old\n"
+
+
+def test_main_rejects_missing_ibc_version_before_rendering_configs(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Missing IBC metadata should fail before rendering runtime config files."""
+    home = tmp_path / "home" / "ibuser"
+    settings_dir = tmp_path / "settings"
+    ibc_dir = tmp_path / "ibc"
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    home.mkdir(parents=True)
+    settings_dir.mkdir()
+    ibc_dir.mkdir()
+    create_ib_release_dir(release_dir, "tws")
+
+    ibc_ini = ibc_dir / "ibc.ini"
+    jts_ini = settings_dir / "jts.ini"
+    ibc_ini.write_text("IbLoginId=old\n")
+    jts_ini.write_text("TimeZone=old\n")
+    ibc_ini.with_suffix(".ini.template").write_text("IbLoginId=${IB_USER}\n")
+    jts_ini.with_suffix(".ini.template").write_text("TimeZone=${TIME_ZONE:-UTC}\n")
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "tws")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("IBC_INI", str(ibc_ini))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(settings_dir))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+    monkeypatch.setenv("IB_USER", "new-user")
+    monkeypatch.setenv("IB_PASSWORD", "paper-password")
+    monkeypatch.delenv("IBC_VERSION")
+
+    with pytest.raises(RuntimeError, match="Required environment variable IBC_VERSION"):
         init_settings.main()
 
     assert ibc_ini.read_text() == "IbLoginId=old\n"

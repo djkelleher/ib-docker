@@ -287,6 +287,7 @@ def validate_runtime_environment() -> None:
     vmoptions_names(program)
     require_env("IB_USER")
     require_env("IB_PASSWORD")
+    require_env("IBC_VERSION")
     if "IBC_PATH" in os.environ:
         require_absolute_path(Path(require_env("IBC_PATH")), "IBC_PATH")
     validate_ib_release_layout(program, resolve_ib_release_dir(program))
