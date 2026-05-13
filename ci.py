@@ -624,7 +624,7 @@ def create_github_releases() -> list[IBRelease]:
             GitHubRelease(release=release, build_version=version),
         )
         delete_release_assets(gh_release, replacement_asset_names)
-        existing_asset_names = release_asset_names(gh_release)
+        existing_asset_names = release_asset_names(gh_release) - replacement_asset_names
         with ThreadPoolExecutor(max_workers=len(files)) as executor:
             upload = partial(
                 upload_release_asset,

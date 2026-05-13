@@ -2756,10 +2756,7 @@ def test_ci_create_github_releases_repairs_existing_incomplete_release(
     monkeypatch.setattr(
         ci_module,
         "delete_release_assets",
-        lambda gh_release, asset_names: (
-            deleted_assets.extend(sorted(asset_names)),
-            gh_release.asset_names.difference_update(asset_names),
-        ),
+        lambda gh_release, asset_names: deleted_assets.extend(sorted(asset_names)),
     )
     monkeypatch.setattr(
         ci_module,
