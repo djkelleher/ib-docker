@@ -340,6 +340,61 @@ def expected_release_asset_names(release: GitHubRelease) -> set[str]:
     return asset_names
 
 
+def release_checksum_asset_is_invalid(
+    asset: Any,
+    installer_asset: Any,
+    asset_name: str,
+    expected_file_name: str,
+    release: GitHubRelease,
+) -> bool:
+    """Return whether a checksum sidecar is malformed, stale, or mismatched."""
+    try:
+        digest, referenced_file_name = parse_sha256_sidecar(
+            fetch(asset.browser_download_url),
+            asset.browser_download_url,
+        )
+    except RuntimeError as exc:
+        logger.info(
+            "Found invalid checksum asset for %s-%s: %s (%s)",
+            release.release,
+            release.build_version,
+            asset_name,
+            exc,
+        )
+        return True
+    if referenced_file_name != expected_file_name:
+        logger.info(
+            "Found mismatched checksum asset for %s-%s: %s references %s",
+            release.release,
+            release.build_version,
+            asset_name,
+            referenced_file_name,
+        )
+        return True
+    try:
+        installer_content = fetch(installer_asset.browser_download_url, as_text=False)
+    except RuntimeError as exc:
+        logger.info(
+            "Could not validate checksum asset for %s-%s: %s installer fetch failed (%s)",
+            release.release,
+            release.build_version,
+            asset_name,
+            exc,
+        )
+        return True
+    installer_digest = hashlib.sha256(installer_content).hexdigest()
+    if installer_digest != digest:
+        logger.info(
+            "Found stale checksum asset for %s-%s: %s digest does not match %s",
+            release.release,
+            release.build_version,
+            asset_name,
+            expected_file_name,
+        )
+        return True
+    return False
+
+
 def invalid_release_checksum_asset_names(
     gh_release: Any, release: GitHubRelease
 ) -> set[str]:
@@ -353,44 +408,16 @@ def invalid_release_checksum_asset_names(
         if asset is None:
             continue
         expected_file_name = asset_name.removesuffix(".sha256")
-        try:
-            digest, referenced_file_name = parse_sha256_sidecar(
-                fetch(asset.browser_download_url),
-                asset.browser_download_url,
-            )
-        except RuntimeError as exc:
-            logger.info(
-                "Found invalid checksum asset for %s-%s: %s (%s)",
-                release.release,
-                release.build_version,
-                asset_name,
-                exc,
-            )
-            invalid_asset_names.add(asset_name)
-            continue
-        if referenced_file_name != expected_file_name:
-            logger.info(
-                "Found mismatched checksum asset for %s-%s: %s references %s",
-                release.release,
-                release.build_version,
-                asset_name,
-                referenced_file_name,
-            )
-            invalid_asset_names.add(asset_name)
-            continue
         installer_asset = assets.get(expected_file_name)
         if installer_asset is None:
             continue
-        installer_content = fetch(installer_asset.browser_download_url, as_text=False)
-        installer_digest = hashlib.sha256(installer_content).hexdigest()
-        if installer_digest != digest:
-            logger.info(
-                "Found stale checksum asset for %s-%s: %s digest does not match %s",
-                release.release,
-                release.build_version,
-                asset_name,
-                expected_file_name,
-            )
+        if release_checksum_asset_is_invalid(
+            asset,
+            installer_asset,
+            asset_name,
+            expected_file_name,
+            release,
+        ):
             invalid_asset_names.add(asset_name)
     return invalid_asset_names
 

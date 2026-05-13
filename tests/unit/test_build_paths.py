@@ -1996,6 +1996,57 @@ def test_ci_release_discovery_skips_stale_checksum_sidecars(
     ]
 
 
+def test_ci_release_discovery_skips_unfetchable_installer_assets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Installer fetch failures during checksum validation should not abort discovery."""
+    ci_module = load_ci_module(monkeypatch)
+
+    class FakeAsset:
+        def __init__(self, name: str) -> None:
+            self.name = name
+            self.browser_download_url = f"https://example.test/{name}"
+
+    class FakeRelease:
+        def __init__(self, tag_name: str) -> None:
+            self.tag_name = tag_name
+            self.draft = False
+
+        def get_assets(self) -> list[FakeAsset]:
+            release = ci_module.parse_release_tag(self.tag_name)
+            return [
+                FakeAsset(name)
+                for name in ci_module.expected_release_asset_names(release)
+            ]
+
+    class FakeRepo:
+        def get_releases(self) -> list[FakeRelease]:
+            return [
+                FakeRelease("latest-10.46.1"),
+                FakeRelease("latest-10.45.2"),
+                FakeRelease("stable-10.45.1e"),
+            ]
+
+    def fake_fetch(url: str, as_text: bool = True) -> str | bytes:
+        asset_name = Path(url).name
+        if (
+            asset_name == "ibgateway-latest-10.46.1-standalone-linux-x64.sh"
+            and not as_text
+        ):
+            raise RuntimeError("download failed")
+        return fake_release_asset_fetch(url, as_text=as_text)
+
+    monkeypatch.setattr(ci_module, "get_gh_repo", lambda: FakeRepo())
+    monkeypatch.setattr(ci_module, "fetch", fake_fetch)
+
+    releases = ci_module.find_latest_github_releases()
+
+    assert releases == [
+        ci_module.GitHubRelease(release="latest", build_version="10.45.2"),
+        ci_module.GitHubRelease(release="stable", build_version="10.45.1e"),
+    ]
+
+
 def test_ci_release_discovery_skips_draft_releases(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
