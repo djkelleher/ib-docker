@@ -18,7 +18,7 @@ RUN set -eu; \
       echo "VERSION must be NULL or a packaged IB version" >&2; \
       exit 1; \
     fi; \
-    if [ "$VERSION" != "NULL" ] && ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'; then \
+    if [ "$VERSION" != "NULL" ] && ! printf '%s' "$VERSION" | grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'; then \
       echo "VERSION must look like 10.45.1e or be NULL: $VERSION" >&2; \
       exit 1; \
     fi; \
@@ -26,7 +26,7 @@ RUN set -eu; \
       echo "IBC_VERSION must not be empty" >&2; \
       exit 1; \
     fi; \
-    if ! printf '%s' "$IBC_VERSION" | grep -Eq '^[0-9]+[.][0-9]+[.][0-9]+$'; then \
+    if ! printf '%s' "$IBC_VERSION" | grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+$'; then \
       echo "IBC_VERSION must look like 3.23.0: $IBC_VERSION" >&2; \
       exit 1; \
     fi; \
@@ -128,7 +128,7 @@ RUN set -eu; \
       echo "VERSION must be NULL or a packaged IB version" >&2; \
       exit 1; \
     fi; \
-    if [ "$VERSION" != "NULL" ] && ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'; then \
+    if [ "$VERSION" != "NULL" ] && ! printf '%s' "$VERSION" | grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'; then \
       echo "VERSION must look like 10.45.1e or be NULL: $VERSION" >&2; \
       exit 1; \
     fi; \
@@ -136,7 +136,7 @@ RUN set -eu; \
       echo "IBC_VERSION must not be empty" >&2; \
       exit 1; \
     fi; \
-    if ! printf '%s' "$IBC_VERSION" | grep -Eq '^[0-9]+[.][0-9]+[.][0-9]+$'; then \
+    if ! printf '%s' "$IBC_VERSION" | grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+$'; then \
       echo "IBC_VERSION must look like 3.23.0: $IBC_VERSION" >&2; \
       exit 1; \
     fi

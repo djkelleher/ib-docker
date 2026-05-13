@@ -1778,10 +1778,31 @@ def test_dockerfile_validates_build_args_before_downloads() -> None:
     assert "IB installer artifacts are only supported with ARCH=x64" in content
     assert "VERSION must be NULL or a packaged IB version" in content
     assert "VERSION must look like 10.45.1e or be NULL" in content
+    assert "grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'" in content
     assert "'^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'" in content
     assert "IBC_VERSION must not be empty" in content
     assert "IBC_VERSION must look like 3.23.0" in content
+    assert "grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+$'" in content
     assert "'^[0-9]+[.][0-9]+[.][0-9]+$'" in content
+
+
+def test_dockerfile_build_arg_regexes_reject_embedded_newlines() -> None:
+    """Docker build arg validation should consume the whole value, not one line."""
+    version_result = run_bash_unchecked(
+        """
+        VERSION=$'10.45.1e\\nbad'
+        printf '%s' "$VERSION" | grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'
+        """
+    )
+    ibc_result = run_bash_unchecked(
+        """
+        IBC_VERSION=$'3.23.0\\nbad'
+        printf '%s' "$IBC_VERSION" | grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+$'
+        """
+    )
+
+    assert version_result.returncode == 1
+    assert ibc_result.returncode == 1
 
 
 def test_dockerfile_arg_defaults_do_not_include_inline_comments() -> None:
