@@ -190,7 +190,7 @@ def parse_sha256_sidecar(content: str, source: str) -> tuple[str, str]:
         raise RuntimeError(f"Invalid sha256 sidecar from {source}: malformed checksum")
     if file_name.startswith("*"):
         file_name = file_name[1:]
-    if not file_name or "/" in file_name:
+    if not file_name or "/" in file_name or "\\" in file_name:
         raise RuntimeError(f"Invalid sha256 sidecar from {source}: {file_name}")
     return digest.lower(), file_name
 

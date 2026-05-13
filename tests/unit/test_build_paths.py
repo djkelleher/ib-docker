@@ -2421,6 +2421,8 @@ def test_ci_parse_sha256_sidecar_rejects_malformed_content(
         ci_module.parse_sha256_sidecar("not-a-digest file.sh\n", "test-url")
     with pytest.raises(RuntimeError, match="Invalid sha256 sidecar"):
         ci_module.parse_sha256_sidecar(f"{digest} nested/file.sh\n", "test-url")
+    with pytest.raises(RuntimeError, match="Invalid sha256 sidecar"):
+        ci_module.parse_sha256_sidecar(f"{digest} nested\\file.sh\n", "test-url")
 
 
 def test_ci_upload_release_asset_uploads_asset_and_checksum(
