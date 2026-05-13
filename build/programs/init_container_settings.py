@@ -208,6 +208,7 @@ def vmoptions_paths(program: str, ib_release_dir: Path) -> list[Path]:
 
 def resolve_ib_release_dir(program: str, install_root: Path = Path("/opt")) -> Path:
     """Return the configured or default IB release directory."""
+    vmoptions_names(program)
     raw_release_dir = os.environ.get("IB_RELEASE_DIR")
     if raw_release_dir:
         return Path(raw_release_dir)
@@ -265,11 +266,11 @@ def validate_ib_release_layout(program: str, ib_release_dir: Path) -> None:
 def validate_runtime_environment() -> None:
     """Validate runtime settings that should prevent config generation."""
     program = require_env("PROGRAM")
+    vmoptions_names(program)
     require_env("IB_USER")
     require_env("IB_PASSWORD")
     if "IBC_PATH" in os.environ:
         require_absolute_path(Path(require_env("IBC_PATH")), "IBC_PATH")
-    vmoptions_names(program)
     validate_ib_release_layout(program, resolve_ib_release_dir(program))
     require_absolute_path(Path(require_env("IBC_INI")), "IBC_INI")
     home_path()
@@ -302,6 +303,7 @@ def render_vmoptions(
 def set_java_vmoptions() -> None:
     """Configure JVM options for IB Gateway/TWS with robust cgroup memory detection."""
     program = require_env("PROGRAM")
+    vmoptions_names(program)
     ib_release_dir = resolve_ib_release_dir(program)
     settings_path = tws_settings_path()
     validate_ib_release_layout(program, ib_release_dir)

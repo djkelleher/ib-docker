@@ -1133,6 +1133,45 @@ def test_vmoptions_paths_rejects_unsupported_program(
         init_settings.vmoptions_paths("desktop", tmp_path)
 
 
+def test_python_release_dir_rejects_unsupported_program_before_release_lookup(
+    init_settings: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Release path resolution should not ask for IB_RELEASE for unknown products."""
+    monkeypatch.delenv("IB_RELEASE", raising=False)
+    monkeypatch.delenv("IB_RELEASE_DIR", raising=False)
+
+    with pytest.raises(ValueError, match="Unsupported PROGRAM: desktop"):
+        init_settings.resolve_ib_release_dir("desktop")
+
+
+def test_runtime_validation_rejects_unsupported_program_before_credentials(
+    init_settings: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Startup validation should report a bad PROGRAM before unrelated env gaps."""
+    monkeypatch.setenv("PROGRAM", "desktop")
+    monkeypatch.delenv("IB_USER", raising=False)
+    monkeypatch.delenv("IB_PASSWORD", raising=False)
+
+    with pytest.raises(ValueError, match="Unsupported PROGRAM: desktop"):
+        init_settings.validate_runtime_environment()
+
+
+def test_vmoptions_generation_rejects_unsupported_program_before_release_lookup(
+    init_settings: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Direct vmoptions generation should fail on product name before path lookup."""
+    monkeypatch.setenv("PROGRAM", "desktop")
+    monkeypatch.delenv("IB_RELEASE", raising=False)
+    monkeypatch.delenv("IB_RELEASE_DIR", raising=False)
+    monkeypatch.delenv("HOME", raising=False)
+
+    with pytest.raises(ValueError, match="Unsupported PROGRAM: desktop"):
+        init_settings.set_java_vmoptions()
+
+
 def test_main_renders_ini_files_from_templates_each_start(
     init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
