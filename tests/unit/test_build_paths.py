@@ -1906,6 +1906,18 @@ def test_release_workflows_quote_github_output_path() -> None:
         assert ">> $GITHUB_OUTPUT" not in content
 
 
+def test_release_workflows_require_manual_tag_input() -> None:
+    """Manual release builds should not allow an empty tag input in the UI."""
+    for workflow_path in [GATEWAY_WORKFLOW_PATH, TWS_WORKFLOW_PATH]:
+        content = workflow_path.read_text()
+        tag_input = content.index("tag_name:")
+        tag_required = content.index("required: true", tag_input)
+        parse_step = content.index("release_name=")
+
+        assert tag_input < tag_required < parse_step
+        assert "required: false" not in content
+
+
 def test_release_workflows_do_not_publish_broad_beta_aliases() -> None:
     """Beta builds should not overwrite broad major or major/minor Docker tags."""
     for workflow_path, image_name in [
