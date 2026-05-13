@@ -345,6 +345,19 @@ def publish_release(gh_release: Any, tag: str, message: str) -> Any:
     return gh_release.update_release(name=tag, message=message, draft=False)
 
 
+def dispatch_build_workflows(gh_repo: Any, tag: str) -> None:
+    """Trigger product image workflows for a repaired published release."""
+    workflow_inputs = {"tag_name": tag}
+    for workflow_name in ("build_gateway.yml", "build_tws.yml"):
+        logger.info("Dispatching %s for repaired release: %s", workflow_name, tag)
+        dispatched = gh_repo.get_workflow(workflow_name).create_dispatch(
+            ref="main",
+            inputs=workflow_inputs,
+        )
+        if not dispatched:
+            raise RuntimeError(f"Could not dispatch {workflow_name} for {tag}")
+
+
 def find_latest_github_releases() -> list[GitHubRelease]:
     """Find latest 'latest' and 'stable' releases."""
     gh_repo = get_gh_repo()
@@ -424,6 +437,7 @@ def create_github_releases() -> list[IBRelease]:
         tag = f"{release}-{version}"
         message = "\n".join([r.description for r in ib_releases])
         gh_release = find_github_release_by_tag(gh_repo, tag)
+        dispatch_after_repair = False
         if gh_release is None:
             logger.info(f"Creating release on GitHub ({tag}):\n{message}")
             gh_release = gh_repo.create_git_release(
@@ -434,6 +448,7 @@ def create_github_releases() -> list[IBRelease]:
             )
         else:
             logger.info("Repairing existing incomplete GitHub release: %s", tag)
+            dispatch_after_repair = not gh_release.draft
 
         existing_asset_names = release_asset_names(gh_release)
         with ThreadPoolExecutor(max_workers=len(files)) as executor:
@@ -444,6 +459,8 @@ def create_github_releases() -> list[IBRelease]:
             )
             list(executor.map(upload, files))
         gh_release = publish_release(gh_release, tag, message)
+        if dispatch_after_repair:
+            dispatch_build_workflows(gh_repo, tag)
         created_releases.extend(ib_releases)
     logger.info("Done!")
     return created_releases

@@ -2056,8 +2056,9 @@ def test_ci_upload_release_asset_repairs_missing_checksum_only(
 def test_ci_create_github_releases_repairs_existing_incomplete_release(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Scheduled release repair should reuse an incomplete tag instead of recreating it."""
+    """Published release repair should reuse the tag and dispatch image builds."""
     ci_module = load_ci_module(monkeypatch)
+    dispatched_tags: list[str] = []
 
     class FakeAsset:
         def __init__(self, name: str) -> None:
@@ -2124,6 +2125,11 @@ def test_ci_create_github_releases_repairs_existing_incomplete_release(
     )
     monkeypatch.setattr(ci_module, "IBRelease", FakeIBRelease)
     monkeypatch.setattr(ci_module, "download_release_file", fake_download_release_file)
+    monkeypatch.setattr(
+        ci_module,
+        "dispatch_build_workflows",
+        lambda gh_repo, tag: dispatched_tags.append(tag),
+    )
 
     created_releases = ci_module.create_github_releases()
 
@@ -2139,6 +2145,7 @@ def test_ci_create_github_releases_repairs_existing_incomplete_release(
         "tws-stable-10.45.1e-standalone-linux-x64.sh",
         "tws-stable-10.45.1e-standalone-linux-x64.sh.sha256",
     ]
+    assert dispatched_tags == ["stable-10.45.1e"]
 
 
 def test_ci_create_github_releases_publishes_after_asset_upload(
@@ -2325,6 +2332,54 @@ def test_ci_create_github_releases_publishes_existing_complete_draft(
     assert draft_release.published is True
 
 
+def test_ci_dispatch_build_workflows_raises_when_dispatch_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Workflow dispatch failures should fail the release repair run."""
+    ci_module = load_ci_module(monkeypatch)
+
+    class FakeWorkflow:
+        def create_dispatch(self, ref: str, inputs: dict[str, str]) -> bool:
+            assert ref == "main"
+            assert inputs == {"tag_name": "stable-10.45.1e"}
+            return False
+
+    class FakeRepo:
+        def get_workflow(self, workflow_name: str) -> FakeWorkflow:
+            assert workflow_name == "build_gateway.yml"
+            return FakeWorkflow()
+
+    with pytest.raises(RuntimeError, match="Could not dispatch build_gateway.yml"):
+        ci_module.dispatch_build_workflows(FakeRepo(), "stable-10.45.1e")
+
+
+def test_ci_dispatch_build_workflows_runs_both_product_builds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Published release repair should trigger both product image workflows."""
+    ci_module = load_ci_module(monkeypatch)
+    workflow_dispatches: list[tuple[str, str, dict[str, str]]] = []
+
+    class FakeWorkflow:
+        def __init__(self, workflow_name: str) -> None:
+            self.workflow_name = workflow_name
+
+        def create_dispatch(self, ref: str, inputs: dict[str, str]) -> bool:
+            workflow_dispatches.append((self.workflow_name, ref, inputs))
+            return True
+
+    class FakeRepo:
+        def get_workflow(self, workflow_name: str) -> FakeWorkflow:
+            return FakeWorkflow(workflow_name)
+
+    ci_module.dispatch_build_workflows(FakeRepo(), "stable-10.45.1e")
+
+    assert workflow_dispatches == [
+        ("build_gateway.yml", "main", {"tag_name": "stable-10.45.1e"}),
+        ("build_tws.yml", "main", {"tag_name": "stable-10.45.1e"}),
+    ]
+
+
 def test_ci_docker_build_failures_are_fatal() -> None:
     """CI image builds should fail when docker buildx returns a non-zero status."""
     content = CI_PATH.read_text()
@@ -2344,6 +2399,7 @@ def test_ci_consumes_parallel_worker_results() -> None:
 
     assert "list(executor.map(upload, files))" in content
     assert "partial(\n                upload_release_asset," in content
+    assert "dispatch_build_workflows(gh_repo, tag)" in content
     assert "list(executor.map(build_image, params))" in content
     assert "\n            executor.map(lambda file:" not in content
     assert "\n            executor.map(build_image, params)\n" not in content
