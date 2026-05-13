@@ -1540,6 +1540,7 @@ def test_ci_release_discovery_skips_unsupported_tags() -> None:
     assert "release = parse_release_tag(gh_release.tag_name)" in content
     assert "Skipping release with unsupported tag: %s" in content
     assert "gh_release.tag_name" in content
+    assert "if not release_has_required_assets(gh_release, release):" in content
     assert "continue" in content
 
 
@@ -1549,9 +1550,20 @@ def test_ci_find_latest_releases_skips_unsupported_and_beta_tags(
     """Scheduled release discovery should return latest/stable only."""
     ci_module = load_ci_module(monkeypatch)
 
+    class FakeAsset:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
     class FakeRelease:
         def __init__(self, tag_name: str) -> None:
             self.tag_name = tag_name
+
+        def get_assets(self) -> list[FakeAsset]:
+            release = ci_module.parse_release_tag(self.tag_name)
+            return [
+                FakeAsset(name)
+                for name in ci_module.expected_release_asset_names(release)
+            ]
 
     class FakeRepo:
         def get_releases(self) -> list[FakeRelease]:
@@ -1570,6 +1582,57 @@ def test_ci_find_latest_releases_skips_unsupported_and_beta_tags(
     assert releases == [
         ci_module.GitHubRelease(release="stable", build_version="10.45.1e"),
         ci_module.GitHubRelease(release="latest", build_version="10.46.1"),
+    ]
+
+
+def test_ci_release_discovery_skips_releases_with_missing_assets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Incomplete GitHub releases should not block a retry on the next run."""
+    ci_module = load_ci_module(monkeypatch)
+
+    class FakeAsset:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+    class FakeRelease:
+        def __init__(self, tag_name: str, asset_names: set[str]) -> None:
+            self.tag_name = tag_name
+            self.asset_names = asset_names
+
+        def get_assets(self) -> list[FakeAsset]:
+            return [FakeAsset(name) for name in self.asset_names]
+
+    class FakeRepo:
+        def get_releases(self) -> list[FakeRelease]:
+            stable_release = ci_module.GitHubRelease(
+                release="stable", build_version="10.45.1e"
+            )
+            latest_release = ci_module.GitHubRelease(
+                release="latest", build_version="10.46.1"
+            )
+            incomplete_stable_assets = {
+                "ibgateway-stable-10.45.1e-standalone-linux-x64.sh"
+            }
+            return [
+                FakeRelease("stable-10.45.1e", incomplete_stable_assets),
+                FakeRelease(
+                    "latest-10.46.1",
+                    ci_module.expected_release_asset_names(latest_release),
+                ),
+                FakeRelease(
+                    "stable-10.45.1e",
+                    ci_module.expected_release_asset_names(stable_release),
+                ),
+            ]
+
+    monkeypatch.setattr(ci_module, "get_gh_repo", lambda: FakeRepo())
+
+    releases = ci_module.find_latest_github_releases()
+
+    assert releases == [
+        ci_module.GitHubRelease(release="latest", build_version="10.46.1"),
+        ci_module.GitHubRelease(release="stable", build_version="10.45.1e"),
     ]
 
 

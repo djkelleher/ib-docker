@@ -285,6 +285,34 @@ def docker_tags(release: str, version: str) -> list[str]:
     return tags
 
 
+def expected_release_asset_names(release: GitHubRelease) -> set[str]:
+    """Return required installer and checksum asset names for a shared release."""
+    asset_names = set()
+    for program in ("ibgateway", "tws"):
+        file_name = (
+            f"{program}-{release.release}-{release.build_version}"
+            "-standalone-linux-x64.sh"
+        )
+        asset_names.add(file_name)
+        asset_names.add(f"{file_name}.sha256")
+    return asset_names
+
+
+def release_has_required_assets(gh_release: Any, release: GitHubRelease) -> bool:
+    """Return whether a GitHub release has every required product asset."""
+    asset_names = {asset.name for asset in gh_release.get_assets()}
+    missing_assets = expected_release_asset_names(release) - asset_names
+    if missing_assets:
+        logger.info(
+            "Skipping release %s-%s because required assets are missing: %s",
+            release.release,
+            release.build_version,
+            sorted(missing_assets),
+        )
+        return False
+    return True
+
+
 def find_latest_github_releases() -> list[GitHubRelease]:
     """Find latest 'latest' and 'stable' releases."""
     gh_repo = get_gh_repo()
@@ -299,6 +327,8 @@ def find_latest_github_releases() -> list[GitHubRelease]:
             continue
         if release.release == "beta":
             logger.info("Skipping beta release during scheduled release discovery")
+            continue
+        if not release_has_required_assets(gh_release, release):
             continue
         if release.release not in releases:
             releases[release.release] = release.build_version
