@@ -182,6 +182,32 @@ def test_python_absolute_path_validation_rejects_relative_paths(
         init_settings.require_absolute_path(Path("ibc.ini"), "IBC_INI")
 
 
+def test_python_release_dir_defaults_from_program_and_release(
+    init_settings: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Python startup config should mirror the shell default release directory."""
+    monkeypatch.setenv("IB_RELEASE", "stable")
+    monkeypatch.delenv("IB_RELEASE_DIR", raising=False)
+
+    assert init_settings.resolve_ib_release_dir("tws", tmp_path / "opt") == (
+        tmp_path / "opt" / "tws" / "stable"
+    )
+
+
+def test_python_release_dir_default_requires_release(
+    init_settings: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Python startup config should fail clearly when default release is unset."""
+    monkeypatch.delenv("IB_RELEASE", raising=False)
+    monkeypatch.delenv("IB_RELEASE_DIR", raising=False)
+
+    with pytest.raises(RuntimeError, match="Required environment variable IB_RELEASE"):
+        init_settings.resolve_ib_release_dir("tws")
+
+
 def test_python_initializer_cli_reports_errors_without_traceback() -> None:
     """The runtime config command should print actionable errors without tracebacks."""
     result = subprocess.run(

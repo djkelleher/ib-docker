@@ -206,6 +206,16 @@ def vmoptions_paths(program: str, ib_release_dir: Path) -> list[Path]:
     return [ib_release_dir / name for name in vmoptions_names(program)]
 
 
+def resolve_ib_release_dir(program: str, install_root: Path = Path("/opt")) -> Path:
+    """Return the configured or default IB release directory."""
+    raw_release_dir = os.environ.get("IB_RELEASE_DIR")
+    if raw_release_dir:
+        return Path(raw_release_dir)
+
+    release = require_env("IB_RELEASE")
+    return install_root / program / release
+
+
 def custom_jvm_opts() -> list[str]:
     """Parse custom JVM options from the environment."""
     custom_opts_env = os.getenv("CUSTOM_JVM_OPTS", "")
@@ -260,7 +270,7 @@ def validate_runtime_environment() -> None:
     if "IBC_PATH" in os.environ:
         require_absolute_path(Path(require_env("IBC_PATH")), "IBC_PATH")
     vmoptions_names(program)
-    validate_ib_release_layout(program, Path(require_env("IB_RELEASE_DIR")))
+    validate_ib_release_layout(program, resolve_ib_release_dir(program))
     require_absolute_path(Path(require_env("IBC_INI")), "IBC_INI")
     home_path()
     tws_settings_path()
@@ -292,7 +302,7 @@ def render_vmoptions(
 def set_java_vmoptions() -> None:
     """Configure JVM options for IB Gateway/TWS with robust cgroup memory detection."""
     program = require_env("PROGRAM")
-    ib_release_dir = Path(require_env("IB_RELEASE_DIR"))
+    ib_release_dir = resolve_ib_release_dir(program)
     settings_path = tws_settings_path()
     validate_ib_release_layout(program, ib_release_dir)
     java_heap_size = calculate_java_heap_size()
