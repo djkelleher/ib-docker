@@ -120,8 +120,6 @@ def create_ib_release_dir(path: Path, app_name: str) -> None:
     executable_path.write_text("#!/bin/sh\n")
     executable_path.chmod(0o755)
     (path / f"{app_name}.vmoptions").write_text("-Xmx256m\n")
-    if app_name == "ibgateway":
-        (path / "tws.vmoptions").write_text("-Xmx256m\n")
 
 
 def create_ibc_dir(path: Path) -> None:
@@ -431,13 +429,12 @@ def test_release_dir_validation_rejects_incomplete_installer_layout(
     assert "Expected executable" in result.stdout
 
 
-def test_gateway_release_dir_requires_compatibility_vmoptions(tmp_path: Path) -> None:
-    """Gateway startup should fail clearly if IBC's tws.vmoptions file is missing."""
+def test_gateway_release_dir_uses_gateway_vmoptions_only(tmp_path: Path) -> None:
+    """Gateway startup should not require the TWS vmoptions fallback path."""
     release_dir = tmp_path / "opt" / "ibgateway" / "stable"
     create_ib_release_dir(release_dir, "ibgateway")
-    (release_dir / "tws.vmoptions").unlink()
 
-    result = run_bash_unchecked(
+    result = run_bash(
         f"""
         source "{IB_UTILS_PATH}"
         PROGRAM=ibgateway
@@ -446,8 +443,8 @@ def test_gateway_release_dir_requires_compatibility_vmoptions(tmp_path: Path) ->
         """
     )
 
-    assert result.returncode == 1
-    assert "Expected Gateway compatibility vmoptions file" in result.stdout
+    assert result.stdout.strip() == str(release_dir)
+    assert not (release_dir / "tws.vmoptions").exists()
 
 
 def test_shell_product_validation_rejects_unsupported_program() -> None:
@@ -932,10 +929,10 @@ def test_ibc_startup_requires_absolute_runtime_paths() -> None:
     assert "ensure_absolute_path TWS_SETTINGS_PATH" in content
 
 
-def test_gateway_vmoptions_updates_primary_and_compatibility_files(
+def test_gateway_vmoptions_updates_gateway_file_only(
     init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Gateway runtime initialization should not leave stale tws.vmoptions behind."""
+    """Gateway runtime initialization should write only ibgateway.vmoptions."""
     home = tmp_path / "home" / "ibuser"
     release_dir = tmp_path / "opt" / "ibgateway" / "stable"
     home.mkdir(parents=True)
@@ -953,25 +950,23 @@ def test_gateway_vmoptions_updates_primary_and_compatibility_files(
     init_settings.set_java_vmoptions()
 
     primary_content = (release_dir / "ibgateway.vmoptions").read_text()
-    compatibility_content = (release_dir / "tws.vmoptions").read_text()
-    assert primary_content == compatibility_content
     assert "-Xmx1024m" in primary_content
     assert "-Xms512m" in primary_content
     assert f"-DjtsConfigDir={home / 'custom_settings'}" in primary_content
     assert "-Dcustom=true" in primary_content
     assert "-Dquoted=value with spaces" in primary_content
+    assert not (release_dir / "tws.vmoptions").exists()
     assert template_path.exists()
 
 
-def test_gateway_layout_validation_requires_compatibility_vmoptions(
+def test_gateway_layout_validation_does_not_require_tws_vmoptions(
     init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Python runtime validation should match Gateway startup layout checks."""
+    """Python runtime validation should match IBC's Gateway vmoptions lookup."""
     home = tmp_path / "home" / "ibuser"
     release_dir = tmp_path / "opt" / "ibgateway" / "stable"
     home.mkdir(parents=True)
     create_ib_release_dir(release_dir, "ibgateway")
-    (release_dir / "tws.vmoptions").unlink()
     (home / "vmoptions.j2").write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
 
     monkeypatch.setenv("HOME", str(home))
@@ -980,10 +975,9 @@ def test_gateway_layout_validation_requires_compatibility_vmoptions(
     monkeypatch.setenv("TWS_SETTINGS_PATH", str(home / "tws_settings"))
     monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
 
-    with pytest.raises(RuntimeError, match="expected vmoptions file"):
-        init_settings.set_java_vmoptions()
+    init_settings.set_java_vmoptions()
 
-    assert (release_dir / "ibgateway.vmoptions").read_text() == "-Xmx256m\n"
+    assert "-Xmx1024m" in (release_dir / "ibgateway.vmoptions").read_text()
     assert not (release_dir / "tws.vmoptions").exists()
 
 
@@ -2119,6 +2113,15 @@ def test_dockerfile_verifies_ibc_start_script_during_build() -> None:
     assert (
         "chmod -R u+x ${IBC_PATH}/*.sh ${IBC_PATH}/scripts/*.sh || true" not in content
     )
+
+
+def test_dockerfile_does_not_create_gateway_tws_vmoptions_copy() -> None:
+    """Gateway images should use the installer-created ibgateway.vmoptions file."""
+    content = DOCKERFILE_PATH.read_text()
+
+    assert "IBC sometimes expects tws.vmoptions" not in content
+    assert 'cp "$IB_RELEASE_DIR/ibgateway.vmoptions"' not in content
+    assert "tws.vmoptions" not in content
 
 
 def test_dockerfile_requires_release_checksum_to_reference_installer() -> None:

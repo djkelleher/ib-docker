@@ -238,7 +238,7 @@ def calculate_initial_heap_size(java_heap_size: str) -> int:
 def vmoptions_names(program: str) -> list[str]:
     """Return vmoptions filenames for a supported IB product."""
     if program == "ibgateway":
-        return ["ibgateway.vmoptions", "tws.vmoptions"]
+        return ["ibgateway.vmoptions"]
     if program == "tws":
         return ["tws.vmoptions"]
     raise ValueError(f"Unsupported PROGRAM: {program}")

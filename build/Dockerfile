@@ -196,11 +196,7 @@ COPY --from=builder --chown=ibuser:ibuser /opt/ibc /opt/ibc
 # Copy bundled JRE directory created by installer (empty for gateway if not used but path exists)
 COPY --from=builder --chown=ibuser:ibuser /opt/i4j_jres /opt/i4j_jres
 
-# IBC sometimes expects tws.vmoptions even for gateway
-RUN if [ "$PROGRAM" = "ibgateway" ] && [ -f "$IB_RELEASE_DIR/ibgateway.vmoptions" ]; then \
-      cp "$IB_RELEASE_DIR/ibgateway.vmoptions" "$IB_RELEASE_DIR/tws.vmoptions"; \
-    fi \
-    && chown -R ibuser:ibuser /opt/${PROGRAM}
+RUN chown -R ibuser:ibuser /opt/${PROGRAM}
 
 # Copy configuration & scripts
 COPY --chown=ibuser:ibuser config/jts.ini ${HOME}/tws_settings/jts.ini

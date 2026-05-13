@@ -228,12 +228,6 @@ resolve_ib_release_dir() {
 		exit 1
 	fi
 
-	if [ "$app_name" = "ibgateway" ] && [ ! -f "$release_dir/tws.vmoptions" ]; then
-		log "ERROR: IB release directory is invalid: ${release_dir}"
-		log "Expected Gateway compatibility vmoptions file ${release_dir}/tws.vmoptions"
-		exit 1
-	fi
-
 	printf '%s\n' "$release_dir"
 }
 
