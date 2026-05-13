@@ -410,6 +410,14 @@ def invalid_release_checksum_asset_names(
         expected_file_name = asset_name.removesuffix(".sha256")
         installer_asset = assets.get(expected_file_name)
         if installer_asset is None:
+            logger.info(
+                "Found orphaned checksum asset for %s-%s: %s has no installer %s",
+                release.release,
+                release.build_version,
+                asset_name,
+                expected_file_name,
+            )
+            invalid_asset_names.add(asset_name)
             continue
         if release_checksum_asset_is_invalid(
             asset,

@@ -2478,6 +2478,31 @@ def test_ci_upload_release_asset_repairs_missing_checksum_only(
     assert checksum_path.exists()
 
 
+def test_ci_invalid_checksum_assets_include_orphaned_sidecars(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Repair should replace sidecars that exist before their installer asset."""
+    ci_module = load_ci_module(monkeypatch)
+    release = ci_module.GitHubRelease(release="stable", build_version="10.45.1e")
+
+    class FakeAsset:
+        def __init__(self, name: str) -> None:
+            self.name = name
+            self.browser_download_url = f"https://example.test/{name}"
+
+    class FakeRelease:
+        def get_assets(self) -> list[FakeAsset]:
+            return [
+                FakeAsset("ibgateway-stable-10.45.1e-standalone-linux-x64.sh.sha256")
+            ]
+
+    monkeypatch.setattr(ci_module, "fetch", fake_release_asset_fetch)
+
+    assert ci_module.invalid_release_checksum_asset_names(FakeRelease(), release) == {
+        "ibgateway-stable-10.45.1e-standalone-linux-x64.sh.sha256"
+    }
+
+
 def test_ci_create_github_releases_repairs_existing_incomplete_release(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
