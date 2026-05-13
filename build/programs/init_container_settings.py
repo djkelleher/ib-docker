@@ -281,6 +281,20 @@ def validate_ib_release_layout(program: str, ib_release_dir: Path) -> None:
             )
 
 
+def validate_ibc_layout(ibc_path: Path) -> None:
+    """Validate the installed IBC layout before mutating runtime config."""
+    require_absolute_path(ibc_path, "IBC_PATH")
+    if not ibc_path.is_dir():
+        raise RuntimeError(f"IBC directory does not exist: {ibc_path}")
+    ibc_start_path = ibc_path / "scripts" / "ibcstart.sh"
+    if not ibc_start_path.is_file():
+        raise RuntimeError(f"IBC layout is invalid: expected {ibc_start_path}")
+    if not os.access(ibc_start_path, os.X_OK):
+        raise RuntimeError(
+            f"IBC layout is invalid: start script is not runnable {ibc_start_path}"
+        )
+
+
 def validate_runtime_environment() -> None:
     """Validate runtime settings that should prevent config generation."""
     program = require_env("PROGRAM")
@@ -288,8 +302,7 @@ def validate_runtime_environment() -> None:
     require_env("IB_USER")
     require_env("IB_PASSWORD")
     require_env("IBC_VERSION")
-    if "IBC_PATH" in os.environ:
-        require_absolute_path(Path(require_env("IBC_PATH")), "IBC_PATH")
+    validate_ibc_layout(Path(require_env("IBC_PATH")))
     validate_ib_release_layout(program, resolve_ib_release_dir(program))
     require_absolute_path(Path(require_env("IBC_INI")), "IBC_INI")
     home_path()

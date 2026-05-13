@@ -97,6 +97,15 @@ def create_ib_release_dir(path: Path, app_name: str) -> None:
         (path / "tws.vmoptions").write_text("-Xmx256m\n")
 
 
+def create_ibc_dir(path: Path) -> None:
+    """Create the minimal IBC layout required by runtime path checks."""
+    scripts_dir = path / "scripts"
+    scripts_dir.mkdir(parents=True, exist_ok=True)
+    ibc_start_path = scripts_dir / "ibcstart.sh"
+    ibc_start_path.write_text("#!/bin/sh\n")
+    ibc_start_path.chmod(0o755)
+
+
 def fake_sha256_fetch(url: str) -> str:
     """Return a deterministic checksum sidecar for a fake release asset URL."""
     asset_name = Path(url).name
@@ -123,8 +132,11 @@ def fixture_init_settings() -> ModuleType:
 
 
 @pytest.fixture(autouse=True)
-def fixture_runtime_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+def fixture_runtime_defaults(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Provide image defaults that most runtime validation tests assume."""
+    default_ibc_path = tmp_path / "runtime-defaults" / "opt" / "ibc"
+    create_ibc_dir(default_ibc_path)
+    monkeypatch.setenv("IBC_PATH", str(default_ibc_path))
     monkeypatch.setenv("IBC_VERSION", "3.23.0")
 
 
@@ -1329,6 +1341,82 @@ def test_main_rejects_relative_ibc_path_before_template_lookup(
     assert not ibc_ini.exists()
 
 
+def test_main_rejects_missing_ibc_path_before_rendering_configs(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Missing IBC install paths should fail before config files are rewritten."""
+    home = tmp_path / "home" / "ibuser"
+    settings_dir = tmp_path / "settings"
+    ibc_dir = tmp_path / "ibc"
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    home.mkdir(parents=True)
+    settings_dir.mkdir()
+    ibc_dir.mkdir()
+    create_ib_release_dir(release_dir, "tws")
+
+    ibc_ini = ibc_dir / "ibc.ini"
+    jts_ini = settings_dir / "jts.ini"
+    ibc_ini.write_text("IbLoginId=old\n")
+    jts_ini.write_text("TimeZone=old\n")
+    ibc_ini.with_suffix(".ini.template").write_text("IbLoginId=${IB_USER}\n")
+    jts_ini.with_suffix(".ini.template").write_text("TimeZone=${TIME_ZONE:-UTC}\n")
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "tws")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.delenv("IBC_PATH", raising=False)
+    monkeypatch.setenv("IBC_INI", str(ibc_ini))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(settings_dir))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+    monkeypatch.setenv("IB_USER", "new-user")
+    monkeypatch.setenv("IB_PASSWORD", "paper-password")
+
+    with pytest.raises(RuntimeError, match="Required environment variable IBC_PATH"):
+        init_settings.main()
+
+    assert ibc_ini.read_text() == "IbLoginId=old\n"
+    assert jts_ini.read_text() == "TimeZone=old\n"
+
+
+def test_main_rejects_incomplete_ibc_layout_before_rendering_configs(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A bad IBC_PATH should not rewrite runtime configs before start_ibc fails."""
+    home = tmp_path / "home" / "ibuser"
+    settings_dir = tmp_path / "settings"
+    ibc_dir = tmp_path / "ibc"
+    broken_ibc_path = tmp_path / "opt" / "ibc"
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    home.mkdir(parents=True)
+    settings_dir.mkdir()
+    ibc_dir.mkdir()
+    broken_ibc_path.mkdir(parents=True)
+    create_ib_release_dir(release_dir, "tws")
+
+    ibc_ini = ibc_dir / "ibc.ini"
+    jts_ini = settings_dir / "jts.ini"
+    ibc_ini.write_text("IbLoginId=old\n")
+    jts_ini.write_text("TimeZone=old\n")
+    ibc_ini.with_suffix(".ini.template").write_text("IbLoginId=${IB_USER}\n")
+    jts_ini.with_suffix(".ini.template").write_text("TimeZone=${TIME_ZONE:-UTC}\n")
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "tws")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("IBC_PATH", str(broken_ibc_path))
+    monkeypatch.setenv("IBC_INI", str(ibc_ini))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(settings_dir))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+    monkeypatch.setenv("IB_USER", "new-user")
+    monkeypatch.setenv("IB_PASSWORD", "paper-password")
+
+    with pytest.raises(RuntimeError, match="IBC layout is invalid"):
+        init_settings.main()
+
+    assert ibc_ini.read_text() == "IbLoginId=old\n"
+    assert jts_ini.read_text() == "TimeZone=old\n"
+
+
 def test_vmoptions_paths_rejects_unsupported_program(
     init_settings: ModuleType, tmp_path: Path
 ) -> None:
@@ -1539,7 +1627,7 @@ def test_main_bootstraps_custom_config_paths_from_default_templates(
     custom_ibc_ini = tmp_path / "custom" / "ibc" / "custom.ini"
     release_dir = tmp_path / "opt" / "ibgateway" / "stable"
     default_settings_dir.mkdir(parents=True)
-    default_ibc_dir.mkdir(parents=True)
+    create_ibc_dir(default_ibc_dir)
     create_ib_release_dir(release_dir, "ibgateway")
 
     default_ibc_template = default_ibc_dir / "ibc.ini.template"
