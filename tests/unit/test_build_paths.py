@@ -2625,6 +2625,8 @@ def test_ci_downloads_are_atomic_and_nonempty() -> None:
     )
     assert "not overwrite and not os.getenv" in content
     assert "save_path.parent.mkdir(parents=True, exist_ok=True)" in content
+    assert "Existing download path is not a file" in content
+    assert "Temporary download path is not a file" in content
     assert "save_path.stat().st_size > 0" in content
     assert "Existing download is empty" in content
     assert (
@@ -2653,6 +2655,41 @@ def test_ci_download_creates_parent_and_replaces_atomically(
 
     assert save_path.read_text() == "installer"
     assert not save_path.with_suffix(".sh.tmp").exists()
+
+
+def test_ci_download_rejects_directory_cache_paths(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Corrupted cache directories should not be treated as valid downloads."""
+    ci_module = load_ci_module(monkeypatch)
+    save_path = tmp_path / "downloads" / "installer.sh"
+    save_path.mkdir(parents=True)
+
+    def fail_urlretrieve(url: str, filename: Path) -> None:
+        raise AssertionError("directory cache path should fail before download")
+
+    monkeypatch.setattr(ci_module, "urlretrieve", fail_urlretrieve)
+
+    with pytest.raises(RuntimeError, match="Existing download path is not a file"):
+        ci_module.download("https://example.test/installer.sh", save_path)
+
+
+def test_ci_download_rejects_directory_temp_paths(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A stale temp directory should fail clearly instead of leaking an OSError."""
+    ci_module = load_ci_module(monkeypatch)
+    save_path = tmp_path / "downloads" / "installer.sh"
+    temp_path = save_path.with_suffix(".sh.tmp")
+    temp_path.mkdir(parents=True)
+
+    def fail_urlretrieve(url: str, filename: Path) -> None:
+        raise AssertionError("temp directory path should fail before download")
+
+    monkeypatch.setattr(ci_module, "urlretrieve", fail_urlretrieve)
+
+    with pytest.raises(RuntimeError, match="Temporary download path is not a file"):
+        ci_module.download("https://example.test/installer.sh", save_path)
 
 
 def test_ci_download_release_file_creates_nested_download_dir(

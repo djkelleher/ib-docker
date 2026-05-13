@@ -139,6 +139,8 @@ def download(url: str, save_path: Path, overwrite: bool = False) -> None:
         "IB_DOCKER_OVERWRITE_DOWNLOADS"
     )
     if should_reuse_download and save_path.exists():
+        if not save_path.is_file():
+            raise RuntimeError(f"Existing download path is not a file: {save_path}")
         if save_path.stat().st_size > 0:
             logger.info(f"File already exists: {save_path}. Skipping download.")
             return
@@ -146,6 +148,10 @@ def download(url: str, save_path: Path, overwrite: bool = False) -> None:
 
     temporary_path = save_path.with_suffix(save_path.suffix + ".tmp")
     if temporary_path.exists():
+        if not temporary_path.is_file():
+            raise RuntimeError(
+                f"Temporary download path is not a file: {temporary_path}"
+            )
         temporary_path.unlink()
 
     logger.info(f"Starting Download: {url}")
