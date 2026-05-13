@@ -179,6 +179,22 @@ def write_sha256_file(file: Path) -> Path:
     return hash_file
 
 
+def parse_sha256_sidecar(content: str, source: str) -> tuple[str, str]:
+    """Parse a sha256 sidecar line into digest and referenced filename."""
+    lines = [line.strip() for line in content.splitlines() if line.strip()]
+    if len(lines) != 1:
+        raise RuntimeError(f"Invalid sha256 sidecar from {source}: expected one line")
+    digest, separator, file_name = lines[0].partition(" ")
+    file_name = file_name.strip()
+    if separator == "" or not re.fullmatch(r"[0-9a-fA-F]{64}", digest):
+        raise RuntimeError(f"Invalid sha256 sidecar from {source}: malformed checksum")
+    if file_name.startswith("*"):
+        file_name = file_name[1:]
+    if not file_name or "/" in file_name:
+        raise RuntimeError(f"Invalid sha256 sidecar from {source}: {file_name}")
+    return digest.lower(), file_name
+
+
 def release_asset_names(gh_release: Any) -> set[str]:
     """Return asset names already attached to a GitHub release."""
     return {asset.name for asset in gh_release.get_assets()}
@@ -319,6 +335,41 @@ def expected_release_asset_names(release: GitHubRelease) -> set[str]:
     return asset_names
 
 
+def release_checksum_assets_are_valid(gh_release: Any, release: GitHubRelease) -> bool:
+    """Return whether checksum sidecars reference their matching installer assets."""
+    asset_urls = {
+        asset.name: asset.browser_download_url for asset in gh_release.get_assets()
+    }
+    for asset_name in expected_release_asset_names(release):
+        if not asset_name.endswith(".sha256"):
+            continue
+        expected_file_name = asset_name.removesuffix(".sha256")
+        try:
+            _, referenced_file_name = parse_sha256_sidecar(
+                fetch(asset_urls[asset_name]),
+                asset_urls[asset_name],
+            )
+        except (RuntimeError, KeyError) as exc:
+            logger.info(
+                "Skipping release %s-%s because checksum asset %s is invalid: %s",
+                release.release,
+                release.build_version,
+                asset_name,
+                exc,
+            )
+            return False
+        if referenced_file_name != expected_file_name:
+            logger.info(
+                "Skipping release %s-%s because checksum asset %s references %s",
+                release.release,
+                release.build_version,
+                asset_name,
+                referenced_file_name,
+            )
+            return False
+    return True
+
+
 def release_has_required_assets(gh_release: Any, release: GitHubRelease) -> bool:
     """Return whether a GitHub release has every required product asset."""
     asset_names = release_asset_names(gh_release)
@@ -331,7 +382,7 @@ def release_has_required_assets(gh_release: Any, release: GitHubRelease) -> bool
             sorted(missing_assets),
         )
         return False
-    return True
+    return release_checksum_assets_are_valid(gh_release, release)
 
 
 def find_github_release_by_tag(gh_repo: Any, tag: str) -> Any | None:
