@@ -17,7 +17,10 @@ jobs:
           id: parse_release_name
           run: |
             release_name="${{ github.event.release.tag_name }}${{ github.event.inputs.tag_name }}"
-            if [[ ! "$release_name" =~ ^(stable|latest|beta)-[0-9]+[.][0-9]+[.][0-9]+[a-z]?$ ]]; then
+            tag_pattern='^(stable|latest|beta)-[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'
+            if [[ "$release_name" == *$'\n'* ]] ||
+               [[ "$release_name" == *$'\r'* ]] ||
+               [[ ! "$release_name" =~ $tag_pattern ]]; then
               echo "Release tag must look like stable-10.45.1e, latest-10.45.1e, or beta-10.45.1e" >&2
               exit 1
             fi

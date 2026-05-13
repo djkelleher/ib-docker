@@ -1831,6 +1831,37 @@ def test_release_workflows_validate_tag_format_before_build_args() -> None:
 
         assert validation < release_type < docker_build
         assert "^(stable|latest|beta)-[0-9]+[.][0-9]+[.][0-9]+[a-z]?$" in content
+        assert """"$release_name" == *$'\\n'*""" in content
+        assert """"$release_name" == *$'\\r'*""" in content
+
+
+def test_release_workflow_tag_guard_rejects_trailing_newline() -> None:
+    """Workflow tag validation should not accept newline-tainted manual inputs."""
+    valid_result = run_bash(
+        """
+        release_name="stable-10.45.1e"
+        tag_pattern='^(stable|latest|beta)-[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'
+        if [[ "$release_name" == *$'\\n'* ]] ||
+           [[ "$release_name" == *$'\\r'* ]] ||
+           [[ ! "$release_name" =~ $tag_pattern ]]; then
+          exit 1
+        fi
+        """
+    )
+    invalid_result = run_bash_unchecked(
+        """
+        release_name=$'stable-10.45.1e\\n'
+        tag_pattern='^(stable|latest|beta)-[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'
+        if [[ "$release_name" == *$'\\n'* ]] ||
+           [[ "$release_name" == *$'\\r'* ]] ||
+           [[ ! "$release_name" =~ $tag_pattern ]]; then
+          exit 1
+        fi
+        """
+    )
+
+    assert valid_result.returncode == 0
+    assert invalid_result.returncode == 1
 
 
 def test_release_workflows_require_major_minor_tag() -> None:
