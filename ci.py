@@ -145,6 +145,15 @@ def require_directory_path(path: Path, label: str) -> None:
         raise RuntimeError(f"{label} is not a directory: {path}")
 
 
+def require_creatable_directory_path(path: Path, label: str) -> None:
+    """Fail when a directory path cannot be created because an ancestor is a file."""
+    for directory_path in (path, *path.parents):
+        if directory_path.exists():
+            if not directory_path.is_dir():
+                raise RuntimeError(f"{label} is not a directory: {directory_path}")
+            return
+
+
 def require_existing_file(path: Path, label: str) -> None:
     """Fail when a required path is missing or is not a regular file."""
     if not path.is_file():
@@ -163,7 +172,7 @@ def cleanup_temporary_download(path: Path, cause: Exception) -> None:
 
 
 def download(url: str, save_path: Path, overwrite: bool = False) -> None:
-    require_directory_path(save_path.parent, "Download parent path")
+    require_creatable_directory_path(save_path.parent, "Download parent path")
     save_path.parent.mkdir(parents=True, exist_ok=True)
     require_download_file(save_path, "Existing download path")
     should_reuse_download = not overwrite and not os.getenv(
@@ -194,7 +203,7 @@ def download(url: str, save_path: Path, overwrite: bool = False) -> None:
 
 
 def download_release_file(ib_release: IBRelease) -> Path:
-    require_directory_path(downloads_dir, "Downloads path")
+    require_creatable_directory_path(downloads_dir, "Downloads path")
     downloads_dir.mkdir(parents=True, exist_ok=True)
     url = ib_release.download_url
     file_name = Path(url).name

@@ -1801,6 +1801,23 @@ def test_render_config_template_rejects_file_output_parent(
     assert template_path.read_text() == "IbLoginId=${IB_USER}\n"
 
 
+def test_render_config_template_rejects_file_output_ancestor(
+    init_settings: ModuleType, tmp_path: Path
+) -> None:
+    """Config rendering should fail clearly when an output ancestor is a file."""
+    template_path = tmp_path / "templates" / "ibc.ini.template"
+    output_ancestor = tmp_path / "runtime"
+    output_path = output_ancestor / "nested" / "ibc.ini"
+    template_path.parent.mkdir()
+    template_path.write_text("IbLoginId=${IB_USER}\n")
+    output_ancestor.write_text("not a directory")
+
+    with pytest.raises(RuntimeError, match="ibc.ini output parent is not a directory"):
+        init_settings.render_config_template(template_path, output_path, "ibc.ini")
+
+    assert template_path.read_text() == "IbLoginId=${IB_USER}\n"
+
+
 def test_render_config_template_rejects_file_template_parent(
     init_settings: ModuleType, tmp_path: Path
 ) -> None:
@@ -1811,6 +1828,25 @@ def test_render_config_template_rejects_file_template_parent(
     output_path.parent.mkdir()
     output_path.write_text("IbLoginId=${IB_USER}\n")
     template_parent.write_text("not a directory")
+
+    with pytest.raises(
+        RuntimeError, match="ibc.ini template parent is not a directory"
+    ):
+        init_settings.render_config_template(template_path, output_path, "ibc.ini")
+
+    assert output_path.read_text() == "IbLoginId=${IB_USER}\n"
+
+
+def test_render_config_template_rejects_file_template_ancestor(
+    init_settings: ModuleType, tmp_path: Path
+) -> None:
+    """Template bootstrapping should fail clearly when a template ancestor is a file."""
+    template_ancestor = tmp_path / "templates"
+    template_path = template_ancestor / "nested" / "ibc.ini.template"
+    output_path = tmp_path / "runtime" / "ibc.ini"
+    output_path.parent.mkdir()
+    output_path.write_text("IbLoginId=${IB_USER}\n")
+    template_ancestor.write_text("not a directory")
 
     with pytest.raises(
         RuntimeError, match="ibc.ini template parent is not a directory"
@@ -2866,6 +2902,24 @@ def test_ci_download_rejects_file_parent_path(
         ci_module.download("https://example.test/installer.sh", save_path)
 
 
+def test_ci_download_rejects_file_parent_ancestor(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Download setup should fail clearly when a parent ancestor is a file."""
+    ci_module = load_ci_module(monkeypatch)
+    ancestor_path = tmp_path / "cache"
+    ancestor_path.write_text("not a directory")
+    save_path = ancestor_path / "downloads" / "installer.sh"
+
+    def fail_urlretrieve(url: str, filename: Path) -> None:
+        raise AssertionError("unexpected download")
+
+    monkeypatch.setattr(ci_module, "urlretrieve", fail_urlretrieve)
+
+    with pytest.raises(RuntimeError, match="Download parent path is not a directory"):
+        ci_module.download("https://example.test/installer.sh", save_path)
+
+
 def test_ci_download_rejects_directory_temp_paths(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -2964,6 +3018,30 @@ def test_ci_download_release_file_rejects_file_downloads_path(
     downloads_path = tmp_path / "downloads"
     downloads_path.write_text("not a directory")
     monkeypatch.setattr(ci_module, "downloads_dir", downloads_path)
+
+    class FakeIBRelease:
+        build_version = "10.45.1e"
+        download_url = "https://download.example/tws-stable-standalone-linux-x64.sh"
+
+    def fail_download(url: str, file: Path, overwrite: bool = False) -> None:
+        raise AssertionError("unexpected download")
+
+    monkeypatch.setattr(ci_module, "download", fail_download)
+
+    with pytest.raises(RuntimeError, match="Downloads path is not a directory"):
+        ci_module.download_release_file(FakeIBRelease())
+
+
+def test_ci_download_release_file_rejects_file_downloads_ancestor(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Release downloads should fail clearly when a downloads_dir ancestor is a file."""
+    ci_module = load_ci_module(monkeypatch)
+    downloads_ancestor = tmp_path / "cache"
+    downloads_ancestor.write_text("not a directory")
+    monkeypatch.setattr(
+        ci_module, "downloads_dir", downloads_ancestor / "nested" / "downloads"
+    )
 
     class FakeIBRelease:
         build_version = "10.45.1e"

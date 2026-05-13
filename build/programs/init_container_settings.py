@@ -55,6 +55,15 @@ def require_directory_path(path: Path, label: str) -> None:
         raise RuntimeError(f"{label} is not a directory: {path}")
 
 
+def require_creatable_directory_path(path: Path, label: str) -> None:
+    """Fail when a directory path cannot be created because an ancestor is a file."""
+    for directory_path in (path, *path.parents):
+        if directory_path.exists():
+            if not directory_path.is_dir():
+                raise RuntimeError(f"{label} is not a directory: {directory_path}")
+            return
+
+
 def require_file_path(path: Path, label: str) -> None:
     """Fail when an existing runtime path is not a regular file."""
     if path.exists() and not path.is_file():
@@ -100,8 +109,8 @@ def render_config_template(
 ) -> None:
     """Render an environment-expanded config from a persistent template."""
     require_absolute_path(output_path, f"{label} output")
-    require_directory_path(output_path.parent, f"{label} output parent")
-    require_directory_path(template_path.parent, f"{label} template parent")
+    require_creatable_directory_path(output_path.parent, f"{label} output parent")
+    require_creatable_directory_path(template_path.parent, f"{label} template parent")
     require_file_path(output_path, f"{label} output")
     require_file_path(template_path, f"{label} template")
     if fallback_template_path is not None:
