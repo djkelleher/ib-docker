@@ -1454,6 +1454,21 @@ def test_render_config_template_preserves_existing_expanded_custom_config(
     assert not config_path.with_suffix(".ini.template").exists()
 
 
+def test_render_config_template_does_not_create_unused_template_parent(
+    init_settings: ModuleType, tmp_path: Path
+) -> None:
+    """Expanded custom configs should not create unused template directories."""
+    config_path = tmp_path / "runtime" / "ibc.ini"
+    template_path = tmp_path / "templates" / "ibc.ini.template"
+    config_path.parent.mkdir()
+    config_path.write_text("IbLoginId=custom-user\n")
+
+    init_settings.render_config_template(template_path, config_path, "ibc.ini")
+
+    assert config_path.read_text() == "IbLoginId=custom-user\n"
+    assert not template_path.parent.exists()
+
+
 def test_render_config_template_creates_separate_template_parent(
     init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

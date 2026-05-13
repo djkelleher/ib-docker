@@ -87,7 +87,6 @@ def render_config_template(
     """Render an environment-expanded config from a persistent template."""
     require_absolute_path(output_path, f"{label} output")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    template_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         template_content = template_path.read_text()
@@ -100,6 +99,7 @@ def render_config_template(
                 return
 
             template_content = fallback_template_path.read_text()
+            template_path.parent.mkdir(parents=True, exist_ok=True)
             template_path.write_text(template_content)
             output_path.write_text(sub_env_vars(template_content))
             print(f"Rendered {label} from {fallback_template_path} -> {output_path}")
@@ -110,6 +110,7 @@ def render_config_template(
             return
 
         template_content = current_content
+        template_path.parent.mkdir(parents=True, exist_ok=True)
         template_path.write_text(template_content)
 
     output_path.write_text(sub_env_vars(template_content))
