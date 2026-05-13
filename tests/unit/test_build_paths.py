@@ -2727,6 +2727,10 @@ def test_ci_parse_sha256_sidecar_rejects_malformed_content(
         f"{digest} *ibgateway-stable-10.45.1e-standalone-linux-x64.sh\n",
         "test-url",
     ) == (digest, "ibgateway-stable-10.45.1e-standalone-linux-x64.sh")
+    assert ci_module.parse_sha256_sidecar(
+        f"{digest}\ttws-stable-10.45.1e-standalone-linux-x64.sh\n",
+        "test-url",
+    ) == (digest, "tws-stable-10.45.1e-standalone-linux-x64.sh")
     with pytest.raises(RuntimeError, match="expected one line"):
         ci_module.parse_sha256_sidecar(
             f"{digest} file.sh\n{digest} other.sh\n", "test-url"

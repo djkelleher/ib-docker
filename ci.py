@@ -187,12 +187,11 @@ def parse_sha256_sidecar(content: str, source: str) -> tuple[str, str]:
     lines = [line.strip() for line in content.splitlines() if line.strip()]
     if len(lines) != 1:
         raise RuntimeError(f"Invalid sha256 sidecar from {source}: expected one line")
-    digest, separator, file_name = lines[0].partition(" ")
-    file_name = file_name.strip()
-    if separator == "" or not re.fullmatch(r"[0-9a-fA-F]{64}", digest):
+    match = re.fullmatch(r"([0-9a-fA-F]{64})[ \t]+[*]?(.+)", lines[0])
+    if match is None:
         raise RuntimeError(f"Invalid sha256 sidecar from {source}: malformed checksum")
-    if file_name.startswith("*"):
-        file_name = file_name[1:]
+    digest, file_name = match.groups()
+    file_name = file_name.strip()
     if not file_name or "/" in file_name or "\\" in file_name:
         raise RuntimeError(f"Invalid sha256 sidecar from {source}: {file_name}")
     return digest.lower(), file_name
