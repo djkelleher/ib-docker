@@ -50,6 +50,16 @@ ensure_file() {
 	fi
 }
 
+ensure_directory_path() {
+	local path="$1"
+	local label="$2"
+
+	if [ -e "$path" ] && [ ! -d "$path" ]; then
+		log "ERROR: ${label} is not a directory: ${path}"
+		exit 1
+	fi
+}
+
 ib_product_executable() {
 	case "${PROGRAM:-}" in
 	ibgateway)

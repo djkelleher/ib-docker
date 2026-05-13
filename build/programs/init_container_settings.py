@@ -49,6 +49,12 @@ def require_directory(path: Path, label: str) -> None:
         raise RuntimeError(f"{label} directory does not exist: {path}")
 
 
+def require_directory_path(path: Path, label: str) -> None:
+    """Fail when an existing runtime path is not a directory."""
+    if path.exists() and not path.is_dir():
+        raise RuntimeError(f"{label} is not a directory: {path}")
+
+
 def require_file_path(path: Path, label: str) -> None:
     """Fail when an existing runtime path is not a regular file."""
     if path.exists() and not path.is_file():
@@ -70,6 +76,7 @@ def tws_settings_path() -> Path:
     else:
         settings_path = home_path() / "tws_settings"
     require_absolute_path(settings_path, "TWS_SETTINGS_PATH")
+    require_directory_path(settings_path, "TWS_SETTINGS_PATH")
     return settings_path
 
 

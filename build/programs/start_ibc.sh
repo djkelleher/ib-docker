@@ -27,6 +27,7 @@ start_ibc() {
 	home_dir="$HOME"
 	TWS_SETTINGS_PATH="${TWS_SETTINGS_PATH:-${home_dir}/tws_settings}"
 	ensure_absolute_path TWS_SETTINGS_PATH
+	ensure_directory_path "$TWS_SETTINGS_PATH" "TWS settings path"
 	mkdir -p "$TWS_SETTINGS_PATH"
 
 	# Set up X11 environment for IBC

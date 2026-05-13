@@ -240,6 +240,18 @@ def test_python_release_dir_default_requires_release(
         init_settings.resolve_ib_release_dir("tws")
 
 
+def test_python_tws_settings_path_rejects_existing_file(
+    init_settings: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Python runtime validation should reject file-valued TWS_SETTINGS_PATH early."""
+    settings_path = tmp_path / "tws_settings"
+    settings_path.write_text("not a directory")
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(settings_path))
+
+    with pytest.raises(RuntimeError, match="TWS_SETTINGS_PATH is not a directory"):
+        init_settings.tws_settings_path()
+
+
 def test_python_initializer_cli_reports_errors_without_traceback() -> None:
     """The runtime config command should print actionable errors without tracebacks."""
     result = subprocess.run(
@@ -761,6 +773,26 @@ def test_vnc_startup_requires_home_before_xauth_setup() -> None:
     xauth = content.index('export XAUTHORITY="$HOME/.Xauthority"')
 
     assert validation < xauth
+
+
+def test_ibc_startup_rejects_file_tws_settings_path_before_mkdir() -> None:
+    """IBC startup should not leak mkdir errors for file-valued settings paths."""
+    content = START_IBC_PATH.read_text()
+    validation = content.index('ensure_directory_path "$TWS_SETTINGS_PATH"')
+    mkdir_call = content.index('mkdir -p "$TWS_SETTINGS_PATH"')
+
+    assert validation < mkdir_call
+
+    result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        settings_path="$(mktemp)"
+        ensure_directory_path "$settings_path" "TWS settings path"
+        """
+    )
+
+    assert result.returncode == 1
+    assert "TWS settings path is not a directory" in result.stdout
 
 
 def test_startup_scripts_use_strict_shell_mode() -> None:
