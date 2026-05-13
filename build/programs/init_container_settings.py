@@ -49,6 +49,12 @@ def require_directory(path: Path, label: str) -> None:
         raise RuntimeError(f"{label} directory does not exist: {path}")
 
 
+def require_file_path(path: Path, label: str) -> None:
+    """Fail when an existing runtime path is not a regular file."""
+    if path.exists() and not path.is_file():
+        raise RuntimeError(f"{label} is not a file: {path}")
+
+
 def home_path() -> Path:
     """Return the required runtime home directory."""
     home = Path(require_env("HOME"))
@@ -87,6 +93,10 @@ def render_config_template(
 ) -> None:
     """Render an environment-expanded config from a persistent template."""
     require_absolute_path(output_path, f"{label} output")
+    require_file_path(output_path, f"{label} output")
+    require_file_path(template_path, f"{label} template")
+    if fallback_template_path is not None:
+        require_file_path(fallback_template_path, f"{label} fallback template")
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
