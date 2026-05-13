@@ -179,15 +179,31 @@ def write_sha256_file(file: Path) -> Path:
     return hash_file
 
 
-def upload_release_asset(gh_release: Any, file: Path) -> None:
-    """Upload a release asset and its sha256 sidecar."""
-    logger.info(f"Uploading {file}")
-    gh_release.upload_asset(path=str(file), label=file.name, name=file.name)
+def release_asset_names(gh_release: Any) -> set[str]:
+    """Return asset names already attached to a GitHub release."""
+    return {asset.name for asset in gh_release.get_assets()}
+
+
+def upload_release_asset(
+    gh_release: Any, file: Path, existing_asset_names: set[str] | None = None
+) -> None:
+    """Upload a release asset and its sha256 sidecar when they are missing."""
+    asset_names = existing_asset_names
+    if asset_names is None:
+        asset_names = release_asset_names(gh_release)
+    if file.name in asset_names:
+        logger.info("Skipping existing release asset: %s", file.name)
+    else:
+        logger.info(f"Uploading {file}")
+        gh_release.upload_asset(path=str(file), label=file.name, name=file.name)
     hash_file = write_sha256_file(file)
-    logger.info(f"Uploading {hash_file}")
-    gh_release.upload_asset(
-        path=str(hash_file), label=hash_file.name, name=hash_file.name
-    )
+    if hash_file.name in asset_names:
+        logger.info("Skipping existing release asset: %s", hash_file.name)
+    else:
+        logger.info(f"Uploading {hash_file}")
+        gh_release.upload_asset(
+            path=str(hash_file), label=hash_file.name, name=hash_file.name
+        )
 
 
 def parse_release_tag(tag_name: str) -> GitHubRelease:
@@ -300,7 +316,7 @@ def expected_release_asset_names(release: GitHubRelease) -> set[str]:
 
 def release_has_required_assets(gh_release: Any, release: GitHubRelease) -> bool:
     """Return whether a GitHub release has every required product asset."""
-    asset_names = {asset.name for asset in gh_release.get_assets()}
+    asset_names = release_asset_names(gh_release)
     missing_assets = expected_release_asset_names(release) - asset_names
     if missing_assets:
         logger.info(
@@ -311,6 +327,14 @@ def release_has_required_assets(gh_release: Any, release: GitHubRelease) -> bool
         )
         return False
     return True
+
+
+def find_github_release_by_tag(gh_repo: Any, tag: str) -> Any | None:
+    """Return an existing GitHub release by tag when one is present."""
+    for gh_release in gh_repo.get_releases():
+        if gh_release.tag_name == tag:
+            return gh_release
+    return None
 
 
 def find_latest_github_releases() -> list[GitHubRelease]:
@@ -388,15 +412,25 @@ def create_github_releases() -> list[IBRelease]:
         logger.info("Finished downloading files.")
         tag = f"{release}-{version}"
         message = "\n".join([r.description for r in ib_releases])
-        logger.info(f"Creating release on GitHub ({tag}):\n{message}")
-        gh_release = gh_repo.create_git_release(
-            tag=tag,
-            name=tag,
-            message=message,
-        )
+        gh_release = find_github_release_by_tag(gh_repo, tag)
+        if gh_release is None:
+            logger.info(f"Creating release on GitHub ({tag}):\n{message}")
+            gh_release = gh_repo.create_git_release(
+                tag=tag,
+                name=tag,
+                message=message,
+            )
+        else:
+            logger.info("Repairing existing incomplete GitHub release: %s", tag)
 
+        existing_asset_names = release_asset_names(gh_release)
         with ThreadPoolExecutor(max_workers=len(files)) as executor:
-            list(executor.map(partial(upload_release_asset, gh_release), files))
+            upload = partial(
+                upload_release_asset,
+                gh_release,
+                existing_asset_names=existing_asset_names,
+            )
+            list(executor.map(upload, files))
         created_releases.extend(ib_releases)
     logger.info("Done!")
     return created_releases

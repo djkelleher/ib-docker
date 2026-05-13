@@ -1886,7 +1886,9 @@ def test_ci_sha256_assets_are_line_oriented() -> None:
     content = CI_PATH.read_text()
 
     assert "def write_sha256_file(file: Path) -> Path:" in content
-    assert "def upload_release_asset(gh_release: Any, file: Path) -> None:" in content
+    assert "def release_asset_names(gh_release: Any) -> set[str]:" in content
+    assert "def upload_release_asset(" in content
+    assert "existing_asset_names: set[str] | None = None" in content
     assert "hash_file = write_sha256_file(file)" in content
     assert (
         'f"{hashlib.sha256(file.read_bytes()).hexdigest()} {file.name}\\n"' in content
@@ -1920,7 +1922,14 @@ def test_ci_upload_release_asset_uploads_asset_and_checksum(
     asset_path.write_text("installer")
     uploads: list[tuple[str, str, str]] = []
 
+    class FakeAsset:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
     class FakeRelease:
+        def get_assets(self) -> list[FakeAsset]:
+            return []
+
         def upload_asset(self, path: str, label: str, name: str) -> None:
             uploads.append((path, label, name))
 
@@ -1932,6 +1941,110 @@ def test_ci_upload_release_asset_uploads_asset_and_checksum(
         (str(checksum_path), checksum_path.name, checksum_path.name),
     ]
     assert checksum_path.exists()
+
+
+def test_ci_upload_release_asset_repairs_missing_checksum_only(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Incomplete releases should upload sidecars without duplicating installers."""
+    ci_module = load_ci_module(monkeypatch)
+    asset_path = tmp_path / "ibgateway-stable-10.45.1e-standalone-linux-x64.sh"
+    asset_path.write_text("installer")
+    checksum_path = asset_path.with_suffix(".sh.sha256")
+    uploads: list[tuple[str, str, str]] = []
+
+    class FakeRelease:
+        def upload_asset(self, path: str, label: str, name: str) -> None:
+            uploads.append((path, label, name))
+
+    ci_module.upload_release_asset(
+        FakeRelease(),
+        asset_path,
+        existing_asset_names={asset_path.name},
+    )
+
+    assert uploads == [(str(checksum_path), checksum_path.name, checksum_path.name)]
+    assert checksum_path.exists()
+
+
+def test_ci_create_github_releases_repairs_existing_incomplete_release(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Scheduled release repair should reuse an incomplete tag instead of recreating it."""
+    ci_module = load_ci_module(monkeypatch)
+
+    class FakeAsset:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+    class FakeGitHubRelease:
+        def __init__(self, tag_name: str, asset_names: set[str]) -> None:
+            self.tag_name = tag_name
+            self.asset_names = asset_names
+            self.uploads: list[str] = []
+
+        def get_assets(self) -> list[FakeAsset]:
+            return [FakeAsset(name) for name in self.asset_names]
+
+        def upload_asset(self, path: str, label: str, name: str) -> None:
+            self.uploads.append(name)
+            self.asset_names.add(name)
+            assert Path(path).name == name
+            assert label == name
+
+    existing_release = FakeGitHubRelease(
+        "stable-10.45.1e",
+        {"ibgateway-stable-10.45.1e-standalone-linux-x64.sh"},
+    )
+
+    class FakeRepo:
+        def get_releases(self) -> list[FakeGitHubRelease]:
+            return [existing_release]
+
+        def create_git_release(
+            self, tag: str, name: str, message: str
+        ) -> FakeGitHubRelease:
+            raise AssertionError(f"unexpected release creation for {tag}")
+
+    class FakeIBRelease:
+        def __init__(self, release: str, program: str) -> None:
+            self.release = release
+            self.program = program
+            self.build_version = "10.46.1" if release == "latest" else "10.45.1e"
+            self.description = f"{program} {release} {self.build_version}"
+
+    def fake_download_release_file(ib_release: FakeIBRelease) -> Path:
+        file_path = (
+            tmp_path
+            / f"{ib_release.program}-{ib_release.release}-{ib_release.build_version}"
+            "-standalone-linux-x64.sh"
+        )
+        file_path.write_text(ib_release.description)
+        return file_path
+
+    monkeypatch.setattr(ci_module, "get_gh_repo", lambda: FakeRepo())
+    monkeypatch.setattr(
+        ci_module,
+        "find_latest_github_releases",
+        lambda: [ci_module.GitHubRelease(release="latest", build_version="10.46.1")],
+    )
+    monkeypatch.setattr(ci_module, "IBRelease", FakeIBRelease)
+    monkeypatch.setattr(ci_module, "download_release_file", fake_download_release_file)
+
+    created_releases = ci_module.create_github_releases()
+
+    assert [
+        (release.program, release.release, release.build_version)
+        for release in created_releases
+    ] == [
+        ("ibgateway", "stable", "10.45.1e"),
+        ("tws", "stable", "10.45.1e"),
+    ]
+    assert sorted(existing_release.uploads) == [
+        "ibgateway-stable-10.45.1e-standalone-linux-x64.sh.sha256",
+        "tws-stable-10.45.1e-standalone-linux-x64.sh",
+        "tws-stable-10.45.1e-standalone-linux-x64.sh.sha256",
+    ]
 
 
 def test_ci_docker_build_failures_are_fatal() -> None:
@@ -1951,10 +2064,8 @@ def test_ci_consumes_parallel_worker_results() -> None:
     """Parallel release automation should propagate worker exceptions."""
     content = CI_PATH.read_text()
 
-    assert (
-        "list(executor.map(partial(upload_release_asset, gh_release), files))"
-        in content
-    )
+    assert "list(executor.map(upload, files))" in content
+    assert "partial(\n                upload_release_asset," in content
     assert "list(executor.map(build_image, params))" in content
     assert "\n            executor.map(lambda file:" not in content
     assert "\n            executor.map(build_image, params)\n" not in content
