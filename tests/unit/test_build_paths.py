@@ -2480,6 +2480,34 @@ def test_ci_upload_release_asset_repairs_missing_checksum_only(
     assert checksum_path.exists()
 
 
+def test_ci_upload_release_asset_updates_shared_existing_asset_names(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Repeated uploads with a shared asset set should not duplicate assets."""
+    ci_module = load_ci_module(monkeypatch)
+    asset_path = tmp_path / "tws-stable-10.45.1e-standalone-linux-x64.sh"
+    asset_path.write_text("installer")
+    checksum_path = asset_path.with_suffix(".sh.sha256")
+    existing_asset_names: set[str] = set()
+    uploads: list[str] = []
+
+    class FakeRelease:
+        def upload_asset(self, path: str, label: str, name: str) -> None:
+            uploads.append(name)
+            assert Path(path).name == name
+            assert label == name
+
+    ci_module.upload_release_asset(
+        FakeRelease(), asset_path, existing_asset_names=existing_asset_names
+    )
+    ci_module.upload_release_asset(
+        FakeRelease(), asset_path, existing_asset_names=existing_asset_names
+    )
+
+    assert uploads == [asset_path.name, checksum_path.name]
+    assert existing_asset_names == {asset_path.name, checksum_path.name}
+
+
 def test_ci_invalid_checksum_assets_include_orphaned_sidecars(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -217,6 +217,7 @@ def upload_release_asset(
     else:
         logger.info(f"Uploading {file}")
         gh_release.upload_asset(path=str(file), label=file.name, name=file.name)
+        asset_names.add(file.name)
     hash_file = write_sha256_file(file)
     if hash_file.name in asset_names:
         logger.info("Skipping existing release asset: %s", hash_file.name)
@@ -225,6 +226,7 @@ def upload_release_asset(
         gh_release.upload_asset(
             path=str(hash_file), label=hash_file.name, name=hash_file.name
         )
+        asset_names.add(hash_file.name)
 
 
 def parse_release_tag(tag_name: str) -> GitHubRelease:
