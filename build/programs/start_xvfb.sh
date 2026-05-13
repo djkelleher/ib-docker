@@ -17,7 +17,7 @@ start_xvfb() {
 	fi
 
 	# Use DISPLAY environment variable or default to :1
-	DISPLAY="${DISPLAY:-:1}"
+	DISPLAY="$(x_server_display "${DISPLAY:-:1}")"
 	export DISPLAY
 	ensure_absolute_path HOME
 

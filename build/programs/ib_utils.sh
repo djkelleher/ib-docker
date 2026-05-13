@@ -184,6 +184,18 @@ x_display_number() {
 	printf '%s\n' "$display_no"
 }
 
+x_server_display() {
+	local display="${1:-${DISPLAY:-:1}}"
+
+	if [[ ! $display =~ ^:[0-9]+([.][0-9]+)?$ ]]; then
+		log "ERROR: Invalid X server DISPLAY value: ${display}"
+		log "Expected a local server display such as :1 or :1.0"
+		exit 1
+	fi
+
+	printf '%s\n' "$display"
+}
+
 x_screen_dimension() {
 	local dimension="${VNC_SCREEN_DIMENSION:-1600x1200x24}"
 

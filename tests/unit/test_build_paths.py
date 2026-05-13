@@ -570,6 +570,26 @@ def test_x_display_number_rejects_invalid_display() -> None:
     assert "Invalid DISPLAY value" in result.stdout
 
 
+def test_x_server_display_rejects_client_style_display() -> None:
+    """Xvfb startup should fail clearly for DISPLAY values it cannot serve."""
+    valid_result = run_bash(
+        f"""
+        source "{IB_UTILS_PATH}"
+        x_server_display ":1.0"
+        """
+    )
+    invalid_result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        x_server_display "localhost:2.1"
+        """
+    )
+
+    assert valid_result.stdout.strip() == ":1.0"
+    assert invalid_result.returncode == 1
+    assert "Invalid X server DISPLAY value" in invalid_result.stdout
+
+
 def test_entrypoint_uses_display_specific_x_cleanup() -> None:
     """Entrypoint cleanup should match the normalized display path handling."""
     content = ENTRYPOINT_PATH.read_text()
@@ -587,6 +607,7 @@ def test_xvfb_cleanup_is_display_specific() -> None:
     """Xvfb startup should not kill unrelated Xvfb processes on other displays."""
     content = START_XVFB_PATH.read_text()
 
+    assert 'DISPLAY="$(x_server_display "${DISPLAY:-:1}")"' in content
     assert "ensure_absolute_path HOME" in content
     assert 'xvfb_pattern="$(x_display_process_pattern Xvfb "$DISPLAY")"' in content
     assert 'pkill -9 -f "$xvfb_pattern"' in content
