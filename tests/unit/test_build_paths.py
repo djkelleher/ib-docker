@@ -2118,6 +2118,7 @@ def test_ci_upload_release_asset_uploads_asset_and_checksum(
     class FakeAsset:
         def __init__(self, name: str) -> None:
             self.name = name
+            self.browser_download_url = f"https://example.test/{name}"
 
     class FakeRelease:
         def get_assets(self) -> list[FakeAsset]:
@@ -2166,6 +2167,7 @@ def test_ci_create_github_releases_repairs_existing_incomplete_release(
     """Published release repair should reuse the tag and dispatch image builds."""
     ci_module = load_ci_module(monkeypatch)
     dispatched_tags: list[str] = []
+    deleted_assets: list[str] = []
 
     class FakeAsset:
         def __init__(self, name: str) -> None:
@@ -2196,7 +2198,10 @@ def test_ci_create_github_releases_repairs_existing_incomplete_release(
 
     existing_release = FakeGitHubRelease(
         "stable-10.45.1e",
-        {"ibgateway-stable-10.45.1e-standalone-linux-x64.sh"},
+        {
+            "ibgateway-stable-10.45.1e-standalone-linux-x64.sh",
+            "ibgateway-stable-10.45.1e-standalone-linux-x64.sh.sha256",
+        },
     )
 
     class FakeRepo:
@@ -2234,6 +2239,22 @@ def test_ci_create_github_releases_repairs_existing_incomplete_release(
     monkeypatch.setattr(ci_module, "download_release_file", fake_download_release_file)
     monkeypatch.setattr(
         ci_module,
+        "invalid_release_checksum_asset_names",
+        lambda gh_release, release: {
+            "ibgateway-stable-10.45.1e-standalone-linux-x64.sh.sha256"
+        },
+    )
+
+    monkeypatch.setattr(
+        ci_module,
+        "delete_release_assets",
+        lambda gh_release, asset_names: (
+            deleted_assets.extend(sorted(asset_names)),
+            gh_release.asset_names.difference_update(asset_names),
+        ),
+    )
+    monkeypatch.setattr(
+        ci_module,
         "dispatch_build_workflows",
         lambda gh_repo, tag: dispatched_tags.append(tag),
     )
@@ -2251,6 +2272,9 @@ def test_ci_create_github_releases_repairs_existing_incomplete_release(
         "ibgateway-stable-10.45.1e-standalone-linux-x64.sh.sha256",
         "tws-stable-10.45.1e-standalone-linux-x64.sh",
         "tws-stable-10.45.1e-standalone-linux-x64.sh.sha256",
+    ]
+    assert deleted_assets == [
+        "ibgateway-stable-10.45.1e-standalone-linux-x64.sh.sha256"
     ]
     assert dispatched_tags == ["stable-10.45.1e"]
 
@@ -2338,6 +2362,7 @@ def test_ci_create_github_releases_publishes_after_asset_upload(
     )
     monkeypatch.setattr(ci_module, "IBRelease", FakeIBRelease)
     monkeypatch.setattr(ci_module, "download_release_file", fake_download_release_file)
+    monkeypatch.setattr(ci_module, "fetch", fake_sha256_fetch)
 
     created_releases = ci_module.create_github_releases()
 
@@ -2364,6 +2389,7 @@ def test_ci_create_github_releases_publishes_existing_complete_draft(
     class FakeAsset:
         def __init__(self, name: str) -> None:
             self.name = name
+            self.browser_download_url = f"https://example.test/{name}"
 
     class FakeGitHubRelease:
         def __init__(self) -> None:
@@ -2425,6 +2451,7 @@ def test_ci_create_github_releases_publishes_existing_complete_draft(
     )
     monkeypatch.setattr(ci_module, "IBRelease", FakeIBRelease)
     monkeypatch.setattr(ci_module, "download_release_file", fake_download_release_file)
+    monkeypatch.setattr(ci_module, "fetch", fake_sha256_fetch)
 
     created_releases = ci_module.create_github_releases()
 

@@ -195,9 +195,14 @@ def parse_sha256_sidecar(content: str, source: str) -> tuple[str, str]:
     return digest.lower(), file_name
 
 
+def release_assets_by_name(gh_release: Any) -> dict[str, Any]:
+    """Return release assets keyed by asset name."""
+    return {asset.name: asset for asset in gh_release.get_assets()}
+
+
 def release_asset_names(gh_release: Any) -> set[str]:
     """Return asset names already attached to a GitHub release."""
-    return {asset.name for asset in gh_release.get_assets()}
+    return set(release_assets_by_name(gh_release))
 
 
 def upload_release_asset(
@@ -335,39 +340,69 @@ def expected_release_asset_names(release: GitHubRelease) -> set[str]:
     return asset_names
 
 
-def release_checksum_assets_are_valid(gh_release: Any, release: GitHubRelease) -> bool:
-    """Return whether checksum sidecars reference their matching installer assets."""
-    asset_urls = {
-        asset.name: asset.browser_download_url for asset in gh_release.get_assets()
-    }
+def invalid_release_checksum_asset_names(
+    gh_release: Any, release: GitHubRelease
+) -> set[str]:
+    """Return checksum asset names that are present but invalid."""
+    assets = release_assets_by_name(gh_release)
+    invalid_asset_names = set()
     for asset_name in expected_release_asset_names(release):
         if not asset_name.endswith(".sha256"):
+            continue
+        asset = assets.get(asset_name)
+        if asset is None:
             continue
         expected_file_name = asset_name.removesuffix(".sha256")
         try:
             _, referenced_file_name = parse_sha256_sidecar(
-                fetch(asset_urls[asset_name]),
-                asset_urls[asset_name],
+                fetch(asset.browser_download_url),
+                asset.browser_download_url,
             )
-        except (RuntimeError, KeyError) as exc:
+        except RuntimeError as exc:
             logger.info(
-                "Skipping release %s-%s because checksum asset %s is invalid: %s",
+                "Found invalid checksum asset for %s-%s: %s (%s)",
                 release.release,
                 release.build_version,
                 asset_name,
                 exc,
             )
-            return False
+            invalid_asset_names.add(asset_name)
+            continue
         if referenced_file_name != expected_file_name:
             logger.info(
-                "Skipping release %s-%s because checksum asset %s references %s",
+                "Found mismatched checksum asset for %s-%s: %s references %s",
                 release.release,
                 release.build_version,
                 asset_name,
                 referenced_file_name,
             )
-            return False
+            invalid_asset_names.add(asset_name)
+    return invalid_asset_names
+
+
+def release_checksum_assets_are_valid(gh_release: Any, release: GitHubRelease) -> bool:
+    """Return whether checksum sidecars reference their matching installer assets."""
+    invalid_asset_names = invalid_release_checksum_asset_names(gh_release, release)
+    if invalid_asset_names:
+        logger.info(
+            "Skipping release %s-%s because checksum assets are invalid: %s",
+            release.release,
+            release.build_version,
+            sorted(invalid_asset_names),
+        )
+        return False
     return True
+
+
+def delete_release_assets(gh_release: Any, asset_names: set[str]) -> None:
+    """Delete named assets from a GitHub release before uploading replacements."""
+    if not asset_names:
+        return
+    assets = release_assets_by_name(gh_release)
+    for asset_name in sorted(asset_names):
+        logger.info("Deleting invalid release asset before repair: %s", asset_name)
+        if not assets[asset_name].delete_asset():
+            raise RuntimeError(f"Could not delete release asset: {asset_name}")
 
 
 def release_has_required_assets(gh_release: Any, release: GitHubRelease) -> bool:
@@ -506,6 +541,11 @@ def create_github_releases() -> list[IBRelease]:
             logger.info("Repairing existing incomplete GitHub release: %s", tag)
             dispatch_after_repair = not gh_release.draft
 
+        invalid_checksum_asset_names = invalid_release_checksum_asset_names(
+            gh_release,
+            GitHubRelease(release=release, build_version=version),
+        )
+        delete_release_assets(gh_release, invalid_checksum_asset_names)
         existing_asset_names = release_asset_names(gh_release)
         with ThreadPoolExecutor(max_workers=len(files)) as executor:
             upload = partial(
