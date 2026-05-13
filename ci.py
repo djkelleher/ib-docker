@@ -8,7 +8,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
-from functools import cache, cached_property
+from functools import cache, cached_property, partial
 from pathlib import Path
 from subprocess import CompletedProcess, run
 from typing import Any, Literal
@@ -177,6 +177,17 @@ def write_sha256_file(file: Path) -> Path:
         f"{hashlib.sha256(file.read_bytes()).hexdigest()} {file.name}\n"
     )
     return hash_file
+
+
+def upload_release_asset(gh_release: Any, file: Path) -> None:
+    """Upload a release asset and its sha256 sidecar."""
+    logger.info(f"Uploading {file}")
+    gh_release.upload_asset(path=str(file), label=file.name, name=file.name)
+    hash_file = write_sha256_file(file)
+    logger.info(f"Uploading {hash_file}")
+    gh_release.upload_asset(
+        path=str(hash_file), label=hash_file.name, name=hash_file.name
+    )
 
 
 def parse_release_tag(tag_name: str) -> GitHubRelease:
@@ -354,17 +365,8 @@ def create_github_releases() -> list[IBRelease]:
             message=message,
         )
 
-        def upload_release_file(file: Path) -> None:
-            logger.info(f"Uploading {file}")
-            gh_release.upload_asset(path=str(file), label=file.name, name=file.name)
-            hash_file = write_sha256_file(file)
-            logger.info(f"Uploading {hash_file}")
-            gh_release.upload_asset(
-                path=str(hash_file), label=hash_file.name, name=hash_file.name
-            )
-
         with ThreadPoolExecutor(max_workers=len(files)) as executor:
-            list(executor.map(upload_release_file, files))
+            list(executor.map(partial(upload_release_asset, gh_release), files))
         created_releases.extend(ib_releases)
     logger.info("Done!")
     return created_releases

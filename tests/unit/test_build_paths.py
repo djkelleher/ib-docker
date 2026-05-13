@@ -1823,6 +1823,7 @@ def test_ci_sha256_assets_are_line_oriented() -> None:
     content = CI_PATH.read_text()
 
     assert "def write_sha256_file(file: Path) -> Path:" in content
+    assert "def upload_release_asset(gh_release: Any, file: Path) -> None:" in content
     assert "hash_file = write_sha256_file(file)" in content
     assert (
         'f"{hashlib.sha256(file.read_bytes()).hexdigest()} {file.name}\\n"' in content
@@ -1847,6 +1848,29 @@ def test_ci_write_sha256_file_creates_sidecar(
     )
 
 
+def test_ci_upload_release_asset_uploads_asset_and_checksum(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Release asset uploads should include the installer and checksum sidecar."""
+    ci_module = load_ci_module(monkeypatch)
+    asset_path = tmp_path / "tws-stable-10.45.1e-standalone-linux-x64.sh"
+    asset_path.write_text("installer")
+    uploads: list[tuple[str, str, str]] = []
+
+    class FakeRelease:
+        def upload_asset(self, path: str, label: str, name: str) -> None:
+            uploads.append((path, label, name))
+
+    ci_module.upload_release_asset(FakeRelease(), asset_path)
+
+    checksum_path = asset_path.with_suffix(".sh.sha256")
+    assert uploads == [
+        (str(asset_path), asset_path.name, asset_path.name),
+        (str(checksum_path), checksum_path.name, checksum_path.name),
+    ]
+    assert checksum_path.exists()
+
+
 def test_ci_docker_build_failures_are_fatal() -> None:
     """CI image builds should fail when docker buildx returns a non-zero status."""
     content = CI_PATH.read_text()
@@ -1864,9 +1888,12 @@ def test_ci_consumes_parallel_worker_results() -> None:
     """Parallel release automation should propagate worker exceptions."""
     content = CI_PATH.read_text()
 
-    assert "list(executor.map(upload_release_file, files))" in content
+    assert (
+        "list(executor.map(partial(upload_release_asset, gh_release), files))"
+        in content
+    )
     assert "list(executor.map(build_image, params))" in content
-    assert "\n            executor.map(upload_release_file, files)\n" not in content
+    assert "\n            executor.map(lambda file:" not in content
     assert "\n            executor.map(build_image, params)\n" not in content
 
 
