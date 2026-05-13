@@ -6,12 +6,13 @@ source /usr/local/lib/ib_utils
 start_ibc() {
 	local app_name
 	local home_dir
+	local ibc_version
 	local ibc_args=()
 
 	app_name="$(ib_product_executable)"
 	TRADING_MODE="$(ib_trading_mode)"
 	TWOFA_TIMEOUT_ACTION="$(ib_twofa_timeout_action)"
-	ensure_env IBC_VERSION
+	ibc_version="$(ibc_version)"
 	ensure_absolute_path IBC_PATH
 	ensure_absolute_path IBC_INI
 	ensure_executable_file "${IBC_PATH}/scripts/ibcstart.sh" "IBC start script"
@@ -34,7 +35,7 @@ start_ibc() {
 
 	log ".> Starting IBC in ${TRADING_MODE} mode, with params:"
 	echo ".>		Version: ${IB_RELEASE}"
-	echo ".>		IBC version: ${IBC_VERSION}"
+	echo ".>		IBC version: ${ibc_version}"
 	echo ".>		program: ${app_name}"
 	echo ".>		ib-release-dir: ${IB_RELEASE_DIR}"
 	echo ".>		tws-path: ${IB_BASE_DIR}"

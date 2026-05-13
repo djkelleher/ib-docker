@@ -95,6 +95,15 @@ ib_twofa_timeout_action() {
 	esac
 }
 
+ibc_version() {
+	ensure_env IBC_VERSION
+	if [[ ! $IBC_VERSION =~ ^[0-9]+[.][0-9]+[.][0-9]+$ ]]; then
+		log "ERROR: IBC_VERSION must look like 3.23.0: ${IBC_VERSION}"
+		exit 1
+	fi
+	printf '%s\n' "$IBC_VERSION"
+}
+
 resolve_ib_release_dir() {
 	local release_dir="${IB_RELEASE_DIR:-}"
 	local app_name

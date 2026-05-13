@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 VARS_REG = re.compile(r"\$\{([a-zA-Z_][\w]*)(?::-(.*?))?\}")
+IBC_VERSION_REG = re.compile(r"^[0-9]+[.][0-9]+[.][0-9]+$")
 CUSTOM_OPTS_BLOCK = """{% if custom_opts %}
 # Custom options
 {% for opt in custom_opts %}
@@ -251,6 +252,12 @@ def validate_runtime_choices() -> None:
     validate_env_choice("TWOFA_TIMEOUT_ACTION", ("exit", "restart"), "exit")
 
 
+def validate_ibc_version(value: str) -> None:
+    """Validate the IBC version string inherited from the image build."""
+    if not IBC_VERSION_REG.fullmatch(value):
+        raise ValueError(f"IBC_VERSION must look like 3.23.0: {value}")
+
+
 def validate_ib_release_layout(program: str, ib_release_dir: Path) -> None:
     """Validate the installed IB product layout before mutating runtime config."""
     require_directory(ib_release_dir, "IB release")
@@ -301,7 +308,7 @@ def validate_runtime_environment() -> None:
     vmoptions_names(program)
     require_env("IB_USER")
     require_env("IB_PASSWORD")
-    require_env("IBC_VERSION")
+    validate_ibc_version(require_env("IBC_VERSION"))
     validate_ibc_layout(Path(require_env("IBC_PATH")))
     validate_ib_release_layout(program, resolve_ib_release_dir(program))
     require_absolute_path(Path(require_env("IBC_INI")), "IBC_INI")

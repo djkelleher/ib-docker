@@ -782,10 +782,34 @@ def test_vnc_password_optional_under_strict_shell_mode() -> None:
     assert "if [[ -z ${VNC_PWD:-} ]]; then" in content
 
 
+def test_shell_ibc_version_defaults_and_validates() -> None:
+    """Shell startup should reject runtime IBC versions Docker would not build."""
+    valid_result = run_bash(
+        f"""
+        source "{IB_UTILS_PATH}"
+        IBC_VERSION=3.23.0
+        ibc_version
+        """
+    )
+    invalid_result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        IBC_VERSION=3.23
+        ibc_version
+        """
+    )
+
+    assert valid_result.stdout.strip() == "3.23.0"
+    assert invalid_result.returncode == 1
+    assert "IBC_VERSION must look like 3.23.0" in invalid_result.stdout
+
+
 def test_ibc_startup_requires_absolute_runtime_paths() -> None:
     """IBC startup should validate paths before passing them to IBC."""
     content = START_IBC_PATH.read_text()
 
+    assert 'ibc_version="$(ibc_version)"' in content
+    assert "ensure_env IBC_VERSION" not in content
     assert 'IB_RELEASE="$(ib_release_version_from_dir "$IB_RELEASE_DIR")"' in content
     assert "ensure_absolute_path IBC_PATH" in content
     assert "ensure_absolute_path IBC_INI" in content
@@ -1047,6 +1071,43 @@ def test_main_rejects_missing_ibc_version_before_rendering_configs(
     monkeypatch.delenv("IBC_VERSION")
 
     with pytest.raises(RuntimeError, match="Required environment variable IBC_VERSION"):
+        init_settings.main()
+
+    assert ibc_ini.read_text() == "IbLoginId=old\n"
+    assert jts_ini.read_text() == "TimeZone=old\n"
+
+
+def test_main_rejects_invalid_ibc_version_before_rendering_configs(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Runtime IBC version overrides should match Docker build validation."""
+    home = tmp_path / "home" / "ibuser"
+    settings_dir = tmp_path / "settings"
+    ibc_dir = tmp_path / "ibc"
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    home.mkdir(parents=True)
+    settings_dir.mkdir()
+    ibc_dir.mkdir()
+    create_ib_release_dir(release_dir, "tws")
+
+    ibc_ini = ibc_dir / "ibc.ini"
+    jts_ini = settings_dir / "jts.ini"
+    ibc_ini.write_text("IbLoginId=old\n")
+    jts_ini.write_text("TimeZone=old\n")
+    ibc_ini.with_suffix(".ini.template").write_text("IbLoginId=${IB_USER}\n")
+    jts_ini.with_suffix(".ini.template").write_text("TimeZone=${TIME_ZONE:-UTC}\n")
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "tws")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("IBC_INI", str(ibc_ini))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(settings_dir))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+    monkeypatch.setenv("IB_USER", "new-user")
+    monkeypatch.setenv("IB_PASSWORD", "paper-password")
+    monkeypatch.setenv("IBC_VERSION", "3.23")
+
+    with pytest.raises(ValueError, match="IBC_VERSION must look like 3.23.0"):
         init_settings.main()
 
     assert ibc_ini.read_text() == "IbLoginId=old\n"
