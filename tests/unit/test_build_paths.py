@@ -2625,8 +2625,8 @@ def test_ci_downloads_are_atomic_and_nonempty() -> None:
     )
     assert "not overwrite and not os.getenv" in content
     assert "save_path.parent.mkdir(parents=True, exist_ok=True)" in content
-    assert "Existing download path is not a file" in content
-    assert "Temporary download path is not a file" in content
+    assert 'require_download_file(save_path, "Existing download path")' in content
+    assert 'require_download_file(temporary_path, "Temporary download path")' in content
     assert "save_path.stat().st_size > 0" in content
     assert "Existing download is empty" in content
     assert (
@@ -2706,6 +2706,22 @@ def test_ci_download_rejects_directory_temp_paths(
         raise AssertionError("temp directory path should fail before download")
 
     monkeypatch.setattr(ci_module, "urlretrieve", fail_urlretrieve)
+
+    with pytest.raises(RuntimeError, match="Temporary download path is not a file"):
+        ci_module.download("https://example.test/installer.sh", save_path)
+
+
+def test_ci_download_rejects_temp_directory_created_by_downloader(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Downloader-created temp directories should not mask cleanup errors."""
+    ci_module = load_ci_module(monkeypatch)
+    save_path = tmp_path / "downloads" / "installer.sh"
+
+    def fake_urlretrieve(url: str, filename: Path) -> None:
+        filename.mkdir()
+
+    monkeypatch.setattr(ci_module, "urlretrieve", fake_urlretrieve)
 
     with pytest.raises(RuntimeError, match="Temporary download path is not a file"):
         ci_module.download("https://example.test/installer.sh", save_path)

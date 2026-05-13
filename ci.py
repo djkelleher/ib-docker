@@ -133,10 +133,26 @@ def fetch(url: str, as_text: bool = True) -> str | bytes:
         raise RuntimeError(f"Error fetching URL {url}: {exc}") from exc
 
 
+def require_download_file(path: Path, label: str) -> None:
+    """Fail when an existing download path is not a regular file."""
+    if path.exists() and not path.is_file():
+        raise RuntimeError(f"{label} is not a file: {path}")
+
+
+def cleanup_temporary_download(path: Path, cause: Exception) -> None:
+    """Remove a temporary download file or preserve the original failure cause."""
+    if not path.exists():
+        return
+    try:
+        require_download_file(path, "Temporary download path")
+    except RuntimeError as exc:
+        raise exc from cause
+    path.unlink()
+
+
 def download(url: str, save_path: Path, overwrite: bool = False) -> None:
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    if save_path.exists() and not save_path.is_file():
-        raise RuntimeError(f"Existing download path is not a file: {save_path}")
+    require_download_file(save_path, "Existing download path")
     should_reuse_download = not overwrite and not os.getenv(
         "IB_DOCKER_OVERWRITE_DOWNLOADS"
     )
@@ -148,22 +164,19 @@ def download(url: str, save_path: Path, overwrite: bool = False) -> None:
 
     temporary_path = save_path.with_suffix(save_path.suffix + ".tmp")
     if temporary_path.exists():
-        if not temporary_path.is_file():
-            raise RuntimeError(
-                f"Temporary download path is not a file: {temporary_path}"
-            )
+        require_download_file(temporary_path, "Temporary download path")
         temporary_path.unlink()
 
     logger.info(f"Starting Download: {url}")
     try:
         urlretrieve(url, temporary_path)
+        require_download_file(temporary_path, "Temporary download path")
         if temporary_path.stat().st_size == 0:
             raise RuntimeError("downloaded file is empty")
         temporary_path.replace(save_path)
         logger.info(f"Downloaded successfully: {save_path}")
     except Exception as exc:
-        if temporary_path.exists():
-            temporary_path.unlink()
+        cleanup_temporary_download(temporary_path, exc)
         raise RuntimeError(f"Error downloading file {url}: {exc}") from exc
 
 
