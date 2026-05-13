@@ -1775,6 +1775,8 @@ def test_ci_parse_release_tag_rejects_invalid_tags(
     assert parsed.build_version == "10.45.1e"
     with pytest.raises(ValueError, match="Invalid release tag"):
         ci_module.parse_release_tag("ibgateway-stable-10.45.1e")
+    with pytest.raises(ValueError, match="Invalid release tag"):
+        ci_module.parse_release_tag("stable-10.45.1e\n")
 
 
 def test_ci_ib_release_rejects_invalid_program_immediately(
@@ -1806,7 +1808,7 @@ def test_ci_validates_upstream_build_versions_before_release_tags() -> None:
         in content
     )
     assert "def parse_build_version(version: str, source: str) -> str:" in content
-    assert "if not BUILD_VERSION_RE.match(version):" in content
+    assert "if not BUILD_VERSION_RE.fullmatch(version):" in content
     assert "Invalid IB build version from {source}: {version}" in content
     assert (
         'release_meta_value(\n                self.release_meta,\n                "buildVersion",'
@@ -1825,6 +1827,8 @@ def test_ci_parse_build_version_rejects_invalid_versions(
     assert ci_module.parse_build_version("10.45.1e", "test") == "10.45.1e"
     with pytest.raises(ValueError, match="Invalid IB build version"):
         ci_module.parse_build_version("10.45", "test")
+    with pytest.raises(ValueError, match="Invalid IB build version"):
+        ci_module.parse_build_version("10.45.1e\n", "test")
 
 
 def test_ci_validates_upstream_build_timestamps_before_release_notes() -> None:

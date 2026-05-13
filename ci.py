@@ -234,7 +234,7 @@ def upload_release_asset(
 
 def parse_release_tag(tag_name: str) -> GitHubRelease:
     """Parse a GitHub release tag into release channel and IB build version."""
-    match = RELEASE_TAG_RE.match(tag_name)
+    match = RELEASE_TAG_RE.fullmatch(tag_name)
     if match is None:
         raise ValueError(f"Invalid release tag: {tag_name}")
     release, version = match.groups()
@@ -251,7 +251,7 @@ def parse_release_channel(release: str, source: str) -> ReleaseChannel:
 
 def parse_build_version(version: str, source: str) -> str:
     """Validate an IB build version string before using it in release tags."""
-    if not BUILD_VERSION_RE.match(version):
+    if not BUILD_VERSION_RE.fullmatch(version):
         raise ValueError(f"Invalid IB build version from {source}: {version}")
     return version
 
