@@ -27,6 +27,10 @@ ReleaseChannel = Literal["latest", "stable", "beta"]
 ScheduledReleaseChannel = Literal["latest", "stable"]
 BUILD_VERSION_RE = re.compile(r"^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$")
 RELEASE_TAG_RE = re.compile(r"^(latest|stable|beta)-([0-9]+[.][0-9]+[.][0-9]+[a-z]?)$")
+RELEASE_ASSET_NAME_RE = re.compile(
+    r"^(ibgateway|tws)-(latest|stable|beta)-[0-9]+[.][0-9]+[.][0-9]+[a-z]?"
+    r"-standalone-linux-x64[.]sh$"
+)
 
 
 def require_env(name: str) -> str:
@@ -206,14 +210,19 @@ def download_release_file(ib_release: IBRelease) -> Path:
     require_creatable_directory_path(downloads_dir, "Downloads path")
     downloads_dir.mkdir(parents=True, exist_ok=True)
     url = ib_release.download_url
-    file_name = Path(url).name
-    if "-standalone-" not in file_name:
+    upstream_file_name = Path(url).name
+    expected_upstream_file_name = (
+        f"{ib_release.program}-{ib_release.release}-standalone-linux-x64.sh"
+    )
+    if upstream_file_name != expected_upstream_file_name:
         raise RuntimeError(
-            "Release installer filename does not contain expected '-standalone-' "
-            f"marker: {file_name}"
+            "Release installer filename does not match expected upstream artifact "
+            f"{expected_upstream_file_name}: {upstream_file_name}"
         )
-    file_name = file_name.replace(
-        "-standalone-", f"-{ib_release.build_version}-standalone-", 1
+    file_name = release_asset_file_name(
+        ib_release.program,
+        ib_release.release,
+        ib_release.build_version,
     )
     file = downloads_dir / file_name
     download(url, file, overwrite=True)
@@ -241,7 +250,7 @@ def parse_sha256_sidecar(content: str, source: str) -> tuple[str, str]:
         raise RuntimeError(f"Invalid sha256 sidecar from {source}: malformed checksum")
     digest, file_name = match.groups()
     file_name = file_name.strip()
-    if not file_name or "/" in file_name or "\\" in file_name:
+    if not RELEASE_ASSET_NAME_RE.fullmatch(file_name):
         raise RuntimeError(f"Invalid sha256 sidecar from {source}: {file_name}")
     return digest.lower(), file_name
 
@@ -380,13 +389,23 @@ def docker_tags(release: str, version: str) -> list[str]:
     return tags
 
 
+def release_asset_file_name(program: str, release: str, version: str) -> str:
+    """Return the canonical GitHub release installer asset filename."""
+    if program not in ("ibgateway", "tws"):
+        raise ValueError(f"Unsupported PROGRAM: {program}")
+    release = parse_release_channel(release, "release asset")
+    version = parse_build_version(version, "release asset")
+    return f"{program}-{release}-{version}-standalone-linux-x64.sh"
+
+
 def expected_release_asset_names(release: GitHubRelease) -> set[str]:
     """Return required installer and checksum asset names for a shared release."""
     asset_names = set()
     for program in ("ibgateway", "tws"):
-        file_name = (
-            f"{program}-{release.release}-{release.build_version}"
-            "-standalone-linux-x64.sh"
+        file_name = release_asset_file_name(
+            program,
+            release.release,
+            release.build_version,
         )
         asset_names.add(file_name)
         asset_names.add(f"{file_name}.sha256")

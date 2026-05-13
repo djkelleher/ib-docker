@@ -3022,6 +3022,8 @@ def test_ci_download_release_file_creates_nested_download_dir(
 
     class FakeIBRelease:
         build_version = "10.45.1e"
+        program = "ibgateway"
+        release = "stable"
         download_url = (
             "https://download.example/ibgateway-stable-standalone-linux-x64.sh"
         )
@@ -3058,6 +3060,8 @@ def test_ci_download_release_file_rejects_unexpected_installer_name(
 
     class FakeIBRelease:
         build_version = "10.45.1e"
+        program = "ibgateway"
+        release = "stable"
         download_url = "https://download.example/ibgateway-stable-linux-x64.sh"
 
     def fail_download(url: str, file: Path, overwrite: bool = False) -> None:
@@ -3065,7 +3069,29 @@ def test_ci_download_release_file_rejects_unexpected_installer_name(
 
     monkeypatch.setattr(ci_module, "download", fail_download)
 
-    with pytest.raises(RuntimeError, match="expected '-standalone-' marker"):
+    with pytest.raises(RuntimeError, match="does not match expected upstream artifact"):
+        ci_module.download_release_file(FakeIBRelease())
+
+
+def test_ci_download_release_file_rejects_wrong_product_installer_name(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Release downloads should not rename another product's upstream artifact."""
+    ci_module = load_ci_module(monkeypatch)
+    monkeypatch.setattr(ci_module, "downloads_dir", tmp_path / "downloads")
+
+    class FakeIBRelease:
+        build_version = "10.45.1e"
+        program = "ibgateway"
+        release = "stable"
+        download_url = "https://download.example/tws-stable-standalone-linux-x64.sh"
+
+    def fail_download(url: str, file: Path, overwrite: bool = False) -> None:
+        raise AssertionError("unexpected download")
+
+    monkeypatch.setattr(ci_module, "download", fail_download)
+
+    with pytest.raises(RuntimeError, match="does not match expected upstream artifact"):
         ci_module.download_release_file(FakeIBRelease())
 
 
@@ -3080,6 +3106,8 @@ def test_ci_download_release_file_rejects_file_downloads_path(
 
     class FakeIBRelease:
         build_version = "10.45.1e"
+        program = "tws"
+        release = "stable"
         download_url = "https://download.example/tws-stable-standalone-linux-x64.sh"
 
     def fail_download(url: str, file: Path, overwrite: bool = False) -> None:
@@ -3104,6 +3132,8 @@ def test_ci_download_release_file_rejects_file_downloads_ancestor(
 
     class FakeIBRelease:
         build_version = "10.45.1e"
+        program = "tws"
+        release = "stable"
         download_url = "https://download.example/tws-stable-standalone-linux-x64.sh"
 
     def fail_download(url: str, file: Path, overwrite: bool = False) -> None:
@@ -3126,6 +3156,8 @@ def test_ci_download_release_file_refreshes_cached_assets(
 
     class FakeIBRelease:
         build_version = "10.46.1"
+        program = "tws"
+        release = "latest"
         download_url = "https://download.example/tws-latest-standalone-linux-x64.sh"
 
     def fake_urlretrieve(url: str, filename: Path) -> None:
@@ -3245,6 +3277,10 @@ def test_ci_parse_sha256_sidecar_rejects_malformed_content(
         ci_module.parse_sha256_sidecar(f"{digest} nested/file.sh\n", "test-url")
     with pytest.raises(RuntimeError, match="Invalid sha256 sidecar"):
         ci_module.parse_sha256_sidecar(f"{digest} nested\\file.sh\n", "test-url")
+    with pytest.raises(RuntimeError, match="Invalid sha256 sidecar"):
+        ci_module.parse_sha256_sidecar(f"{digest} file name.sh\n", "test-url")
+    with pytest.raises(RuntimeError, match="Invalid sha256 sidecar"):
+        ci_module.parse_sha256_sidecar(f"{digest} file.sh\n", "test-url")
 
 
 def test_ci_upload_release_asset_uploads_asset_and_checksum(
