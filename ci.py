@@ -357,6 +357,9 @@ def find_latest_github_releases() -> list[GitHubRelease]:
                 "Skipping release with unsupported tag: %s", gh_release.tag_name
             )
             continue
+        if gh_release.draft:
+            logger.info("Skipping draft release during scheduled release discovery")
+            continue
         if release.release == "beta":
             logger.info("Skipping beta release during scheduled release discovery")
             continue

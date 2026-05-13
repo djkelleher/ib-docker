@@ -1566,6 +1566,7 @@ def test_ci_find_latest_releases_skips_unsupported_and_beta_tags(
     class FakeRelease:
         def __init__(self, tag_name: str) -> None:
             self.tag_name = tag_name
+            self.draft = False
 
         def get_assets(self) -> list[FakeAsset]:
             release = ci_module.parse_release_tag(self.tag_name)
@@ -1608,6 +1609,7 @@ def test_ci_release_discovery_skips_releases_with_missing_assets(
         def __init__(self, tag_name: str, asset_names: set[str]) -> None:
             self.tag_name = tag_name
             self.asset_names = asset_names
+            self.draft = False
 
         def get_assets(self) -> list[FakeAsset]:
             return [FakeAsset(name) for name in self.asset_names]
@@ -1645,10 +1647,51 @@ def test_ci_release_discovery_skips_releases_with_missing_assets(
     ]
 
 
+def test_ci_release_discovery_skips_draft_releases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Complete draft releases should remain repairable instead of blocking retries."""
+    ci_module = load_ci_module(monkeypatch)
+
+    class FakeAsset:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+    class FakeRelease:
+        def __init__(self, tag_name: str, draft: bool) -> None:
+            self.tag_name = tag_name
+            self.draft = draft
+
+        def get_assets(self) -> list[FakeAsset]:
+            release = ci_module.parse_release_tag(self.tag_name)
+            return [
+                FakeAsset(name)
+                for name in ci_module.expected_release_asset_names(release)
+            ]
+
+    class FakeRepo:
+        def get_releases(self) -> list[FakeRelease]:
+            return [
+                FakeRelease("latest-10.46.1", True),
+                FakeRelease("latest-10.45.2", False),
+                FakeRelease("stable-10.45.1e", False),
+            ]
+
+    monkeypatch.setattr(ci_module, "get_gh_repo", lambda: FakeRepo())
+
+    releases = ci_module.find_latest_github_releases()
+
+    assert releases == [
+        ci_module.GitHubRelease(release="latest", build_version="10.45.2"),
+        ci_module.GitHubRelease(release="stable", build_version="10.45.1e"),
+    ]
+
+
 def test_ci_scheduled_release_discovery_ignores_beta_tags() -> None:
     """Daily release checks should still discover latest and stable when beta exists."""
     content = CI_PATH.read_text()
 
+    assert "Skipping draft release during scheduled release discovery" in content
     assert 'if release.release == "beta":' in content
     assert "Skipping beta release during scheduled release discovery" in content
     assert content.index('if release.release == "beta":') < content.index(
@@ -2195,6 +2238,91 @@ def test_ci_create_github_releases_publishes_after_asset_upload(
     assert created_gh_releases[0].draft is False
     assert events[0] == "create-draft:latest-10.46.1"
     assert events[-1] == "publish:latest-10.46.1"
+
+
+def test_ci_create_github_releases_publishes_existing_complete_draft(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A complete draft from a failed prior run should be published on retry."""
+    ci_module = load_ci_module(monkeypatch)
+    latest_release = ci_module.GitHubRelease(release="latest", build_version="10.46.1")
+
+    class FakeAsset:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+    class FakeGitHubRelease:
+        def __init__(self) -> None:
+            self.tag_name = "latest-10.46.1"
+            self.draft = True
+            self.asset_names = ci_module.expected_release_asset_names(latest_release)
+            self.uploads: list[str] = []
+            self.published = False
+
+        def get_assets(self) -> list[FakeAsset]:
+            return [FakeAsset(name) for name in self.asset_names]
+
+        def upload_asset(self, path: str, label: str, name: str) -> None:
+            self.uploads.append(name)
+
+        def update_release(
+            self, name: str, message: str, draft: bool
+        ) -> "FakeGitHubRelease":
+            assert name == self.tag_name
+            assert "ibgateway latest 10.46.1" in message
+            assert "tws latest 10.46.1" in message
+            assert draft is False
+            self.draft = False
+            self.published = True
+            return self
+
+    draft_release = FakeGitHubRelease()
+
+    class FakeRepo:
+        def get_releases(self) -> list[FakeGitHubRelease]:
+            return [draft_release]
+
+        def create_git_release(
+            self, tag: str, name: str, message: str, draft: bool
+        ) -> FakeGitHubRelease:
+            raise AssertionError(f"unexpected release creation for {tag}")
+
+    class FakeIBRelease:
+        def __init__(self, release: str, program: str) -> None:
+            self.release = release
+            self.program = program
+            self.build_version = "10.46.1" if release == "latest" else "10.45.1e"
+            self.description = f"{program} {release} {self.build_version}"
+
+    def fake_download_release_file(ib_release: FakeIBRelease) -> Path:
+        file_path = (
+            tmp_path
+            / f"{ib_release.program}-{ib_release.release}-{ib_release.build_version}"
+            "-standalone-linux-x64.sh"
+        )
+        file_path.write_text(ib_release.description)
+        return file_path
+
+    monkeypatch.setattr(ci_module, "get_gh_repo", lambda: FakeRepo())
+    monkeypatch.setattr(
+        ci_module,
+        "find_latest_github_releases",
+        lambda: [ci_module.GitHubRelease(release="stable", build_version="10.45.1e")],
+    )
+    monkeypatch.setattr(ci_module, "IBRelease", FakeIBRelease)
+    monkeypatch.setattr(ci_module, "download_release_file", fake_download_release_file)
+
+    created_releases = ci_module.create_github_releases()
+
+    assert [
+        (release.program, release.release, release.build_version)
+        for release in created_releases
+    ] == [
+        ("ibgateway", "latest", "10.46.1"),
+        ("tws", "latest", "10.46.1"),
+    ]
+    assert draft_release.uploads == []
+    assert draft_release.published is True
 
 
 def test_ci_docker_build_failures_are_fatal() -> None:
