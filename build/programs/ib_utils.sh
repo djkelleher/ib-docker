@@ -184,6 +184,19 @@ x_display_number() {
 	printf '%s\n' "$display_no"
 }
 
+validate_x_display() {
+	local display="${1:-${DISPLAY:-:1}}"
+	local display_no
+
+	display_no="${display##*:}"
+	display_no="${display_no%%.*}"
+
+	if [[ ! $display_no =~ ^[0-9]+$ ]]; then
+		log "ERROR: Invalid DISPLAY value: ${display}"
+		exit 1
+	fi
+}
+
 x_server_display() {
 	local display="${1:-${DISPLAY:-:1}}"
 
@@ -234,6 +247,7 @@ wait_for_x_server() {
 	export DISPLAY
 
 	log "Waiting for X server on display ${DISPLAY}..."
+	validate_x_display "$DISPLAY"
 	ensure_absolute_path HOME
 
 	# Set up X11 environment
