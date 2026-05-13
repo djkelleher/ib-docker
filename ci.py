@@ -252,19 +252,24 @@ def release_meta_value(release_meta: dict[str, Any], key: str, source: str) -> s
 def parse_release_meta(content: str, source: str) -> dict[str, Any]:
     """Parse and validate an upstream IB version metadata document."""
     stripped_content = content.strip()
-    if stripped_content.startswith("["):
+    if stripped_content.startswith("{") or stripped_content.startswith("["):
         metadata_content = stripped_content
     else:
-        match = re.search(r"{.*}", content, flags=re.DOTALL)
-        if match is None:
+        object_start = stripped_content.find("{")
+        if object_start == -1:
             raise RuntimeError(f"Could not parse release metadata from {source}")
-        metadata_content = match.group()
+        metadata_content = stripped_content[object_start:]
     try:
-        release_meta = json.loads(metadata_content)
+        release_meta, content_end = json.JSONDecoder().raw_decode(metadata_content)
     except json.JSONDecodeError as exc:
         raise RuntimeError(
             f"Invalid release metadata JSON from {source}: {exc}"
         ) from exc
+    trailing_content = metadata_content[content_end:].strip()
+    if trailing_content not in ("", ")", ");", ";"):
+        raise RuntimeError(
+            f"Unexpected trailing release metadata content from {source}: {trailing_content}"
+        )
     if not isinstance(release_meta, dict):
         raise RuntimeError(f"Release metadata from {source} must be a JSON object")
     return release_meta

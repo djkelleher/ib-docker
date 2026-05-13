@@ -1513,7 +1513,9 @@ def test_ci_metadata_parser_rejects_missing_or_non_string_values() -> None:
     )
     assert "return parse_release_meta(resp, url)" in content
     assert "except json.JSONDecodeError as exc:" in content
+    assert "json.JSONDecoder().raw_decode(metadata_content)" in content
     assert "Invalid release metadata JSON from {source}: {exc}" in content
+    assert "Unexpected trailing release metadata content from {source}" in content
     assert "Release metadata from {source} must be a JSON object" in content
     assert 'raise RuntimeError(f"Missing {key} from {source}") from exc' in content
     assert "if not isinstance(value, str):" in content
@@ -1530,10 +1532,19 @@ def test_ci_parse_release_meta_rejects_invalid_documents(
     assert ci_module.parse_release_meta(
         'callback({"buildVersion": "10.45.1e"})', "test-url"
     ) == {"buildVersion": "10.45.1e"}
+    assert ci_module.parse_release_meta(
+        'ibgatewaystable_callback({"buildVersion":"10.45.1e",'
+        '"buildDateTime":"20260507 05:00:06"});',
+        "test-url",
+    ) == {"buildVersion": "10.45.1e", "buildDateTime": "20260507 05:00:06"}
     with pytest.raises(RuntimeError, match="Could not parse release metadata"):
         ci_module.parse_release_meta("no json here", "test-url")
     with pytest.raises(RuntimeError, match="Invalid release metadata JSON"):
         ci_module.parse_release_meta('callback({"buildVersion": })', "test-url")
+    with pytest.raises(RuntimeError, match="Unexpected trailing release metadata"):
+        ci_module.parse_release_meta(
+            'callback({"buildVersion": "10.45.1e"}); {}', "test-url"
+        )
     with pytest.raises(RuntimeError, match="must be a JSON object"):
         ci_module.parse_release_meta("[1, 2, 3]", "test-url")
 
