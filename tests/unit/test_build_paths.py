@@ -924,6 +924,28 @@ def test_vmoptions_generation_defaults_tws_settings_path_to_home(
     assert f"-DjtsConfigDir={home / 'tws_settings'}" in vmoptions_content
 
 
+def test_vmoptions_generation_rejects_directory_template_path(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """VM options generation should fail clearly when vmoptions.j2 is a directory."""
+    home = tmp_path / "home" / "ibuser"
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    home.mkdir(parents=True)
+    create_ib_release_dir(release_dir, "tws")
+    (home / "vmoptions.j2").mkdir()
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "tws")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(home / "tws_settings"))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+
+    with pytest.raises(RuntimeError, match="VM options template is not a file"):
+        init_settings.set_java_vmoptions()
+
+    assert (release_dir / "tws.vmoptions").read_text() == "-Xmx256m\n"
+
+
 def test_vmoptions_generation_rejects_missing_release_dir(
     init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

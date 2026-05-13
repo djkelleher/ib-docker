@@ -362,6 +362,7 @@ def set_java_vmoptions() -> None:
 
     template_path = home_path() / "vmoptions.j2"
     if template_path.exists():
+        require_file_path(template_path, "VM options template")
         template_content = template_path.read_text()
         vmoptions_content = render_vmoptions(
             template_content,
