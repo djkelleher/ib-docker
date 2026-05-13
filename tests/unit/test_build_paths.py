@@ -594,6 +594,7 @@ def test_entrypoint_uses_display_specific_x_cleanup() -> None:
     """Entrypoint cleanup should match the normalized display path handling."""
     content = ENTRYPOINT_PATH.read_text()
 
+    assert 'DISPLAY="$(x_server_display "${DISPLAY:-:1}")"' in content
     assert 'display_no="$(x_display_number "$DISPLAY")"' in content
     assert 'xvfb_pattern="$(x_display_process_pattern Xvfb "$DISPLAY")"' in content
     assert 'x11vnc_pattern="$(x_display_process_pattern x11vnc "$DISPLAY")"' in content
@@ -601,6 +602,17 @@ def test_entrypoint_uses_display_specific_x_cleanup() -> None:
     assert "rm -rf /tmp/.X11-unix/*" not in content
     assert 'rm -f "/tmp/.X${display_no}-lock"' in content
     assert 'rm -f "/tmp/.X11-unix/X${display_no}"' in content
+
+
+def test_entrypoint_rejects_client_style_display_before_cleanup() -> None:
+    """Entrypoint cleanup should only operate on local X server displays."""
+    content = ENTRYPOINT_PATH.read_text()
+
+    validation = content.index('DISPLAY="$(x_server_display "${DISPLAY:-:1}")"')
+    cleanup = content.index("cleanup_x_server", validation)
+
+    assert validation < cleanup
+    assert 'DISPLAY="${DISPLAY:-:1}"' not in content
 
 
 def test_xvfb_cleanup_is_display_specific() -> None:

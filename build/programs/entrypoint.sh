@@ -41,7 +41,7 @@ cleanup_x_server() {
 }
 
 # Use DISPLAY environment variable or default to :1
-DISPLAY="${DISPLAY:-:1}"
+DISPLAY="$(x_server_display "${DISPLAY:-:1}")"
 export DISPLAY
 
 # Perform initial cleanup
