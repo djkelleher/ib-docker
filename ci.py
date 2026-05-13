@@ -354,7 +354,7 @@ def invalid_release_checksum_asset_names(
             continue
         expected_file_name = asset_name.removesuffix(".sha256")
         try:
-            _, referenced_file_name = parse_sha256_sidecar(
+            digest, referenced_file_name = parse_sha256_sidecar(
                 fetch(asset.browser_download_url),
                 asset.browser_download_url,
             )
@@ -375,6 +375,21 @@ def invalid_release_checksum_asset_names(
                 release.build_version,
                 asset_name,
                 referenced_file_name,
+            )
+            invalid_asset_names.add(asset_name)
+            continue
+        installer_asset = assets.get(expected_file_name)
+        if installer_asset is None:
+            continue
+        installer_content = fetch(installer_asset.browser_download_url, as_text=False)
+        installer_digest = hashlib.sha256(installer_content).hexdigest()
+        if installer_digest != digest:
+            logger.info(
+                "Found stale checksum asset for %s-%s: %s digest does not match %s",
+                release.release,
+                release.build_version,
+                asset_name,
+                expected_file_name,
             )
             invalid_asset_names.add(asset_name)
     return invalid_asset_names

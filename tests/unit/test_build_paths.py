@@ -1,4 +1,5 @@
 import ast
+import hashlib
 import importlib.util
 import os
 import subprocess
@@ -99,7 +100,20 @@ def create_ib_release_dir(path: Path, app_name: str) -> None:
 def fake_sha256_fetch(url: str) -> str:
     """Return a deterministic checksum sidecar for a fake release asset URL."""
     asset_name = Path(url).name
-    return f"{'0' * 64} {asset_name.removesuffix('.sha256')}\n"
+    installer_name = asset_name.removesuffix(".sha256")
+    digest = hashlib.sha256(installer_name.encode()).hexdigest()
+    return f"{digest} {installer_name}\n"
+
+
+def fake_release_asset_fetch(url: str, as_text: bool = True) -> str | bytes:
+    """Return fake release asset bytes or matching checksum sidecars."""
+    asset_name = Path(url).name
+    if asset_name.endswith(".sha256"):
+        return fake_sha256_fetch(url)
+    content = asset_name.encode()
+    if as_text:
+        return content.decode()
+    return content
 
 
 @pytest.fixture(name="init_settings")
@@ -1724,7 +1738,7 @@ def test_ci_find_latest_releases_skips_unsupported_and_beta_tags(
             ]
 
     monkeypatch.setattr(ci_module, "get_gh_repo", lambda: FakeRepo())
-    monkeypatch.setattr(ci_module, "fetch", fake_sha256_fetch)
+    monkeypatch.setattr(ci_module, "fetch", fake_release_asset_fetch)
 
     releases = ci_module.find_latest_github_releases()
 
@@ -1778,7 +1792,7 @@ def test_ci_release_discovery_skips_releases_with_missing_assets(
             ]
 
     monkeypatch.setattr(ci_module, "get_gh_repo", lambda: FakeRepo())
-    monkeypatch.setattr(ci_module, "fetch", fake_sha256_fetch)
+    monkeypatch.setattr(ci_module, "fetch", fake_release_asset_fetch)
 
     releases = ci_module.find_latest_github_releases()
 
@@ -1819,11 +1833,59 @@ def test_ci_release_discovery_skips_mismatched_checksum_sidecars(
                 FakeRelease("stable-10.45.1e"),
             ]
 
-    def fake_fetch(url: str) -> str:
+    def fake_fetch(url: str, as_text: bool = True) -> str | bytes:
         asset_name = Path(url).name
         if asset_name == "ibgateway-latest-10.46.1-standalone-linux-x64.sh.sha256":
             return f"{'0' * 64} wrong-file.sh\n"
-        return fake_sha256_fetch(url)
+        return fake_release_asset_fetch(url, as_text=as_text)
+
+    monkeypatch.setattr(ci_module, "get_gh_repo", lambda: FakeRepo())
+    monkeypatch.setattr(ci_module, "fetch", fake_fetch)
+
+    releases = ci_module.find_latest_github_releases()
+
+    assert releases == [
+        ci_module.GitHubRelease(release="latest", build_version="10.45.2"),
+        ci_module.GitHubRelease(release="stable", build_version="10.45.1e"),
+    ]
+
+
+def test_ci_release_discovery_skips_stale_checksum_sidecars(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Checksum sidecars should match both filename and installer content."""
+    ci_module = load_ci_module(monkeypatch)
+
+    class FakeAsset:
+        def __init__(self, name: str) -> None:
+            self.name = name
+            self.browser_download_url = f"https://example.test/{name}"
+
+    class FakeRelease:
+        def __init__(self, tag_name: str) -> None:
+            self.tag_name = tag_name
+            self.draft = False
+
+        def get_assets(self) -> list[FakeAsset]:
+            release = ci_module.parse_release_tag(self.tag_name)
+            return [
+                FakeAsset(name)
+                for name in ci_module.expected_release_asset_names(release)
+            ]
+
+    class FakeRepo:
+        def get_releases(self) -> list[FakeRelease]:
+            return [
+                FakeRelease("latest-10.46.1"),
+                FakeRelease("latest-10.45.2"),
+                FakeRelease("stable-10.45.1e"),
+            ]
+
+    def fake_fetch(url: str, as_text: bool = True) -> str | bytes:
+        asset_name = Path(url).name
+        if asset_name == "ibgateway-latest-10.46.1-standalone-linux-x64.sh.sha256":
+            return f"{'0' * 64} ibgateway-latest-10.46.1-standalone-linux-x64.sh\n"
+        return fake_release_asset_fetch(url, as_text=as_text)
 
     monkeypatch.setattr(ci_module, "get_gh_repo", lambda: FakeRepo())
     monkeypatch.setattr(ci_module, "fetch", fake_fetch)
@@ -1868,7 +1930,7 @@ def test_ci_release_discovery_skips_draft_releases(
             ]
 
     monkeypatch.setattr(ci_module, "get_gh_repo", lambda: FakeRepo())
-    monkeypatch.setattr(ci_module, "fetch", fake_sha256_fetch)
+    monkeypatch.setattr(ci_module, "fetch", fake_release_asset_fetch)
 
     releases = ci_module.find_latest_github_releases()
 
@@ -2468,7 +2530,7 @@ def test_ci_create_github_releases_publishes_after_asset_upload(
     )
     monkeypatch.setattr(ci_module, "IBRelease", FakeIBRelease)
     monkeypatch.setattr(ci_module, "download_release_file", fake_download_release_file)
-    monkeypatch.setattr(ci_module, "fetch", fake_sha256_fetch)
+    monkeypatch.setattr(ci_module, "fetch", fake_release_asset_fetch)
 
     created_releases = ci_module.create_github_releases()
 
@@ -2557,7 +2619,7 @@ def test_ci_create_github_releases_publishes_existing_complete_draft(
     )
     monkeypatch.setattr(ci_module, "IBRelease", FakeIBRelease)
     monkeypatch.setattr(ci_module, "download_release_file", fake_download_release_file)
-    monkeypatch.setattr(ci_module, "fetch", fake_sha256_fetch)
+    monkeypatch.setattr(ci_module, "fetch", fake_release_asset_fetch)
 
     created_releases = ci_module.create_github_releases()
 
