@@ -2674,6 +2674,25 @@ def test_ci_download_rejects_directory_cache_paths(
         ci_module.download("https://example.test/installer.sh", save_path)
 
 
+def test_ci_download_rejects_directory_targets_when_overwriting(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Release downloads should fail before fetching when the target is a directory."""
+    ci_module = load_ci_module(monkeypatch)
+    save_path = tmp_path / "downloads" / "installer.sh"
+    save_path.mkdir(parents=True)
+
+    def fail_urlretrieve(url: str, filename: Path) -> None:
+        raise AssertionError("directory target should fail before download")
+
+    monkeypatch.setattr(ci_module, "urlretrieve", fail_urlretrieve)
+
+    with pytest.raises(RuntimeError, match="Existing download path is not a file"):
+        ci_module.download(
+            "https://example.test/installer.sh", save_path, overwrite=True
+        )
+
+
 def test_ci_download_rejects_directory_temp_paths(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

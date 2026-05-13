@@ -135,12 +135,12 @@ def fetch(url: str, as_text: bool = True) -> str | bytes:
 
 def download(url: str, save_path: Path, overwrite: bool = False) -> None:
     save_path.parent.mkdir(parents=True, exist_ok=True)
+    if save_path.exists() and not save_path.is_file():
+        raise RuntimeError(f"Existing download path is not a file: {save_path}")
     should_reuse_download = not overwrite and not os.getenv(
         "IB_DOCKER_OVERWRITE_DOWNLOADS"
     )
     if should_reuse_download and save_path.exists():
-        if not save_path.is_file():
-            raise RuntimeError(f"Existing download path is not a file: {save_path}")
         if save_path.stat().st_size > 0:
             logger.info(f"File already exists: {save_path}. Skipping download.")
             return
