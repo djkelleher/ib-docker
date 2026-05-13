@@ -139,6 +139,12 @@ def require_download_file(path: Path, label: str) -> None:
         raise RuntimeError(f"{label} is not a file: {path}")
 
 
+def require_existing_file(path: Path, label: str) -> None:
+    """Fail when a required path is missing or is not a regular file."""
+    if not path.is_file():
+        raise RuntimeError(f"{label} is not a file: {path}")
+
+
 def cleanup_temporary_download(path: Path, cause: Exception) -> None:
     """Remove a temporary download file or preserve the original failure cause."""
     if not path.exists():
@@ -194,7 +200,9 @@ def download_release_file(ib_release: IBRelease) -> Path:
 
 def write_sha256_file(file: Path) -> Path:
     """Write and return a sha256 checksum sidecar for a release asset."""
+    require_existing_file(file, "Release asset path")
     hash_file = file.with_suffix(file.suffix + ".sha256")
+    require_download_file(hash_file, "Checksum sidecar path")
     hash_file.write_text(
         f"{hashlib.sha256(file.read_bytes()).hexdigest()} {file.name}\n"
     )

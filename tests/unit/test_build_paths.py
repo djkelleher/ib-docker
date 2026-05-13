@@ -2839,6 +2839,34 @@ def test_ci_write_sha256_file_creates_sidecar(
     )
 
 
+def test_ci_write_sha256_file_rejects_directory_asset_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Checksum generation should fail clearly when the asset path is a directory."""
+    ci_module = load_ci_module(monkeypatch)
+    asset_path = tmp_path / "ibgateway-stable-10.45.1e-standalone-linux-x64.sh"
+    asset_path.mkdir()
+
+    with pytest.raises(RuntimeError, match="Release asset path is not a file"):
+        ci_module.write_sha256_file(asset_path)
+
+    assert not asset_path.with_suffix(".sh.sha256").exists()
+
+
+def test_ci_write_sha256_file_rejects_directory_sidecar_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Checksum generation should not write through a stale sidecar directory."""
+    ci_module = load_ci_module(monkeypatch)
+    asset_path = tmp_path / "tws-stable-10.45.1e-standalone-linux-x64.sh"
+    asset_path.write_text("installer")
+    sidecar_path = asset_path.with_suffix(".sh.sha256")
+    sidecar_path.mkdir()
+
+    with pytest.raises(RuntimeError, match="Checksum sidecar path is not a file"):
+        ci_module.write_sha256_file(asset_path)
+
+
 def test_ci_parse_sha256_sidecar_rejects_malformed_content(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
