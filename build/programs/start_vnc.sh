@@ -31,6 +31,7 @@ start_vnc() {
 	local vnc_pid
 	local -a x11vnc_args
 
+	file_env VNC_PWD
 	if [[ -z ${VNC_PWD:-} ]]; then
 		log "VNC password is not set (VNC_PWD). VNC is disabled."
 		exec sleep infinity

@@ -42,7 +42,7 @@ docker compose exec ib-gateway supervisorctl tail -f ibc
 - **🔄 Full Automation** - [IBC](https://github.com/IbcAlpha/IBC) handles login and session management
 - **🖥️ Headless Operation** - [Xvfb](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml) virtual display + [x11vnc](https://wiki.archlinux.org/title/x11vnc) for remote GUI access
 - **📊 Process Management** - [Supervisord](http://supervisord.org/) with auto-recovery and per-process logs
-- **🌐 Flexible Networking** - Host networking or bridge mode configurations
+- **🌐 Host Networking** - Uses the host network stack only for direct IB API access
 - **📈 Production Ready** - Health checks, logging, and high-availability patterns
 - **🐳 Multi-stage Build** - All install logic embedded in `build/Dockerfile` (legacy `install.sh` removed)
 
@@ -73,14 +73,13 @@ Optional build args:
 | VERSION | NULL or numeric | Specific packaged version (internal use) |
 | IBC_VERSION | e.g. 3.23.0 | IBC release to bundle |
 
-## Network Access Patterns
+## Host Networking Only
 
-| Scenario | Host Network | Bridge Network |
-|----------|--------------|----------------|
-| Local access only | Direct access | Port mapping |
-| External access | Direct access | Port mapping |
+This project supports the host network stack only. The IB Gateway and TWS API
+listeners are used directly on the host ports below, so each container should run
+one service and one trading mode. To run live and paper at the same time, start
+two containers with different service names and matching `TRADING_MODE` values.
 
-### Host Networking (Simple / Fast)
 ```yaml
 services:
   ib-gateway:
@@ -91,21 +90,8 @@ services:
 ```
 **Access:** `localhost:4002` for paper trading or `localhost:4001` for live trading.
 
-### Bridge Networking (Isolated)
-```yaml
-services:
-  ib-gateway:
-    image: danklabs/ib-gateway:stable
-    ports:
-      - "4001:4001"
-      - "4002:4002"
-      - "5900:5900"
-    environment:
-      TRADING_MODE: paper
-```
-
 ## 🔐 Security Best Practices
-1. **Credentials**: Use `.env` files, never commit passwords
+1. **Credentials**: Use `.env` files or `*_FILE` secrets, never commit passwords
 2. **VNC**: Set strong `VNC_PWD` if enabling VNC server
 3. **Monitoring**: Use `supervisorctl` inside the container for process status and logs
 4. **Updates**: Regularly update container images and dependencies
@@ -124,30 +110,69 @@ services:
 ### IB Credentials
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `IB_USER` | Yes | Interactive Brokers username |
-| `IB_PASSWORD` | Yes | Interactive Brokers password |
+| `IB_USER` / `IB_USER_FILE` | Yes | Interactive Brokers username, directly or from a file |
+| `IB_PASSWORD` / `IB_PASSWORD_FILE` | Yes | Interactive Brokers password, directly or from a file |
 
 ### Display & VNC
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VNC_PWD` | - | VNC server password (enables VNC if set) |
+| `VNC_PWD` / `VNC_PWD_FILE` | - | VNC server password, directly or from a file. VNC is disabled if neither is set |
 | `VNC_PORT` | `5900` | Gateway VNC listen port |
 | `TWS_VNC_PORT` | `5901` | TWS VNC listen port in the provided compose file |
 | `VNC_SCREEN_DIMENSION` | `1600x1200x24` | VNC/Xvfb screen resolution |
 | `DISPLAY` | `:1` | X11 display number |
 
-### IBC Configuration
+### Common IBC Configuration
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `READ_ONLY_API` | `no` | Enable read-only API mode |
 | `TWOFA_TIMEOUT_ACTION` | `exit` | Action on 2FA timeout: `exit` or `restart` |
+| `SECOND_FACTOR_DEVICE` | - | Named second-factor device for IBC to select |
+| `SECOND_FACTOR_AUTH_TIMEOUT` | `180` | IB second-factor timeout in seconds |
 | `AUTO_RESTART_TIME` | - | Daily restart time (HH:MM AM/PM) |
 | `AUTO_LOGOFF_TIME` | - | Daily logoff time (HH:MM AM/PM) |
 | `COLD_RESTART_TIME` | - | Sunday cold restart time |
+| `CLOSEDOWN_AT` | - | Tidy closedown time, optionally with day of week |
 | `BYPASS_WARNING` | `yes` | Bypass API warning dialogs |
 | `SAVE_TWS_SETTINGS` | `Every 30 mins` | TWS settings save schedule |
 | `RELOGIN_AFTER_TWOFA_TIMEOUT` | `no` | Auto-relogin after 2FA timeout |
 | `TWOFA_EXIT_INTERVAL` | `60` | 2FA timeout interval (seconds) |
+| `EXISTING_SESSION_DETECTED_ACTION` | `manual` | IBC action for an existing session dialog |
+| `ACCEPT_INCOMING_CONNECTION_ACTION` | `manual` | IBC action for incoming API connection dialogs |
+| `ALLOW_BLIND_TRADING` | `no` | Dismiss blind-trading warning dialogs |
+| `OVERRIDE_TWS_MASTER_CLIENT_ID` | - | Override TWS/Gateway master client ID |
+
+### Advanced IBC Configuration
+These variables map directly to settings in `build/config/ibc.ini`.
+
+| Variable | Default |
+|----------|---------|
+| `FIX` | `no` |
+| `FIX_LOGIN_ID` | - |
+| `FIX_PASSWORD` | - |
+| `EXIT_AFTER_TWOFA_TIMEOUT` | `no` |
+| `LOGIN_DIALOG_DISPLAY_TIMEOUT` | `60` |
+| `IB_DIR` | - |
+| `STORE_SETTINGS_ON_SERVER` | `yes` |
+| `MINIMIZE_MAIN_WINDOW` | `no` |
+| `OVERRIDE_TWS_API_PORT` | - |
+| `READ_ONLY_LOGIN` | `no` |
+| `ACCEPT_BID_ASK_LAST_SIZE_DISPLAY_UPDATE` | - |
+| `SEND_MARKET_DATA_IN_LOTS_FOR_US_STOCKS` | - |
+| `TRUSTED_TWS_API_CLIENT_IPS` | - |
+| `RESET_ORDER_IDS_AT_START` | - |
+| `CONFIRM_ORDER_ID_RESET` | - |
+| `CONFIRM_CRYPTO_CURRENCY_ORDERS` | `manual` |
+| `DISMISS_PASSWORD_EXPIRY_WARNING` | `no` |
+| `DISMISS_NSE_COMPLIANCE_NOTICE` | `yes` |
+| `INCLUDE_STACK_TRACE_FOR_EXCEPTIONS` | `yes` |
+| `COMMAND_SERVER_PORT` | `0` |
+| `CONTROL_FROM` | - |
+| `BIND_ADDRESS` | - |
+| `COMMAND_PROMPT` | - |
+| `SUPPRESS_INFO_MESSAGES` | `yes` |
+| `LOG_STRUCTURE_SCOPE` | `known` |
+| `LOG_STRUCTURE_WHEN` | `never` |
 
 ### Ports
 | Service | Port | Description |
@@ -163,15 +188,23 @@ services:
 Same as Ports table above. Map or expose as required.
 
 ### JVM Tuning
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JAVA_HEAP_SIZE` | auto | Fixed maximum heap size. Supports whole MB values, `m`, or `g` suffixes |
+| `CUSTOM_JVM_OPTS` | - | Extra JVM options parsed with shell-style quoting |
+
 ```bash
 # Set a fixed heap, or leave empty to auto-size from container memory.
 JAVA_HEAP_SIZE=2g
 CUSTOM_JVM_OPTS="-XX:+UseG1GC"
 ```
 
-## Network Architecture Guide
+## Startup Customization
 
-The container supports two main networking patterns: **host** and **bridge** (shown above). Choose based on isolation vs simplicity.
+The image intentionally does not run arbitrary startup hook directories. If you
+need extra initialization, prefer a small derived image or a wrapper command for
+that deployment. Keeping one supervised IB service per container makes runtime
+behavior easier to inspect and restart.
 
 ## 🗑️ Legacy Cleanup Note
 The historical `build/install.sh` helper script has been removed. All install logic is now implemented directly inside the multi-stage `build/Dockerfile` (builder stage). This reduces duplication and ensures reproducible builds.

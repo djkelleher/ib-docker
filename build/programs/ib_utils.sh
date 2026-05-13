@@ -14,6 +14,39 @@ ensure_env() {
 	fi
 }
 
+file_env() {
+	local name="$1"
+	local file_name="${name}_FILE"
+	local default="${2:-}"
+	local value="$default"
+
+	if [ -n "${!name:-}" ] && [ -n "${!file_name:-}" ]; then
+		log "ERROR: ${name} and ${file_name} are mutually exclusive"
+		exit 1
+	fi
+
+	if [ -n "${!name:-}" ]; then
+		value="${!name}"
+	elif [ -n "${!file_name:-}" ]; then
+		if [ ! -r "${!file_name}" ] || [ ! -f "${!file_name}" ]; then
+			log "ERROR: ${file_name} is not a readable file: ${!file_name}"
+			exit 1
+		fi
+		value="$(<"${!file_name}")"
+	fi
+
+	export "$name=$value"
+}
+
+unset_file_env() {
+	local name="$1"
+	local file_name="${name}_FILE"
+
+	if [ -n "${!file_name:-}" ]; then
+		unset "$name"
+	fi
+}
+
 ensure_absolute_path() {
 	local name="$1"
 	local value

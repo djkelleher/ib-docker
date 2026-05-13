@@ -2,6 +2,7 @@ import ast
 import hashlib
 import importlib.util
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -30,6 +31,7 @@ IBC_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "ibc.ini"
 README_PATH = REPO_ROOT / "README.md"
 GATEWAY_WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "build_gateway.yml"
 TWS_WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "build_tws.yml"
+ENV_VAR_PATTERN = re.compile(r"\$\{([A-Z0-9_]+)(?::-[^}]*)?\}")
 
 
 def load_init_settings() -> ModuleType:
@@ -86,6 +88,17 @@ def run_bash_unchecked(script: str) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         text=True,
     )
+
+
+def template_env_names() -> set[str]:
+    """Return env vars referenced by runtime config templates."""
+    template_content = "\n".join(
+        [
+            IBC_TEMPLATE_PATH.read_text(),
+            (REPO_ROOT / "build" / "config" / "jts.ini").read_text(),
+        ]
+    )
+    return set(ENV_VAR_PATTERN.findall(template_content))
 
 
 def create_ib_release_dir(path: Path, app_name: str) -> None:
@@ -3963,22 +3976,22 @@ def test_compose_passes_documented_env_to_runtime_services() -> None:
     content = DOCKER_COMPOSE_PATH.read_text()
 
     assert "env_file:" not in content
-    for env_name in [
-        "ACCEPT_NON_BROKERAGE_WARNING",
-        "READ_ONLY_API",
-        "TIME_ZONE",
-        "TWOFA_TIMEOUT_ACTION",
-        "AUTO_RESTART_TIME",
-        "AUTO_LOGOFF_TIME",
-        "COLD_RESTART_TIME",
-        "BYPASS_WARNING",
-        "SAVE_TWS_SETTINGS",
-        "RELOGIN_AFTER_TWOFA_TIMEOUT",
-        "TWOFA_EXIT_INTERVAL",
-        "JAVA_HEAP_SIZE",
-        "CUSTOM_JVM_OPTS",
-    ]:
+    for env_name in sorted(
+        template_env_names() | {"JAVA_HEAP_SIZE", "CUSTOM_JVM_OPTS"}
+    ):
         assert content.count(f"{env_name}: ${{{env_name}") == 2
+
+
+def test_runtime_template_env_vars_are_documented() -> None:
+    """Every runtime config placeholder should be listed in .env.example and README."""
+    env_example_content = ENV_EXAMPLE_PATH.read_text()
+    readme_content = README_PATH.read_text()
+
+    for env_name in sorted(
+        template_env_names() | {"JAVA_HEAP_SIZE", "CUSTOM_JVM_OPTS"}
+    ):
+        assert f"{env_name}=" in env_example_content
+        assert f"`{env_name}`" in readme_content
 
 
 def test_compose_timezone_default_matches_image_default() -> None:
@@ -3991,11 +4004,16 @@ def test_compose_timezone_default_matches_image_default() -> None:
 
 
 def test_compose_requires_credentials_before_startup() -> None:
-    """Compose should fail fast when required IB credentials are missing."""
+    """Runtime startup should validate direct credentials or credential files."""
     content = DOCKER_COMPOSE_PATH.read_text()
+    entrypoint = ENTRYPOINT_PATH.read_text()
 
-    assert content.count("IB_USER: ${IB_USER:?IB_USER is required}") == 2
-    assert content.count("IB_PASSWORD: ${IB_PASSWORD:?IB_PASSWORD is required}") == 2
+    assert content.count("IB_USER: ${IB_USER:-}") == 2
+    assert content.count("IB_USER_FILE: ${IB_USER_FILE:-}") == 2
+    assert content.count("IB_PASSWORD: ${IB_PASSWORD:-}") == 2
+    assert content.count("IB_PASSWORD_FILE: ${IB_PASSWORD_FILE:-}") == 2
+    assert "file_env IB_USER" in entrypoint
+    assert "file_env IB_PASSWORD" in entrypoint
 
 
 def test_env_example_does_not_bypass_required_credentials() -> None:
@@ -4003,9 +4021,44 @@ def test_env_example_does_not_bypass_required_credentials() -> None:
     env_example = ENV_EXAMPLE_PATH.read_text().splitlines()
 
     assert "IB_USER=" in env_example
+    assert "IB_USER_FILE=" in env_example
     assert "IB_PASSWORD=" in env_example
+    assert "IB_PASSWORD_FILE=" in env_example
     assert "IB_USER=your_ib_username" not in env_example
     assert "IB_PASSWORD=your_ib_password" not in env_example
+
+
+def test_shell_file_env_reads_secret_file(tmp_path: Path) -> None:
+    """Runtime shell helpers should support Docker-style *_FILE secrets."""
+    secret_path = tmp_path / "password"
+    secret_path.write_text("paper-password\n")
+
+    script = (
+        f"source {IB_UTILS_PATH}\n"
+        f"IB_PASSWORD_FILE={secret_path}\n"
+        "file_env IB_PASSWORD\n"
+        'test "$IB_PASSWORD" = "paper-password"\n'
+        "unset_file_env IB_PASSWORD\n"
+        'test -z "${IB_PASSWORD:-}"\n'
+    )
+
+    run_bash(script)
+
+
+def test_shell_file_env_rejects_direct_and_file_secret(tmp_path: Path) -> None:
+    """Direct and file-backed secrets should be mutually exclusive."""
+    secret_path = tmp_path / "password"
+    secret_path.write_text("paper-password\n")
+
+    result = run_bash_unchecked(
+        f"source {IB_UTILS_PATH}\n"
+        "IB_PASSWORD=direct\n"
+        f"IB_PASSWORD_FILE={secret_path}\n"
+        "file_env IB_PASSWORD\n"
+    )
+
+    assert result.returncode != 0
+    assert "mutually exclusive" in result.stdout
 
 
 def test_compose_uses_distinct_vnc_ports_for_host_network_services() -> None:
@@ -4014,6 +4067,17 @@ def test_compose_uses_distinct_vnc_ports_for_host_network_services() -> None:
 
     assert "VNC_PORT: ${VNC_PORT:-5900}" in content
     assert "VNC_PORT: ${TWS_VNC_PORT:-5901}" in content
+
+
+def test_compose_and_readme_are_host_network_only() -> None:
+    """The supported compose path should stay host-network-only."""
+    compose_content = DOCKER_COMPOSE_PATH.read_text()
+    readme_content = README_PATH.read_text().lower()
+
+    assert compose_content.count("network_mode: host") == 2
+    assert "ports:" not in compose_content
+    assert "bridge" not in readme_content
+    assert "socat" not in readme_content
 
 
 def test_readme_gateway_access_ports_match_trading_modes() -> None:

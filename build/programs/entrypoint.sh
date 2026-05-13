@@ -47,8 +47,12 @@ export DISPLAY
 # Perform initial cleanup
 cleanup_x_server
 
+file_env IB_USER
+file_env IB_PASSWORD
+
 log "Initializing runtime configuration"
 init_container_settings
+unset IB_PASSWORD
 
 log "Starting supervisord with DISPLAY=$DISPLAY"
 
