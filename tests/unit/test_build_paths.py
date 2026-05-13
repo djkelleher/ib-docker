@@ -2645,6 +2645,30 @@ def test_ci_release_repair_replaces_installers_with_missing_checksum(
     }
 
 
+def test_ci_delete_release_assets_ignores_already_absent_assets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Release repair should tolerate assets removed between listing and deletion."""
+    ci_module = load_ci_module(monkeypatch)
+    deleted_assets: list[str] = []
+
+    class FakeAsset:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        def delete_asset(self) -> bool:
+            deleted_assets.append(self.name)
+            return True
+
+    class FakeRelease:
+        def get_assets(self) -> list[FakeAsset]:
+            return [FakeAsset("present.sh")]
+
+    ci_module.delete_release_assets(FakeRelease(), {"missing.sh", "present.sh"})
+
+    assert deleted_assets == ["present.sh"]
+
+
 def test_ci_create_github_releases_repairs_existing_incomplete_release(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

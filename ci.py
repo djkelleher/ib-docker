@@ -475,7 +475,11 @@ def delete_release_assets(gh_release: Any, asset_names: set[str]) -> None:
     assets = release_assets_by_name(gh_release)
     for asset_name in sorted(asset_names):
         logger.info("Deleting invalid release asset before repair: %s", asset_name)
-        if not assets[asset_name].delete_asset():
+        asset = assets.get(asset_name)
+        if asset is None:
+            logger.info("Release asset already absent before repair: %s", asset_name)
+            continue
+        if not asset.delete_asset():
             raise RuntimeError(f"Could not delete release asset: {asset_name}")
 
 
