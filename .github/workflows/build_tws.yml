@@ -23,10 +23,10 @@ jobs:
             fi
             release_type="${release_name%%-*}"
             echo "Building TWS $release_type for release: $release_name"
-            echo "release_type=$release_type" >> $GITHUB_OUTPUT
+            echo "release_type=$release_type" >> "$GITHUB_OUTPUT"
 
             version="${release_name#*-}"
-            echo "version=$version" >> $GITHUB_OUTPUT
+            echo "version=$version" >> "$GITHUB_OUTPUT"
             echo "Extracted version: $version"
 
             major_minor_version=$(echo "$version" | grep -oP '^\d+\.\d+')
@@ -40,9 +40,9 @@ jobs:
               exit 1
             fi
             echo "Extracted major+minor version: $major_minor_version"
-            echo "major_minor_version=$major_minor_version" >> $GITHUB_OUTPUT
+            echo "major_minor_version=$major_minor_version" >> "$GITHUB_OUTPUT"
             echo "Extracted major version: $major_version"
-            echo "major_version=$major_version" >> $GITHUB_OUTPUT
+            echo "major_version=$major_version" >> "$GITHUB_OUTPUT"
           shell: bash
 
         - name: Checkout

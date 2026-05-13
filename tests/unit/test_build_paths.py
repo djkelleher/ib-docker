@@ -1621,6 +1621,15 @@ def test_release_workflows_require_major_minor_tag() -> None:
         assert 'if [ -z "$major_minor_version" ]; then' in content
 
 
+def test_release_workflows_quote_github_output_path() -> None:
+    """Workflow parsing should still write outputs if runner paths contain spaces."""
+    for workflow_path in [GATEWAY_WORKFLOW_PATH, TWS_WORKFLOW_PATH]:
+        content = workflow_path.read_text()
+
+        assert '>> "$GITHUB_OUTPUT"' in content
+        assert ">> $GITHUB_OUTPUT" not in content
+
+
 def test_release_workflows_do_not_publish_broad_beta_aliases() -> None:
     """Beta builds should not overwrite broad major or major/minor Docker tags."""
     for workflow_path, image_name in [
