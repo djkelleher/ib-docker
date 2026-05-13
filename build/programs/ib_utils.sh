@@ -47,6 +47,49 @@ unset_file_env() {
 	fi
 }
 
+run_script_dir() {
+	local name="$1"
+	local phase="$2"
+	local scripts_dir="${!name:-}"
+	local script_path
+	local scripts=()
+
+	if [ -z "$scripts_dir" ]; then
+		log "${phase} hooks disabled (${name} is not set)"
+		return 0
+	fi
+
+	case "$scripts_dir" in
+	/*) ;;
+	*)
+		log "ERROR: ${name} must be an absolute path: ${scripts_dir}"
+		return 1
+		;;
+	esac
+
+	if [ ! -d "$scripts_dir" ]; then
+		log "ERROR: ${phase} hook directory does not exist: ${scripts_dir}"
+		return 1
+	fi
+
+	shopt -s nullglob
+	scripts=("$scripts_dir"/*.sh)
+	shopt -u nullglob
+	if [ "${#scripts[@]}" -eq 0 ]; then
+		log "${phase} hook directory has no .sh scripts: ${scripts_dir}"
+		return 0
+	fi
+
+	for script_path in "${scripts[@]}"; do
+		if [ ! -x "$script_path" ]; then
+			log "ERROR: ${phase} hook is not executable: ${script_path}"
+			return 1
+		fi
+		log "Running ${phase} hook: ${script_path}"
+		"$script_path"
+	done
+}
+
 ensure_absolute_path() {
 	local name="$1"
 	local value

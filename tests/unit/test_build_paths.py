@@ -32,6 +32,13 @@ README_PATH = REPO_ROOT / "README.md"
 GATEWAY_WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "build_gateway.yml"
 TWS_WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "build_tws.yml"
 ENV_VAR_PATTERN = re.compile(r"\$\{([A-Z0-9_]+)(?::-[^}]*)?\}")
+EXTRA_RUNTIME_ENV_NAMES = {
+    "CUSTOM_JVM_OPTS",
+    "IBC_SCRIPTS",
+    "JAVA_HEAP_SIZE",
+    "START_SCRIPTS",
+    "X_SCRIPTS",
+}
 
 
 def load_init_settings() -> ModuleType:
@@ -99,6 +106,11 @@ def template_env_names() -> set[str]:
         ]
     )
     return set(ENV_VAR_PATTERN.findall(template_content))
+
+
+def documented_runtime_env_names() -> set[str]:
+    """Return runtime env vars that should be documented and passed to services."""
+    return template_env_names() | EXTRA_RUNTIME_ENV_NAMES
 
 
 def create_ib_release_dir(path: Path, app_name: str) -> None:
@@ -3976,9 +3988,7 @@ def test_compose_passes_documented_env_to_runtime_services() -> None:
     content = DOCKER_COMPOSE_PATH.read_text()
 
     assert "env_file:" not in content
-    for env_name in sorted(
-        template_env_names() | {"JAVA_HEAP_SIZE", "CUSTOM_JVM_OPTS"}
-    ):
+    for env_name in sorted(documented_runtime_env_names()):
         assert content.count(f"{env_name}: ${{{env_name}") == 2
 
 
@@ -3987,9 +3997,7 @@ def test_runtime_template_env_vars_are_documented() -> None:
     env_example_content = ENV_EXAMPLE_PATH.read_text()
     readme_content = README_PATH.read_text()
 
-    for env_name in sorted(
-        template_env_names() | {"JAVA_HEAP_SIZE", "CUSTOM_JVM_OPTS"}
-    ):
+    for env_name in sorted(documented_runtime_env_names()):
         assert f"{env_name}=" in env_example_content
         assert f"`{env_name}`" in readme_content
 
@@ -4059,6 +4067,56 @@ def test_shell_file_env_rejects_direct_and_file_secret(tmp_path: Path) -> None:
 
     assert result.returncode != 0
     assert "mutually exclusive" in result.stdout
+
+
+def test_shell_run_script_dir_runs_executable_hooks_in_sorted_order(
+    tmp_path: Path,
+) -> None:
+    """Startup hooks should run executable shell scripts in deterministic order."""
+    hooks_dir = tmp_path / "hooks"
+    output_path = tmp_path / "output"
+    hooks_dir.mkdir()
+    second_hook = hooks_dir / "20-second.sh"
+    first_hook = hooks_dir / "10-first.sh"
+    first_hook.write_text(f"#!/bin/bash\nprintf first >> {output_path}\n")
+    second_hook.write_text(f"#!/bin/bash\nprintf second >> {output_path}\n")
+    first_hook.chmod(0o755)
+    second_hook.chmod(0o755)
+
+    run_bash(
+        f"source {IB_UTILS_PATH}\n"
+        f"START_SCRIPTS={hooks_dir}\n"
+        'run_script_dir START_SCRIPTS "startup"\n'
+    )
+
+    assert output_path.read_text() == "firstsecond"
+
+
+def test_shell_run_script_dir_rejects_non_executable_hooks(tmp_path: Path) -> None:
+    """Hook scripts should be explicitly executable."""
+    hooks_dir = tmp_path / "hooks"
+    hooks_dir.mkdir()
+    (hooks_dir / "10-first.sh").write_text("#!/bin/bash\n")
+
+    result = run_bash_unchecked(
+        f"source {IB_UTILS_PATH}\n"
+        f"START_SCRIPTS={hooks_dir}\n"
+        'run_script_dir START_SCRIPTS "startup"\n'
+    )
+
+    assert result.returncode != 0
+    assert "hook is not executable" in result.stdout
+
+
+def test_runtime_scripts_call_hook_directories_at_expected_phases() -> None:
+    """Entrypoint and IBC startup should wire the three hook phases explicitly."""
+    entrypoint = ENTRYPOINT_PATH.read_text()
+    start_ibc = START_IBC_PATH.read_text()
+
+    assert 'run_script_dir START_SCRIPTS "startup"' in entrypoint
+    assert 'run_script_dir X_SCRIPTS "X"' in start_ibc
+    assert 'run_script_dir IBC_SCRIPTS "IBC"' in start_ibc
+    assert 'wait "$ibc_pid"' in start_ibc
 
 
 def test_compose_uses_distinct_vnc_ports_for_host_network_services() -> None:

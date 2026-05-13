@@ -8,6 +8,7 @@ start_ibc() {
 	local home_dir
 	local ibc_version
 	local ibc_args=()
+	local ibc_pid
 
 	app_name="$(ib_product_executable)"
 	TRADING_MODE="$(ib_trading_mode)"
@@ -34,6 +35,7 @@ start_ibc() {
 	# Set up X11 environment for IBC
 	export XAUTHORITY="$HOME/.Xauthority"
 	wait_for_x_server
+	run_script_dir X_SCRIPTS "X"
 
 	log ".> Starting IBC in ${TRADING_MODE} mode, with params:"
 	echo ".>		Version: ${IB_RELEASE}"
@@ -52,7 +54,14 @@ start_ibc() {
 		"--ibc-ini=${IBC_INI}" \
 		"--ibc-path=${IBC_PATH}" \
 		"--on2fatimeout=${TWOFA_TIMEOUT_ACTION}" \
-		"--tws-settings-path=${TWS_SETTINGS_PATH}"
+		"--tws-settings-path=${TWS_SETTINGS_PATH}" &
+	ibc_pid="$!"
+
+	trap 'kill "$ibc_pid" 2>/dev/null || true; wait "$ibc_pid" 2>/dev/null || true; exit 143' TERM INT
+	trap 'status=$?; kill "$ibc_pid" 2>/dev/null || true; wait "$ibc_pid" 2>/dev/null || true; exit "$status"' ERR
+
+	run_script_dir IBC_SCRIPTS "IBC"
+	wait "$ibc_pid"
 }
 
 start_ibc

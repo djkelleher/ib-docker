@@ -50,6 +50,8 @@ cleanup_x_server
 file_env IB_USER
 file_env IB_PASSWORD
 
+run_script_dir START_SCRIPTS "startup"
+
 log "Initializing runtime configuration"
 init_container_settings
 unset IB_PASSWORD

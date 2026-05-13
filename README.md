@@ -122,6 +122,13 @@ services:
 | `VNC_SCREEN_DIMENSION` | `1600x1200x24` | VNC/Xvfb screen resolution |
 | `DISPLAY` | `:1` | X11 display number |
 
+### Startup Hooks
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `START_SCRIPTS` | - | Absolute directory path for executable `*.sh` scripts run before runtime config is rendered |
+| `X_SCRIPTS` | - | Absolute directory path for executable `*.sh` scripts run after Xvfb is ready and before IBC starts |
+| `IBC_SCRIPTS` | - | Absolute directory path for executable `*.sh` scripts run after IBC starts |
+
 ### Common IBC Configuration
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -201,10 +208,14 @@ CUSTOM_JVM_OPTS="-XX:+UseG1GC"
 
 ## Startup Customization
 
-The image intentionally does not run arbitrary startup hook directories. If you
-need extra initialization, prefer a small derived image or a wrapper command for
-that deployment. Keeping one supervised IB service per container makes runtime
-behavior easier to inspect and restart.
+Startup hook directories are optional. When set, each variable must point to an
+absolute directory path. Executable `*.sh` files in that directory run in sorted
+order; non-executable scripts or failing scripts fail container startup.
+
+Use hooks for deployment-local setup such as installing mounted certificates,
+writing small generated config fragments, or emitting readiness notifications.
+Keep the core IB session model to one service and one trading mode per
+container; use separate containers for live and paper sessions.
 
 ## 🗑️ Legacy Cleanup Note
 The historical `build/install.sh` helper script has been removed. All install logic is now implemented directly inside the multi-stage `build/Dockerfile` (builder stage). This reduces duplication and ensures reproducible builds.
