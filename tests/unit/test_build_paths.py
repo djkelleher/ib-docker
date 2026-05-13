@@ -1314,6 +1314,20 @@ def test_dockerfile_verifies_ibc_start_script_during_build() -> None:
     )
 
 
+def test_dockerfile_requires_release_checksum_to_reference_installer() -> None:
+    """Packaged release builds should reject mismatched checksum sidecars."""
+    content = DOCKERFILE_PATH.read_text()
+
+    checksum_file = content.index('CHECKSUM_FILE="$(sed -E')
+    checksum_validation = content.index('if [ "$CHECKSUM_FILE" != "$FILE" ]; then')
+    checksum_check = content.index('sha256sum --strict --check "/$FILE.sha256"')
+    installer_move = content.index('mv "/$FILE" /ib.sh')
+
+    assert checksum_file < checksum_validation < checksum_check < installer_move
+    assert "Checksum sidecar does not reference expected file $FILE" in content
+    assert "sha256sum --check" not in content
+
+
 def test_release_workflows_validate_tag_format_before_build_args() -> None:
     """Release workflows should reject malformed tags before passing build args."""
     for workflow_path in [GATEWAY_WORKFLOW_PATH, TWS_WORKFLOW_PATH]:

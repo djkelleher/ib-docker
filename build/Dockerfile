@@ -59,7 +59,12 @@ RUN set -eux; \
       # download using original filename so the .sha256 file matches
       wget -q -O "/$FILE" "$URL"; \
       wget -q -O "/$FILE.sha256" "$URL.sha256"; \
-      sha256sum --check "/$FILE.sha256"; \
+      CHECKSUM_FILE="$(sed -E 's/^[^[:space:]]+[[:space:]]+[*]?//' "/$FILE.sha256")"; \
+      if [ "$CHECKSUM_FILE" != "$FILE" ]; then \
+        echo "Checksum sidecar does not reference expected file $FILE: $CHECKSUM_FILE" >&2; \
+        exit 1; \
+      fi; \
+      sha256sum --strict --check "/$FILE.sha256"; \
       mv "/$FILE" /ib.sh; \
       rm -f "/$FILE.sha256"; \
     fi; \
