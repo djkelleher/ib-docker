@@ -159,7 +159,7 @@ def download(url: str, save_path: Path) -> None:
 
 
 def download_release_file(ib_release: IBRelease) -> Path:
-    downloads_dir.mkdir(exist_ok=True)
+    downloads_dir.mkdir(parents=True, exist_ok=True)
     url = ib_release.download_url
     file_name = Path(url).name
     file_name = file_name.replace(

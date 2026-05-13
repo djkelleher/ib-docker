@@ -1862,6 +1862,40 @@ def test_ci_download_creates_parent_and_replaces_atomically(
     assert not save_path.with_suffix(".sh.tmp").exists()
 
 
+def test_ci_download_release_file_creates_nested_download_dir(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Release downloads should work when the configured cache path is nested."""
+    ci_module = load_ci_module(monkeypatch)
+    captured: dict[str, object] = {}
+
+    class FakeIBRelease:
+        build_version = "10.45.1e"
+        download_url = (
+            "https://download.example/ibgateway-stable-standalone-linux-x64.sh"
+        )
+
+    def fake_download(url: str, file: Path) -> None:
+        captured["url"] = url
+        captured["file"] = file
+        file.write_text("installer")
+
+    monkeypatch.setattr(ci_module, "downloads_dir", tmp_path / "cache" / "downloads")
+    monkeypatch.setattr(ci_module, "download", fake_download)
+
+    file_path = ci_module.download_release_file(FakeIBRelease())
+
+    assert captured["url"] == FakeIBRelease.download_url
+    assert file_path == (
+        tmp_path
+        / "cache"
+        / "downloads"
+        / "ibgateway-stable-10.45.1e-standalone-linux-x64.sh"
+    )
+    assert captured["file"] == file_path
+    assert file_path.read_text() == "installer"
+
+
 def test_ci_download_rejects_empty_files_and_removes_temp(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
