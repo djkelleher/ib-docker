@@ -2763,6 +2763,24 @@ def test_ci_download_rejects_directory_targets_when_overwriting(
         )
 
 
+def test_ci_download_rejects_file_parent_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Download setup should fail clearly when the parent path is a file."""
+    ci_module = load_ci_module(monkeypatch)
+    parent_path = tmp_path / "downloads"
+    parent_path.write_text("not a directory")
+    save_path = parent_path / "installer.sh"
+
+    def fail_urlretrieve(url: str, filename: Path) -> None:
+        raise AssertionError("unexpected download")
+
+    monkeypatch.setattr(ci_module, "urlretrieve", fail_urlretrieve)
+
+    with pytest.raises(RuntimeError, match="Download parent path is not a directory"):
+        ci_module.download("https://example.test/installer.sh", save_path)
+
+
 def test_ci_download_rejects_directory_temp_paths(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -2850,6 +2868,28 @@ def test_ci_download_release_file_rejects_unexpected_installer_name(
     monkeypatch.setattr(ci_module, "download", fail_download)
 
     with pytest.raises(RuntimeError, match="expected '-standalone-' marker"):
+        ci_module.download_release_file(FakeIBRelease())
+
+
+def test_ci_download_release_file_rejects_file_downloads_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Release downloads should fail clearly when downloads_dir is a file."""
+    ci_module = load_ci_module(monkeypatch)
+    downloads_path = tmp_path / "downloads"
+    downloads_path.write_text("not a directory")
+    monkeypatch.setattr(ci_module, "downloads_dir", downloads_path)
+
+    class FakeIBRelease:
+        build_version = "10.45.1e"
+        download_url = "https://download.example/tws-stable-standalone-linux-x64.sh"
+
+    def fail_download(url: str, file: Path, overwrite: bool = False) -> None:
+        raise AssertionError("unexpected download")
+
+    monkeypatch.setattr(ci_module, "download", fail_download)
+
+    with pytest.raises(RuntimeError, match="Downloads path is not a directory"):
         ci_module.download_release_file(FakeIBRelease())
 
 
