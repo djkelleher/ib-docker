@@ -1537,6 +1537,7 @@ def test_dockerfile_healthcheck_uses_supervisor_service_status() -> None:
     """Healthcheck should fail when IBC is not running under supervisord."""
     content = DOCKERFILE_PATH.read_text()
 
+    assert "--start-period=180s" in content
     assert "supervisorctl status xvfb ibc" in content
     assert "grep -Eq '^xvfb[[:space:]]+RUNNING'" in content
     assert "grep -Eq '^ibc[[:space:]]+RUNNING'" in content
