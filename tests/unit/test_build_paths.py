@@ -535,6 +535,10 @@ def test_python_runtime_choice_validation_matches_shell_defaults(
 
     init_settings.validate_runtime_choices()
 
+    monkeypatch.setenv("TRADING_MODE", "")
+    monkeypatch.setenv("TWOFA_TIMEOUT_ACTION", "")
+    init_settings.validate_runtime_choices()
+
     monkeypatch.setenv("TRADING_MODE", "live")
     monkeypatch.setenv("TWOFA_TIMEOUT_ACTION", "restart")
     init_settings.validate_runtime_choices()

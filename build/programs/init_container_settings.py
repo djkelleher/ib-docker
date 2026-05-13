@@ -34,7 +34,7 @@ def validate_env_choice(
     name: str, allowed_values: tuple[str, ...], default: str
 ) -> str:
     """Return a supported runtime choice, applying the same default as shell startup."""
-    value = os.environ.get(name, default)
+    value = os.environ.get(name) or default
     if value not in allowed_values:
         allowed = ", ".join(allowed_values)
         raise ValueError(f"Unsupported {name}: {value}. Expected one of: {allowed}")
