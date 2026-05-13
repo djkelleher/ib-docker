@@ -178,6 +178,11 @@ resolve_ibc_tws_path() {
 		# IBC appends /ibgateway/<version> for Gateway, but only /<version> for TWS.
 		dirname "$product_dir"
 	else
+		if [ "$(basename "$product_dir")" != "tws" ]; then
+			log "ERROR: TWS release directory must be nested under a tws directory: ${release_dir}"
+			log "IBC resolves TWS as <tws-path>/<release>"
+			exit 1
+		fi
 		printf '%s\n' "$product_dir"
 	fi
 }

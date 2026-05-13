@@ -289,10 +289,12 @@ def validate_ibc_version(value: str) -> None:
 def validate_ib_release_layout(program: str, ib_release_dir: Path) -> None:
     """Validate the installed IB product layout before mutating runtime config."""
     require_directory(ib_release_dir, "IB release")
-    if program == "ibgateway" and ib_release_dir.parent.name != "ibgateway":
+    if ib_release_dir.parent.name != program:
+        article = "an" if program == "ibgateway" else "a"
         raise RuntimeError(
-            "IB release directory is invalid: Gateway release directory "
-            f"must be nested under an ibgateway directory: {ib_release_dir}"
+            "IB release directory is invalid: "
+            f"{program} release directory must be nested under {article} {program} "
+            f"directory: {ib_release_dir}"
         )
     executable_path = ib_release_dir / program
     jars_path = ib_release_dir / "jars"
