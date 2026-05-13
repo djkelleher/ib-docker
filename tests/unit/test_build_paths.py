@@ -2610,6 +2610,31 @@ def test_ci_invalid_checksum_assets_include_orphaned_sidecars(
     }
 
 
+def test_ci_release_repair_replaces_installers_with_missing_checksum(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Repair should not upload a fresh checksum for an unchecked remote installer."""
+    ci_module = load_ci_module(monkeypatch)
+    release = ci_module.GitHubRelease(release="stable", build_version="10.45.1e")
+
+    class FakeAsset:
+        def __init__(self, name: str) -> None:
+            self.name = name
+            self.browser_download_url = f"https://example.test/{name}"
+
+    class FakeRelease:
+        def get_assets(self) -> list[FakeAsset]:
+            return [
+                FakeAsset("ibgateway-stable-10.45.1e-standalone-linux-x64.sh"),
+            ]
+
+    monkeypatch.setattr(ci_module, "fetch", fake_release_asset_fetch)
+
+    assert ci_module.release_asset_names_to_replace(FakeRelease(), release) == {
+        "ibgateway-stable-10.45.1e-standalone-linux-x64.sh"
+    }
+
+
 def test_ci_create_github_releases_repairs_existing_incomplete_release(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -2718,12 +2743,14 @@ def test_ci_create_github_releases_repairs_existing_incomplete_release(
         ("tws", "stable", "10.45.1e"),
     ]
     assert sorted(existing_release.uploads) == [
+        "ibgateway-stable-10.45.1e-standalone-linux-x64.sh",
         "ibgateway-stable-10.45.1e-standalone-linux-x64.sh.sha256",
         "tws-stable-10.45.1e-standalone-linux-x64.sh",
         "tws-stable-10.45.1e-standalone-linux-x64.sh.sha256",
     ]
     assert deleted_assets == [
-        "ibgateway-stable-10.45.1e-standalone-linux-x64.sh.sha256"
+        "ibgateway-stable-10.45.1e-standalone-linux-x64.sh",
+        "ibgateway-stable-10.45.1e-standalone-linux-x64.sh.sha256",
     ]
     assert dispatched_tags == ["stable-10.45.1e"]
 

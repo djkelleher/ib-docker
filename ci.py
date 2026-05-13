@@ -449,6 +449,25 @@ def release_checksum_assets_are_valid(gh_release: Any, release: GitHubRelease) -
     return True
 
 
+def release_asset_names_to_replace(gh_release: Any, release: GitHubRelease) -> set[str]:
+    """Return assets that must be deleted before uploading a consistent pair."""
+    assets = release_assets_by_name(gh_release)
+    asset_names_to_replace = invalid_release_checksum_asset_names(gh_release, release)
+    for asset_name in expected_release_asset_names(release):
+        if not asset_name.endswith(".sha256"):
+            continue
+        expected_file_name = asset_name.removesuffix(".sha256")
+        if expected_file_name not in assets:
+            continue
+        if asset_name in asset_names_to_replace or asset_name not in assets:
+            logger.info(
+                "Replacing installer asset with missing or invalid checksum: %s",
+                expected_file_name,
+            )
+            asset_names_to_replace.add(expected_file_name)
+    return asset_names_to_replace
+
+
 def delete_release_assets(gh_release: Any, asset_names: set[str]) -> None:
     """Delete named assets from a GitHub release before uploading replacements."""
     if not asset_names:
@@ -596,11 +615,11 @@ def create_github_releases() -> list[IBRelease]:
             logger.info("Repairing existing incomplete GitHub release: %s", tag)
             dispatch_after_repair = not gh_release.draft
 
-        invalid_checksum_asset_names = invalid_release_checksum_asset_names(
+        replacement_asset_names = release_asset_names_to_replace(
             gh_release,
             GitHubRelease(release=release, build_version=version),
         )
-        delete_release_assets(gh_release, invalid_checksum_asset_names)
+        delete_release_assets(gh_release, replacement_asset_names)
         existing_asset_names = release_asset_names(gh_release)
         with ThreadPoolExecutor(max_workers=len(files)) as executor:
             upload = partial(
