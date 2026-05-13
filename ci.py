@@ -133,9 +133,12 @@ def fetch(url: str, as_text: bool = True) -> str | bytes:
         raise RuntimeError(f"Error fetching URL {url}: {exc}") from exc
 
 
-def download(url: str, save_path: Path) -> None:
+def download(url: str, save_path: Path, overwrite: bool = False) -> None:
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    if (not os.getenv("IB_DOCKER_OVERWRITE_DOWNLOADS")) and save_path.exists():
+    should_reuse_download = not overwrite and not os.getenv(
+        "IB_DOCKER_OVERWRITE_DOWNLOADS"
+    )
+    if should_reuse_download and save_path.exists():
         if save_path.stat().st_size > 0:
             logger.info(f"File already exists: {save_path}. Skipping download.")
             return
@@ -166,7 +169,7 @@ def download_release_file(ib_release: IBRelease) -> Path:
         "-standalone-", f"-{ib_release.build_version}-standalone-"
     )
     file = downloads_dir / file_name
-    download(url, file)
+    download(url, file, overwrite=True)
     return file
 
 

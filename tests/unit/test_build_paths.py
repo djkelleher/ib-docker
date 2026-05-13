@@ -2306,6 +2306,11 @@ def test_ci_downloads_are_atomic_and_nonempty() -> None:
     """Release downloads should not reuse partial or empty cached assets."""
     content = CI_PATH.read_text()
 
+    assert (
+        "def download(url: str, save_path: Path, overwrite: bool = False) -> None:"
+        in content
+    )
+    assert "not overwrite and not os.getenv" in content
     assert "save_path.parent.mkdir(parents=True, exist_ok=True)" in content
     assert "save_path.stat().st_size > 0" in content
     assert "Existing download is empty" in content
@@ -2350,9 +2355,10 @@ def test_ci_download_release_file_creates_nested_download_dir(
             "https://download.example/ibgateway-stable-standalone-linux-x64.sh"
         )
 
-    def fake_download(url: str, file: Path) -> None:
+    def fake_download(url: str, file: Path, overwrite: bool = False) -> None:
         captured["url"] = url
         captured["file"] = file
+        captured["overwrite"] = overwrite
         file.write_text("installer")
 
     monkeypatch.setattr(ci_module, "downloads_dir", tmp_path / "cache" / "downloads")
@@ -2368,7 +2374,33 @@ def test_ci_download_release_file_creates_nested_download_dir(
         / "ibgateway-stable-10.45.1e-standalone-linux-x64.sh"
     )
     assert captured["file"] == file_path
+    assert captured["overwrite"] is True
     assert file_path.read_text() == "installer"
+
+
+def test_ci_download_release_file_refreshes_cached_assets(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Release automation should not bless stale cached installers with new hashes."""
+    ci_module = load_ci_module(monkeypatch)
+    monkeypatch.setattr(ci_module, "downloads_dir", tmp_path)
+    cached_file = tmp_path / "tws-latest-10.46.1-standalone-linux-x64.sh"
+    cached_file.write_text("stale installer")
+
+    class FakeIBRelease:
+        build_version = "10.46.1"
+        download_url = "https://download.example/tws-latest-standalone-linux-x64.sh"
+
+    def fake_urlretrieve(url: str, filename: Path) -> None:
+        assert url == FakeIBRelease.download_url
+        filename.write_text("fresh installer")
+
+    monkeypatch.setattr(ci_module, "urlretrieve", fake_urlretrieve)
+
+    file_path = ci_module.download_release_file(FakeIBRelease())
+
+    assert file_path == cached_file
+    assert file_path.read_text() == "fresh installer"
 
 
 def test_ci_download_rejects_empty_files_and_removes_temp(
