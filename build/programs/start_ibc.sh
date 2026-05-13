@@ -24,6 +24,7 @@ start_ibc() {
 	IB_RELEASE="$(ib_release_version_from_dir "$IB_RELEASE_DIR")"
 	IB_BASE_DIR="$(resolve_ibc_tws_path "$IB_RELEASE_DIR")"
 	ensure_absolute_path HOME
+	ensure_directory_path "$HOME" "HOME"
 	home_dir="$HOME"
 	TWS_SETTINGS_PATH="${TWS_SETTINGS_PATH:-${home_dir}/tws_settings}"
 	ensure_absolute_path TWS_SETTINGS_PATH

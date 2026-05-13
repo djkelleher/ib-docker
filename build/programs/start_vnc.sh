@@ -33,6 +33,7 @@ start_vnc() {
 	fi
 	log "Found VNC password (VNC_PWD). Starting VNC."
 	ensure_absolute_path HOME
+	ensure_directory_path "$HOME" "HOME"
 	vnc_listen_port="$(vnc_port)"
 	wait_for_x_server
 	# Set up X11 authentication if needed

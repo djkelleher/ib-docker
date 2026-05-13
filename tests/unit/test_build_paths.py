@@ -667,6 +667,7 @@ def test_xvfb_cleanup_is_display_specific() -> None:
 
     assert 'DISPLAY="$(x_server_display "${DISPLAY:-:1}")"' in content
     assert "ensure_absolute_path HOME" in content
+    assert 'ensure_directory_path "$HOME" "HOME"' in content
     assert 'xvfb_pattern="$(x_display_process_pattern Xvfb "$DISPLAY")"' in content
     assert 'pkill -9 -f "$xvfb_pattern"' in content
     assert 'pkill -9 -f "Xvfb.*${DISPLAY}"' not in content
@@ -770,9 +771,24 @@ def test_vnc_startup_requires_home_before_xauth_setup() -> None:
     content = START_VNC_PATH.read_text()
 
     validation = content.index("ensure_absolute_path HOME")
+    directory_validation = content.index('ensure_directory_path "$HOME" "HOME"')
     xauth = content.index('export XAUTHORITY="$HOME/.Xauthority"')
 
-    assert validation < xauth
+    assert validation < directory_validation < xauth
+
+
+def test_shell_home_directory_validation_rejects_file_paths() -> None:
+    """Shell startup should reject file-valued HOME before X authority setup."""
+    result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        HOME="$(mktemp)"
+        ensure_directory_path "$HOME" "HOME"
+        """
+    )
+
+    assert result.returncode == 1
+    assert "HOME is not a directory" in result.stdout
 
 
 def test_ibc_startup_rejects_file_tws_settings_path_before_mkdir() -> None:
@@ -851,6 +867,7 @@ def test_ibc_startup_requires_absolute_runtime_paths() -> None:
     )
     assert 'ensure_file "$IBC_INI" "IBC config"' in content
     assert "ensure_absolute_path HOME" in content
+    assert 'ensure_directory_path "$HOME" "HOME"' in content
     assert "ensure_absolute_path TWS_SETTINGS_PATH" in content
 
 

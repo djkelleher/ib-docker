@@ -20,6 +20,7 @@ start_xvfb() {
 	DISPLAY="$(x_server_display "${DISPLAY:-:1}")"
 	export DISPLAY
 	ensure_absolute_path HOME
+	ensure_directory_path "$HOME" "HOME"
 
 	log "Starting Xvfb server. Using display: $DISPLAY"
 	display_no="$(x_display_number "$DISPLAY")"

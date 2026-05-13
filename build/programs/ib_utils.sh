@@ -268,6 +268,7 @@ wait_for_x_server() {
 	log "Waiting for X server on display ${DISPLAY}..."
 	validate_x_display "$DISPLAY"
 	ensure_absolute_path HOME
+	ensure_directory_path "$HOME" "HOME"
 
 	# Set up X11 environment
 	XAUTHORITY="$HOME/.Xauthority"
