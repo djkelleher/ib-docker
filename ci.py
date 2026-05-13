@@ -11,6 +11,7 @@ from datetime import datetime
 from functools import cache, cached_property, partial
 from pathlib import Path
 from subprocess import CompletedProcess, run
+from threading import Lock
 from typing import Any, Literal
 from urllib.request import urlopen, urlretrieve
 
@@ -234,9 +235,9 @@ def write_sha256_file(file: Path) -> Path:
     require_existing_file(file, "Release asset path")
     hash_file = file.with_suffix(file.suffix + ".sha256")
     require_download_file(hash_file, "Checksum sidecar path")
-    hash_file.write_text(
-        f"{hashlib.sha256(file.read_bytes()).hexdigest()} {file.name}\n"
-    )
+    with file.open("rb") as asset_file:
+        digest = hashlib.file_digest(asset_file, "sha256").hexdigest()
+    hash_file.write_text(f"{digest} {file.name}\n")
     return hash_file
 
 
@@ -266,27 +267,33 @@ def release_asset_names(gh_release: Any) -> set[str]:
 
 
 def upload_release_asset(
-    gh_release: Any, file: Path, existing_asset_names: set[str] | None = None
+    gh_release: Any,
+    file: Path,
+    existing_asset_names: set[str] | None = None,
+    existing_asset_names_lock: Any | None = None,
 ) -> None:
     """Upload a release asset and its sha256 sidecar when they are missing."""
     asset_names = existing_asset_names
     if asset_names is None:
         asset_names = release_asset_names(gh_release)
-    if file.name in asset_names:
-        logger.info("Skipping existing release asset: %s", file.name)
-    else:
-        logger.info(f"Uploading {file}")
-        gh_release.upload_asset(path=str(file), label=file.name, name=file.name)
-        asset_names.add(file.name)
+    asset_names_lock = existing_asset_names_lock or Lock()
+    with asset_names_lock:
+        if file.name in asset_names:
+            logger.info("Skipping existing release asset: %s", file.name)
+        else:
+            logger.info(f"Uploading {file}")
+            gh_release.upload_asset(path=str(file), label=file.name, name=file.name)
+            asset_names.add(file.name)
     hash_file = write_sha256_file(file)
-    if hash_file.name in asset_names:
-        logger.info("Skipping existing release asset: %s", hash_file.name)
-    else:
-        logger.info(f"Uploading {hash_file}")
-        gh_release.upload_asset(
-            path=str(hash_file), label=hash_file.name, name=hash_file.name
-        )
-        asset_names.add(hash_file.name)
+    with asset_names_lock:
+        if hash_file.name in asset_names:
+            logger.info("Skipping existing release asset: %s", hash_file.name)
+        else:
+            logger.info(f"Uploading {hash_file}")
+            gh_release.upload_asset(
+                path=str(hash_file), label=hash_file.name, name=hash_file.name
+            )
+            asset_names.add(hash_file.name)
 
 
 def parse_release_tag(tag_name: str) -> GitHubRelease:
@@ -692,11 +699,13 @@ def create_github_releases() -> list[IBRelease]:
         )
         delete_release_assets(gh_release, replacement_asset_names)
         existing_asset_names = release_asset_names(gh_release) - replacement_asset_names
+        existing_asset_names_lock = Lock()
         with ThreadPoolExecutor(max_workers=len(files)) as executor:
             upload = partial(
                 upload_release_asset,
                 gh_release,
                 existing_asset_names=existing_asset_names,
+                existing_asset_names_lock=existing_asset_names_lock,
             )
             list(executor.map(upload, files))
         gh_release = publish_release(gh_release, tag, message)

@@ -14,11 +14,15 @@ cleanup_vnc_password_file() {
 stop_vnc() {
 	local path="$1"
 	local pid="$2"
+	local exit_code=0
 
 	cleanup_vnc_password_file "$path"
 	kill "$pid" 2>/dev/null || true
-	wait "$pid" 2>/dev/null || true
-	exit 143
+	wait "$pid" 2>/dev/null || exit_code="$?"
+	if [ "$exit_code" -eq 0 ]; then
+		exit 143
+	fi
+	exit "$exit_code"
 }
 
 start_vnc() {
@@ -63,8 +67,6 @@ start_vnc() {
 	/usr/bin/x11vnc "${x11vnc_args[@]}" &
 	vnc_pid="$!"
 	trap 'stop_vnc "$vnc_password_file" "$vnc_pid"' TERM INT
-	sleep 2
-	cleanup_vnc_password_file "$vnc_password_file"
 	wait "$vnc_pid"
 }
 

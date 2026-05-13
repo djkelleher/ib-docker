@@ -124,8 +124,10 @@ def render_config_template(
             current_content = output_path.read_text()
         except FileNotFoundError:
             if fallback_template_path is None or not fallback_template_path.exists():
-                print(f"{label} template not found at {template_path}; skipping")
-                return
+                raise RuntimeError(
+                    f"{label} template not found at {template_path} and "
+                    f"output does not exist: {output_path}"
+                )
 
             template_content = fallback_template_path.read_text()
             template_path.parent.mkdir(parents=True, exist_ok=True)

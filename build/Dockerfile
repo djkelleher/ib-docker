@@ -224,7 +224,7 @@ USER ibuser
 WORKDIR /home/ibuser
 
 # Healthcheck: ensure supervised core services are running and Xvfb display is active
-HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 CMD supervisorctl status xvfb ibc | grep -Eq '^xvfb[[:space:]]+RUNNING' && supervisorctl status xvfb ibc | grep -Eq '^ibc[[:space:]]+RUNNING' && xset q >/dev/null 2>&1 || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 CMD supervisorctl status xvfb ibc | awk '/^xvfb[[:space:]]+RUNNING/{xvfb=1} /^ibc[[:space:]]+RUNNING/{ibc=1} END{exit !(xvfb && ibc)}' && xset q >/dev/null 2>&1 || exit 1
 
 EXPOSE 5900
 

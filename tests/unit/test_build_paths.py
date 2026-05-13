@@ -4,7 +4,9 @@ import importlib.util
 import os
 import subprocess
 import sys
+import threading
 import types
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import ModuleType
 
@@ -171,6 +173,7 @@ def test_ibc_template_defaults_match_documented_runtime_defaults(
 
     rendered = init_settings.sub_env_vars(IBC_TEMPLATE_PATH.read_text())
 
+    assert "IbDir=\n" in rendered
     assert "SecondFactorAuthenticationExitInterval=60" in rendered
     assert "ReadOnlyApi=no" in rendered
     assert "BypassOrderPrecautions=yes" in rendered
@@ -689,7 +692,9 @@ def test_xvfb_cleanup_is_display_specific() -> None:
     assert "ensure_absolute_path HOME" in content
     assert 'ensure_directory_path "$HOME" "HOME"' in content
     assert 'xvfb_pattern="$(x_display_process_pattern Xvfb "$DISPLAY")"' in content
+    assert 'if pgrep -f "$xvfb_pattern" >/dev/null 2>&1; then' in content
     assert 'pkill -9 -f "$xvfb_pattern"' in content
+    assert "\n\t# Small delay to ensure cleanup is complete\n\tsleep 3\n" not in content
     assert 'pkill -9 -f "Xvfb.*${DISPLAY}"' not in content
     assert 'pkill -9 -f "Xvfb" 2>/dev/null || true' not in content
 
@@ -783,7 +788,18 @@ def test_vnc_password_is_not_passed_on_process_command_line() -> None:
     assert 'rm -f "$path"' in content
     assert "trap 'cleanup_vnc_password_file \"$vnc_password_file\"' EXIT" in content
     assert 'trap \'stop_vnc "$vnc_password_file" "$vnc_pid"\' TERM INT' in content
+    assert 'sleep 2\n\tcleanup_vnc_password_file "$vnc_password_file"' not in content
     assert 'wait "$vnc_pid"' in content
+
+
+def test_vnc_sigterm_exit_is_expected_by_supervisor() -> None:
+    """VNC shutdown during container stop should not be treated as a crash."""
+    start_vnc_content = START_VNC_PATH.read_text()
+    supervisor_content = SUPERVISORD_CONF_PATH.read_text()
+
+    assert "exit 143" in start_vnc_content
+    assert "autorestart=unexpected" in supervisor_content
+    assert "exitcodes=0,143" in supervisor_content
 
 
 def test_vnc_startup_requires_home_before_xauth_setup() -> None:
@@ -1807,6 +1823,19 @@ def test_render_config_template_creates_separate_template_parent(
     assert template_path.read_text() == "IbLoginId=${IB_USER}\n"
 
 
+def test_render_config_template_rejects_missing_template_without_output(
+    init_settings: ModuleType, tmp_path: Path
+) -> None:
+    """Config rendering should fail when no template or existing output exists."""
+    template_path = tmp_path / "templates" / "ibc.ini.template"
+    output_path = tmp_path / "runtime" / "ibc.ini"
+
+    with pytest.raises(RuntimeError, match="ibc.ini template not found"):
+        init_settings.render_config_template(template_path, output_path, "ibc.ini")
+
+    assert not output_path.exists()
+
+
 def test_render_config_template_rejects_directory_output_path(
     init_settings: ModuleType, tmp_path: Path
 ) -> None:
@@ -1999,9 +2028,10 @@ def test_dockerfile_healthcheck_uses_supervisor_service_status() -> None:
     content = DOCKERFILE_PATH.read_text()
 
     assert "--start-period=180s" in content
-    assert "supervisorctl status xvfb ibc" in content
-    assert "grep -Eq '^xvfb[[:space:]]+RUNNING'" in content
-    assert "grep -Eq '^ibc[[:space:]]+RUNNING'" in content
+    assert content.count("supervisorctl status xvfb ibc") == 1
+    assert "awk '/^xvfb[[:space:]]+RUNNING/{xvfb=1}" in content
+    assert " /^ibc[[:space:]]+RUNNING/{ibc=1}" in content
+    assert "END{exit !(xvfb && ibc)}'" in content
     assert "pgrep -f supervisord" not in content
 
 
@@ -3199,10 +3229,11 @@ def test_ci_sha256_assets_are_line_oriented() -> None:
     assert "def release_asset_names(gh_release: Any) -> set[str]:" in content
     assert "def upload_release_asset(" in content
     assert "existing_asset_names: set[str] | None = None" in content
+    assert "existing_asset_names_lock: Any | None = None" in content
+    assert "asset_names_lock = existing_asset_names_lock or Lock()" in content
     assert "hash_file = write_sha256_file(file)" in content
-    assert (
-        'f"{hashlib.sha256(file.read_bytes()).hexdigest()} {file.name}\\n"' in content
-    )
+    assert 'hashlib.file_digest(asset_file, "sha256").hexdigest()' in content
+    assert "file.read_bytes()" not in content
 
 
 def test_ci_write_sha256_file_creates_sidecar(
@@ -3361,6 +3392,52 @@ def test_ci_upload_release_asset_updates_shared_existing_asset_names(
     ci_module.upload_release_asset(
         FakeRelease(), asset_path, existing_asset_names=existing_asset_names
     )
+
+    assert uploads == [asset_path.name, checksum_path.name]
+    assert existing_asset_names == {asset_path.name, checksum_path.name}
+
+
+def test_ci_upload_release_asset_serializes_shared_asset_names(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Concurrent uploads sharing asset names should not duplicate release assets."""
+    ci_module = load_ci_module(monkeypatch)
+    asset_path = tmp_path / "tws-stable-10.45.1e-standalone-linux-x64.sh"
+    asset_path.write_text("installer")
+    checksum_path = asset_path.with_suffix(".sh.sha256")
+    contains_barrier = threading.Barrier(2)
+    existing_asset_names_lock = threading.Lock()
+    uploads: list[str] = []
+
+    class RacingAssetNames(set[str]):
+        def __contains__(self, item: object) -> bool:
+            if item == asset_path.name:
+                try:
+                    contains_barrier.wait(timeout=0.25)
+                except threading.BrokenBarrierError:
+                    pass
+            return super().__contains__(item)
+
+    class FakeRelease:
+        def upload_asset(self, path: str, label: str, name: str) -> None:
+            uploads.append(name)
+            assert Path(path).name == name
+            assert label == name
+
+    existing_asset_names = RacingAssetNames()
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [
+            executor.submit(
+                ci_module.upload_release_asset,
+                FakeRelease(),
+                asset_path,
+                existing_asset_names=existing_asset_names,
+                existing_asset_names_lock=existing_asset_names_lock,
+            )
+            for _ in range(2)
+        ]
+        for future in futures:
+            future.result()
 
     assert uploads == [asset_path.name, checksum_path.name]
     assert existing_asset_names == {asset_path.name, checksum_path.name}
@@ -3811,6 +3888,8 @@ def test_ci_consumes_parallel_worker_results() -> None:
 
     assert "list(executor.map(upload, files))" in content
     assert "partial(\n                upload_release_asset," in content
+    assert "existing_asset_names_lock = Lock()" in content
+    assert "existing_asset_names_lock=existing_asset_names_lock" in content
     assert "dispatch_build_workflows(gh_repo, tag)" in content
     assert "list(executor.map(build_image, params))" in content
     assert "\n            executor.map(lambda file:" not in content

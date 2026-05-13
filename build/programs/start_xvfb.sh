@@ -30,10 +30,12 @@ start_xvfb() {
 	log "Cleaning up any existing X server processes and files..."
 
 	# Kill any existing Xvfb processes completely (with retries)
-	for _ in {1..3}; do
-		pkill -9 -f "$xvfb_pattern" 2>/dev/null || true
-		sleep 1
-	done
+	if pgrep -f "$xvfb_pattern" >/dev/null 2>&1; then
+		for _ in {1..3}; do
+			pkill -9 -f "$xvfb_pattern" 2>/dev/null || true
+			sleep 1
+		done
+	fi
 
 	# Remove all possible X server artifacts for this display
 	rm -f "/tmp/.X${display_no}-lock" 2>/dev/null || true
@@ -61,9 +63,6 @@ start_xvfb() {
 	xauth add "$DISPLAY" . "$(openssl rand -hex 16)" 2>/dev/null || true
 	xauth add "localhost$DISPLAY" . "$(openssl rand -hex 16)" 2>/dev/null || true
 	xauth add "$(hostname)$DISPLAY" . "$(openssl rand -hex 16)" 2>/dev/null || true
-
-	# Small delay to ensure cleanup is complete
-	sleep 3
 
 	# Start Xvfb with additional options for stability
 	log "Executing Xvfb with display $DISPLAY"
