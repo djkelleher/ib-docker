@@ -190,8 +190,13 @@ def download_release_file(ib_release: IBRelease) -> Path:
     downloads_dir.mkdir(parents=True, exist_ok=True)
     url = ib_release.download_url
     file_name = Path(url).name
+    if "-standalone-" not in file_name:
+        raise RuntimeError(
+            "Release installer filename does not contain expected '-standalone-' "
+            f"marker: {file_name}"
+        )
     file_name = file_name.replace(
-        "-standalone-", f"-{ib_release.build_version}-standalone-"
+        "-standalone-", f"-{ib_release.build_version}-standalone-", 1
     )
     file = downloads_dir / file_name
     download(url, file, overwrite=True)

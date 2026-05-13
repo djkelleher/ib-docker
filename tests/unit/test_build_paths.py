@@ -2763,6 +2763,26 @@ def test_ci_download_release_file_creates_nested_download_dir(
     assert file_path.read_text() == "installer"
 
 
+def test_ci_download_release_file_rejects_unexpected_installer_name(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Release downloads should not silently publish unversioned installer names."""
+    ci_module = load_ci_module(monkeypatch)
+    monkeypatch.setattr(ci_module, "downloads_dir", tmp_path / "downloads")
+
+    class FakeIBRelease:
+        build_version = "10.45.1e"
+        download_url = "https://download.example/ibgateway-stable-linux-x64.sh"
+
+    def fail_download(url: str, file: Path, overwrite: bool = False) -> None:
+        raise AssertionError("unexpected download")
+
+    monkeypatch.setattr(ci_module, "download", fail_download)
+
+    with pytest.raises(RuntimeError, match="expected '-standalone-' marker"):
+        ci_module.download_release_file(FakeIBRelease())
+
+
 def test_ci_download_release_file_refreshes_cached_assets(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
