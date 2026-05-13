@@ -170,6 +170,15 @@ def download_release_file(ib_release: IBRelease) -> Path:
     return file
 
 
+def write_sha256_file(file: Path) -> Path:
+    """Write and return a sha256 checksum sidecar for a release asset."""
+    hash_file = file.with_suffix(file.suffix + ".sha256")
+    hash_file.write_text(
+        f"{hashlib.sha256(file.read_bytes()).hexdigest()} {file.name}\n"
+    )
+    return hash_file
+
+
 def parse_release_tag(tag_name: str) -> GitHubRelease:
     """Parse a GitHub release tag into release channel and IB build version."""
     match = RELEASE_TAG_RE.match(tag_name)
@@ -348,10 +357,7 @@ def create_github_releases() -> list[IBRelease]:
         def upload_release_file(file: Path) -> None:
             logger.info(f"Uploading {file}")
             gh_release.upload_asset(path=str(file), label=file.name, name=file.name)
-            hash_file = file.with_suffix(file.suffix + ".sha256")
-            hash_file.write_text(
-                f"{hashlib.sha256(file.read_bytes()).hexdigest()} {file.name}\n"
-            )
+            hash_file = write_sha256_file(file)
             logger.info(f"Uploading {hash_file}")
             gh_release.upload_asset(
                 path=str(hash_file), label=hash_file.name, name=hash_file.name

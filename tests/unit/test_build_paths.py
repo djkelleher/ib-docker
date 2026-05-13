@@ -1822,8 +1822,28 @@ def test_ci_sha256_assets_are_line_oriented() -> None:
     """Generated sha256 sidecars should be valid line-oriented checksum files."""
     content = CI_PATH.read_text()
 
+    assert "def write_sha256_file(file: Path) -> Path:" in content
+    assert "hash_file = write_sha256_file(file)" in content
     assert (
         'f"{hashlib.sha256(file.read_bytes()).hexdigest()} {file.name}\\n"' in content
+    )
+
+
+def test_ci_write_sha256_file_creates_sidecar(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Checksum sidecar generation should be deterministic and line-oriented."""
+    ci_module = load_ci_module(monkeypatch)
+    asset_path = tmp_path / "ibgateway-stable-10.45.1e-standalone-linux-x64.sh"
+    asset_path.write_text("installer")
+
+    hash_path = ci_module.write_sha256_file(asset_path)
+
+    assert hash_path == asset_path.with_suffix(".sh.sha256")
+    assert (
+        hash_path.read_text()
+        == "9c0d294c05fc1d88d698034609bb81c0c69196327594e4c69d2915c80fd9850c "
+        "ibgateway-stable-10.45.1e-standalone-linux-x64.sh\n"
     )
 
 
