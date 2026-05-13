@@ -100,6 +100,8 @@ def render_config_template(
 ) -> None:
     """Render an environment-expanded config from a persistent template."""
     require_absolute_path(output_path, f"{label} output")
+    require_directory_path(output_path.parent, f"{label} output parent")
+    require_directory_path(template_path.parent, f"{label} template parent")
     require_file_path(output_path, f"{label} output")
     require_file_path(template_path, f"{label} template")
     if fallback_template_path is not None:

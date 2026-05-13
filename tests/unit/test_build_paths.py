@@ -1784,6 +1784,42 @@ def test_render_config_template_rejects_directory_fallback_template(
     assert not output_path.parent.exists()
 
 
+def test_render_config_template_rejects_file_output_parent(
+    init_settings: ModuleType, tmp_path: Path
+) -> None:
+    """Config rendering should fail clearly when the output parent is a file."""
+    template_path = tmp_path / "templates" / "ibc.ini.template"
+    output_parent = tmp_path / "runtime"
+    output_path = output_parent / "ibc.ini"
+    template_path.parent.mkdir()
+    template_path.write_text("IbLoginId=${IB_USER}\n")
+    output_parent.write_text("not a directory")
+
+    with pytest.raises(RuntimeError, match="ibc.ini output parent is not a directory"):
+        init_settings.render_config_template(template_path, output_path, "ibc.ini")
+
+    assert template_path.read_text() == "IbLoginId=${IB_USER}\n"
+
+
+def test_render_config_template_rejects_file_template_parent(
+    init_settings: ModuleType, tmp_path: Path
+) -> None:
+    """Template bootstrapping should fail clearly when template parent is a file."""
+    template_parent = tmp_path / "templates"
+    template_path = template_parent / "ibc.ini.template"
+    output_path = tmp_path / "runtime" / "ibc.ini"
+    output_path.parent.mkdir()
+    output_path.write_text("IbLoginId=${IB_USER}\n")
+    template_parent.write_text("not a directory")
+
+    with pytest.raises(
+        RuntimeError, match="ibc.ini template parent is not a directory"
+    ):
+        init_settings.render_config_template(template_path, output_path, "ibc.ini")
+
+    assert output_path.read_text() == "IbLoginId=${IB_USER}\n"
+
+
 def test_main_bootstraps_custom_config_paths_from_default_templates(
     init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
