@@ -1850,6 +1850,46 @@ def test_ci_consumes_parallel_worker_results() -> None:
     assert "\n            executor.map(build_image, params)\n" not in content
 
 
+def test_ci_build_images_expands_shared_releases_to_both_products(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Shared GitHub release tags should build both Gateway and TWS images."""
+    ci_module = load_ci_module(monkeypatch)
+    built_params: list[tuple[str, str, str]] = []
+
+    def fake_build_image(params: tuple[str, str, str]) -> None:
+        built_params.append(params)
+
+    monkeypatch.setattr(ci_module, "build_image", fake_build_image)
+
+    ci_module.build_images(
+        [ci_module.GitHubRelease(release="stable", build_version="10.45.1e")]
+    )
+
+    assert built_params == [
+        ("ibgateway", "stable", "10.45.1e"),
+        ("tws", "stable", "10.45.1e"),
+    ]
+
+
+def test_ci_build_images_parallel_consumes_worker_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Parallel image builds should surface exceptions from build workers."""
+    ci_module = load_ci_module(monkeypatch)
+
+    def fake_build_image(params: tuple[str, str, str]) -> None:
+        raise RuntimeError(f"boom: {params[0]}")
+
+    monkeypatch.setattr(ci_module, "build_image", fake_build_image)
+
+    with pytest.raises(RuntimeError, match="boom: ibgateway"):
+        ci_module.build_images(
+            [ci_module.GitHubRelease(release="stable", build_version="10.45.1e")],
+            parallel=True,
+        )
+
+
 def test_release_workflow_uses_only_release_check_requirements() -> None:
     """Daily release checks should not require unused DockerHub secrets."""
     content = (REPO_ROOT / ".github" / "workflows" / "release.yml").read_text()
