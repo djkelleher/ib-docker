@@ -891,6 +891,47 @@ def test_main_rejects_missing_credentials_before_rendering_configs(
     assert jts_ini.read_text() == "TimeZone=old\n"
 
 
+def test_main_rejects_gateway_release_dir_shape_before_rendering_configs(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Python startup validation should match IBC's Gateway path reconstruction."""
+    home = tmp_path / "home" / "ibuser"
+    settings_dir = tmp_path / "settings"
+    ibc_dir = tmp_path / "ibc"
+    release_dir = tmp_path / "opt" / "gateway" / "stable"
+    home.mkdir(parents=True)
+    settings_dir.mkdir()
+    ibc_dir.mkdir()
+    create_ib_release_dir(release_dir, "ibgateway")
+
+    ibc_ini = ibc_dir / "ibc.ini"
+    jts_ini = settings_dir / "jts.ini"
+    ibc_ini.write_text("IbLoginId=old\n")
+    jts_ini.write_text("TimeZone=old\n")
+    ibc_ini.with_suffix(".ini.template").write_text("IbLoginId=${IB_USER}\n")
+    jts_ini.with_suffix(".ini.template").write_text("TimeZone=${TIME_ZONE:-UTC}\n")
+    (home / "vmoptions.j2").write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "ibgateway")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("IBC_INI", str(ibc_ini))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(settings_dir))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+    monkeypatch.setenv("IB_USER", "new-user")
+    monkeypatch.setenv("IB_PASSWORD", "paper-password")
+    monkeypatch.setenv("TIME_ZONE", "America/New_York")
+
+    with pytest.raises(
+        RuntimeError, match="must be nested under an ibgateway directory"
+    ):
+        init_settings.main()
+
+    assert ibc_ini.read_text() == "IbLoginId=old\n"
+    assert jts_ini.read_text() == "TimeZone=old\n"
+    assert (release_dir / "ibgateway.vmoptions").read_text() == "-Xmx256m\n"
+
+
 def test_main_rejects_incomplete_release_layout_before_rendering_configs(
     init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
