@@ -337,6 +337,14 @@ def find_github_release_by_tag(gh_repo: Any, tag: str) -> Any | None:
     return None
 
 
+def publish_release(gh_release: Any, tag: str, message: str) -> Any:
+    """Publish a draft GitHub release after its assets have been uploaded."""
+    if not gh_release.draft:
+        return gh_release
+    logger.info("Publishing GitHub release after asset upload: %s", tag)
+    return gh_release.update_release(name=tag, message=message, draft=False)
+
+
 def find_latest_github_releases() -> list[GitHubRelease]:
     """Find latest 'latest' and 'stable' releases."""
     gh_repo = get_gh_repo()
@@ -419,6 +427,7 @@ def create_github_releases() -> list[IBRelease]:
                 tag=tag,
                 name=tag,
                 message=message,
+                draft=True,
             )
         else:
             logger.info("Repairing existing incomplete GitHub release: %s", tag)
@@ -431,6 +440,7 @@ def create_github_releases() -> list[IBRelease]:
                 existing_asset_names=existing_asset_names,
             )
             list(executor.map(upload, files))
+        gh_release = publish_release(gh_release, tag, message)
         created_releases.extend(ib_releases)
     logger.info("Done!")
     return created_releases

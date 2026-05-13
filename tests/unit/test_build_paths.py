@@ -1354,6 +1354,15 @@ def test_release_workflows_do_not_publish_broad_beta_aliases() -> None:
         assert f"format('{{0}}/{image_name}:{{1}}'" in content
 
 
+def test_release_workflows_run_after_release_assets_are_published() -> None:
+    """Release-triggered builds should not start before packaged assets are uploaded."""
+    for workflow_path in [GATEWAY_WORKFLOW_PATH, TWS_WORKFLOW_PATH]:
+        content = workflow_path.read_text()
+
+        assert "release:\n      types: [published]" in content
+        assert "types: [created]" not in content
+
+
 def test_ci_module_does_not_read_secrets_at_import_time() -> None:
     """CI helpers should be importable without runtime-only secret environment."""
     tree = ast.parse(CI_PATH.read_text())
@@ -2015,6 +2024,7 @@ def test_ci_create_github_releases_repairs_existing_incomplete_release(
         def __init__(self, tag_name: str, asset_names: set[str]) -> None:
             self.tag_name = tag_name
             self.asset_names = asset_names
+            self.draft = False
             self.uploads: list[str] = []
 
         def get_assets(self) -> list[FakeAsset]:
@@ -2026,6 +2036,13 @@ def test_ci_create_github_releases_repairs_existing_incomplete_release(
             assert Path(path).name == name
             assert label == name
 
+        def update_release(
+            self, name: str, message: str, draft: bool
+        ) -> "FakeGitHubRelease":
+            raise AssertionError(
+                "published incomplete release should not be republished"
+            )
+
     existing_release = FakeGitHubRelease(
         "stable-10.45.1e",
         {"ibgateway-stable-10.45.1e-standalone-linux-x64.sh"},
@@ -2036,7 +2053,7 @@ def test_ci_create_github_releases_repairs_existing_incomplete_release(
             return [existing_release]
 
         def create_git_release(
-            self, tag: str, name: str, message: str
+            self, tag: str, name: str, message: str, draft: bool
         ) -> FakeGitHubRelease:
             raise AssertionError(f"unexpected release creation for {tag}")
 
@@ -2079,6 +2096,105 @@ def test_ci_create_github_releases_repairs_existing_incomplete_release(
         "tws-stable-10.45.1e-standalone-linux-x64.sh",
         "tws-stable-10.45.1e-standalone-linux-x64.sh.sha256",
     ]
+
+
+def test_ci_create_github_releases_publishes_after_asset_upload(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """New GitHub releases should stay draft until all installer assets are present."""
+    ci_module = load_ci_module(monkeypatch)
+    events: list[str] = []
+
+    class FakeAsset:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+    class FakeGitHubRelease:
+        def __init__(self, tag_name: str) -> None:
+            self.tag_name = tag_name
+            self.draft = True
+            self.asset_names: set[str] = set()
+
+        def get_assets(self) -> list[FakeAsset]:
+            return [FakeAsset(name) for name in self.asset_names]
+
+        def upload_asset(self, path: str, label: str, name: str) -> None:
+            events.append(f"upload:{name}")
+            self.asset_names.add(name)
+            assert Path(path).name == name
+            assert label == name
+
+        def update_release(
+            self, name: str, message: str, draft: bool
+        ) -> "FakeGitHubRelease":
+            expected_asset_names = ci_module.expected_release_asset_names(
+                ci_module.GitHubRelease(release="latest", build_version="10.46.1")
+            )
+            assert name == "latest-10.46.1"
+            assert "ibgateway latest 10.46.1" in message
+            assert "tws latest 10.46.1" in message
+            assert draft is False
+            assert self.asset_names == expected_asset_names
+            events.append("publish:latest-10.46.1")
+            self.draft = False
+            return self
+
+    created_gh_releases: list[FakeGitHubRelease] = []
+
+    class FakeRepo:
+        def get_releases(self) -> list[FakeGitHubRelease]:
+            return []
+
+        def create_git_release(
+            self, tag: str, name: str, message: str, draft: bool
+        ) -> FakeGitHubRelease:
+            assert tag == "latest-10.46.1"
+            assert name == tag
+            assert "ibgateway latest 10.46.1" in message
+            assert draft is True
+            gh_release = FakeGitHubRelease(tag)
+            created_gh_releases.append(gh_release)
+            events.append(f"create-draft:{tag}")
+            return gh_release
+
+    class FakeIBRelease:
+        def __init__(self, release: str, program: str) -> None:
+            self.release = release
+            self.program = program
+            self.build_version = "10.46.1" if release == "latest" else "10.45.1e"
+            self.description = f"{program} {release} {self.build_version}"
+
+    def fake_download_release_file(ib_release: FakeIBRelease) -> Path:
+        file_path = (
+            tmp_path
+            / f"{ib_release.program}-{ib_release.release}-{ib_release.build_version}"
+            "-standalone-linux-x64.sh"
+        )
+        file_path.write_text(ib_release.description)
+        return file_path
+
+    monkeypatch.setattr(ci_module, "get_gh_repo", lambda: FakeRepo())
+    monkeypatch.setattr(
+        ci_module,
+        "find_latest_github_releases",
+        lambda: [ci_module.GitHubRelease(release="stable", build_version="10.45.1e")],
+    )
+    monkeypatch.setattr(ci_module, "IBRelease", FakeIBRelease)
+    monkeypatch.setattr(ci_module, "download_release_file", fake_download_release_file)
+
+    created_releases = ci_module.create_github_releases()
+
+    assert [
+        (release.program, release.release, release.build_version)
+        for release in created_releases
+    ] == [
+        ("ibgateway", "latest", "10.46.1"),
+        ("tws", "latest", "10.46.1"),
+    ]
+    assert len(created_gh_releases) == 1
+    assert created_gh_releases[0].draft is False
+    assert events[0] == "create-draft:latest-10.46.1"
+    assert events[-1] == "publish:latest-10.46.1"
 
 
 def test_ci_docker_build_failures_are_fatal() -> None:

@@ -7,7 +7,7 @@ on:
           description: 'GitHub release tag'
           required: false
     release:
-      types: [created]
+      types: [published]
 
 jobs:
   build_tws_release:
