@@ -3,9 +3,12 @@
 FROM debian:bookworm-slim AS builder
 
 ARG VERSION=NULL
-ARG PROGRAM=ibgateway       # ibgateway | tws
-ARG RELEASE=stable          # stable | latest | beta
-ARG ARCH=x64                # x64 only effectively supported here
+# ibgateway | tws
+ARG PROGRAM=ibgateway
+# stable | latest | beta
+ARG RELEASE=stable
+# x64 only effectively supported here
+ARG ARCH=x64
 ARG IBC_VERSION=3.23.0
 
 RUN set -eu; \

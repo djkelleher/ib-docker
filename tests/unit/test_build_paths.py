@@ -1560,6 +1560,18 @@ def test_dockerfile_validates_build_args_before_downloads() -> None:
     assert "'^[0-9]+[.][0-9]+[.][0-9]+$'" in content
 
 
+def test_dockerfile_arg_defaults_do_not_include_inline_comments() -> None:
+    """Direct Docker builds should not parse explanatory comments as ARG defaults."""
+    content = DOCKERFILE_PATH.read_text()
+
+    assert "ARG PROGRAM=ibgateway       #" not in content
+    assert "ARG RELEASE=stable          #" not in content
+    assert "ARG ARCH=x64                #" not in content
+    assert "\nARG PROGRAM=ibgateway\n" in content
+    assert "\nARG RELEASE=stable\n" in content
+    assert "\nARG ARCH=x64\n" in content
+
+
 def test_dockerfile_verifies_ibc_start_script_during_build() -> None:
     """Builds should fail if the IBC archive does not contain the runtime entrypoint."""
     content = DOCKERFILE_PATH.read_text()
