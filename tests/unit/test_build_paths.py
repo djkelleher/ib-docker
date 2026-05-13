@@ -526,6 +526,20 @@ def test_ibc_startup_defaults_and_validates_runtime_choices() -> None:
     assert "Unsupported TWOFA_TIMEOUT_ACTION: wait" in invalid_action.stdout
 
 
+def test_python_runtime_choice_validation_matches_shell_defaults(
+    init_settings: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Python startup validation should accept the same defaults as shell startup."""
+    monkeypatch.delenv("TRADING_MODE", raising=False)
+    monkeypatch.delenv("TWOFA_TIMEOUT_ACTION", raising=False)
+
+    init_settings.validate_runtime_choices()
+
+    monkeypatch.setenv("TRADING_MODE", "live")
+    monkeypatch.setenv("TWOFA_TIMEOUT_ACTION", "restart")
+    init_settings.validate_runtime_choices()
+
+
 def test_x_display_number_strips_screen_suffix() -> None:
     """X11 artifact paths should use the display number, not the screen suffix."""
     result = run_bash(
@@ -1081,6 +1095,86 @@ def test_main_rejects_invalid_java_heap_before_rendering_configs(
     monkeypatch.setenv("TIME_ZONE", "America/New_York")
 
     with pytest.raises(ValueError, match="JAVA_HEAP_SIZE"):
+        init_settings.main()
+
+    assert ibc_ini.read_text() == "IbLoginId=old\n"
+    assert jts_ini.read_text() == "TimeZone=old\n"
+    assert (release_dir / "tws.vmoptions").read_text() == "-Xmx256m\n"
+
+
+def test_main_rejects_invalid_trading_mode_before_rendering_configs(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Invalid trading mode should not be rendered into IBC config first."""
+    home = tmp_path / "home" / "ibuser"
+    settings_dir = tmp_path / "settings"
+    ibc_dir = tmp_path / "ibc"
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    home.mkdir(parents=True)
+    settings_dir.mkdir()
+    ibc_dir.mkdir()
+    create_ib_release_dir(release_dir, "tws")
+
+    ibc_ini = ibc_dir / "ibc.ini"
+    jts_ini = settings_dir / "jts.ini"
+    ibc_ini.write_text("TradingMode=old\n")
+    jts_ini.write_text("TimeZone=old\n")
+    ibc_ini.with_suffix(".ini.template").write_text(
+        "TradingMode=${TRADING_MODE:-paper}\n"
+    )
+    jts_ini.with_suffix(".ini.template").write_text("TimeZone=${TIME_ZONE:-UTC}\n")
+    (home / "vmoptions.j2").write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "tws")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("IBC_INI", str(ibc_ini))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(settings_dir))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+    monkeypatch.setenv("IB_USER", "new-user")
+    monkeypatch.setenv("IB_PASSWORD", "paper-password")
+    monkeypatch.setenv("TRADING_MODE", "demo")
+
+    with pytest.raises(ValueError, match="Unsupported TRADING_MODE: demo"):
+        init_settings.main()
+
+    assert ibc_ini.read_text() == "TradingMode=old\n"
+    assert jts_ini.read_text() == "TimeZone=old\n"
+    assert (release_dir / "tws.vmoptions").read_text() == "-Xmx256m\n"
+
+
+def test_main_rejects_invalid_twofa_timeout_action_before_rendering_configs(
+    init_settings: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Invalid 2FA timeout action should fail before partial config rewrites."""
+    home = tmp_path / "home" / "ibuser"
+    settings_dir = tmp_path / "settings"
+    ibc_dir = tmp_path / "ibc"
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    home.mkdir(parents=True)
+    settings_dir.mkdir()
+    ibc_dir.mkdir()
+    create_ib_release_dir(release_dir, "tws")
+
+    ibc_ini = ibc_dir / "ibc.ini"
+    jts_ini = settings_dir / "jts.ini"
+    ibc_ini.write_text("IbLoginId=old\n")
+    jts_ini.write_text("TimeZone=old\n")
+    ibc_ini.with_suffix(".ini.template").write_text("IbLoginId=${IB_USER}\n")
+    jts_ini.with_suffix(".ini.template").write_text("TimeZone=${TIME_ZONE:-UTC}\n")
+    (home / "vmoptions.j2").write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
+
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("PROGRAM", "tws")
+    monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
+    monkeypatch.setenv("IBC_INI", str(ibc_ini))
+    monkeypatch.setenv("TWS_SETTINGS_PATH", str(settings_dir))
+    monkeypatch.setenv("JAVA_HEAP_SIZE", "1024m")
+    monkeypatch.setenv("IB_USER", "new-user")
+    monkeypatch.setenv("IB_PASSWORD", "paper-password")
+    monkeypatch.setenv("TWOFA_TIMEOUT_ACTION", "wait")
+
+    with pytest.raises(ValueError, match="Unsupported TWOFA_TIMEOUT_ACTION: wait"):
         init_settings.main()
 
     assert ibc_ini.read_text() == "IbLoginId=old\n"

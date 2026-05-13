@@ -30,6 +30,17 @@ def require_absolute_path(path: Path, label: str) -> None:
         raise RuntimeError(f"{label} must be an absolute path: {path}")
 
 
+def validate_env_choice(
+    name: str, allowed_values: tuple[str, ...], default: str
+) -> str:
+    """Return a supported runtime choice, applying the same default as shell startup."""
+    value = os.environ.get(name, default)
+    if value not in allowed_values:
+        allowed = ", ".join(allowed_values)
+        raise ValueError(f"Unsupported {name}: {value}. Expected one of: {allowed}")
+    return value
+
+
 def require_directory(path: Path, label: str) -> None:
     """Fail with a clear message when a required runtime directory is missing."""
     require_absolute_path(path, f"{label} directory")
@@ -233,6 +244,12 @@ def validate_java_heap_size() -> None:
         parse_memory_mb(java_heap_size)
 
 
+def validate_runtime_choices() -> None:
+    """Validate runtime choices that shell startup also normalizes."""
+    validate_env_choice("TRADING_MODE", ("paper", "live"), "paper")
+    validate_env_choice("TWOFA_TIMEOUT_ACTION", ("exit", "restart"), "exit")
+
+
 def validate_ib_release_layout(program: str, ib_release_dir: Path) -> None:
     """Validate the installed IB product layout before mutating runtime config."""
     require_directory(ib_release_dir, "IB release")
@@ -277,6 +294,7 @@ def validate_runtime_environment() -> None:
     tws_settings_path()
     custom_jvm_opts()
     validate_java_heap_size()
+    validate_runtime_choices()
 
 
 def render_vmoptions(
