@@ -2042,11 +2042,29 @@ def test_supervisor_config_uses_supported_startup_coordination() -> None:
     assert "serverurl=unix:///tmp/supervisor.sock" in content
 
 
+def test_supervisor_config_uses_condition_checks_instead_of_startup_padding() -> None:
+    """Supervisor should not use long fixed delays as readiness checks."""
+    supervisor_content = SUPERVISORD_CONF_PATH.read_text()
+    start_ibc_content = START_IBC_PATH.read_text()
+    start_vnc_content = START_VNC_PATH.read_text()
+    start_xvfb_content = START_XVFB_PATH.read_text()
+
+    assert supervisor_content.count("startsecs=1") == 3
+    assert "startsecs=20" not in supervisor_content
+    assert "startsecs=120" not in supervisor_content
+    assert "startsecs=15" not in supervisor_content
+    assert "wait_for_x_server" in start_ibc_content
+    assert "wait_for_x_server" in start_vnc_content
+    assert "xset q" in (IB_UTILS_PATH.read_text())
+    assert "/usr/bin/Xvfb" in start_xvfb_content
+
+
 def test_dockerfile_healthcheck_uses_supervisor_service_status() -> None:
     """Healthcheck should fail when IBC is not running under supervisord."""
     content = DOCKERFILE_PATH.read_text()
 
-    assert "--start-period=180s" in content
+    assert "--start-period=90s" in content
+    assert "--start-period=180s" not in content
     assert content.count("supervisorctl status xvfb ibc") == 1
     assert "awk '/^xvfb[[:space:]]+RUNNING/{xvfb=1}" in content
     assert " /^ibc[[:space:]]+RUNNING/{ibc=1}" in content
