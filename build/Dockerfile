@@ -3,7 +3,7 @@
 FROM debian:bookworm-slim@sha256:67b30a61dc87758f0caf819646104f29ecbda97d920aaf5edc834128ac8493d3 AS builder
 
 ARG TARGETARCH=amd64
-ARG TARGETPLATFORM=linux/amd64
+ARG TARGET_PLATFORM=
 ARG IB_VERSION=NULL
 # ibgateway | tws
 ARG PROGRAM=ibgateway
@@ -14,8 +14,13 @@ ARG IB_INSTALLER_ARCH=x64
 ARG IBC_VERSION=3.23.0
 
 RUN set -eu; \
+    target_platform="${TARGET_PLATFORM:-linux/$TARGETARCH}"; \
     case "$TARGETARCH" in amd64|arm64) ;; *) echo "Unsupported TARGETARCH: $TARGETARCH" >&2; exit 1 ;; esac; \
-    case "$TARGETPLATFORM" in linux/amd64|linux/arm64) ;; *) echo "Unsupported TARGETPLATFORM: $TARGETPLATFORM" >&2; exit 1 ;; esac; \
+    case "$target_platform" in linux/amd64|linux/arm64) ;; *) echo "Unsupported TARGET_PLATFORM: $target_platform" >&2; exit 1 ;; esac; \
+    if [ "$target_platform" != "linux/$TARGETARCH" ]; then \
+      echo "TARGET_PLATFORM must match TARGETARCH: TARGET_PLATFORM=$target_platform TARGETARCH=$TARGETARCH" >&2; \
+      exit 1; \
+    fi; \
     case "$PROGRAM" in ibgateway|tws) ;; *) echo "Unsupported PROGRAM: $PROGRAM" >&2; exit 1 ;; esac; \
     case "$RELEASE" in stable|latest|beta) ;; *) echo "Unsupported RELEASE: $RELEASE" >&2; exit 1 ;; esac; \
     if [ "$PROGRAM" = "tws" ] && [ "$TARGETARCH" != "amd64" ]; then \
@@ -120,15 +125,20 @@ RUN find "$IB_RELEASE_DIR" -type f -name "*.log" -delete || true
 # Stage 2: runtime - only runtime dependencies
 FROM debian:bookworm-slim@sha256:67b30a61dc87758f0caf819646104f29ecbda97d920aaf5edc834128ac8493d3 AS runtime
 ARG TARGETARCH=amd64
-ARG TARGETPLATFORM=linux/amd64
+ARG TARGET_PLATFORM=
 ARG PROGRAM=ibgateway
 ARG RELEASE=stable
 ARG IB_VERSION=NULL
 ARG IBC_VERSION=3.23.0
 
 RUN set -eu; \
+    target_platform="${TARGET_PLATFORM:-linux/$TARGETARCH}"; \
     case "$TARGETARCH" in amd64|arm64) ;; *) echo "Unsupported TARGETARCH: $TARGETARCH" >&2; exit 1 ;; esac; \
-    case "$TARGETPLATFORM" in linux/amd64|linux/arm64) ;; *) echo "Unsupported TARGETPLATFORM: $TARGETPLATFORM" >&2; exit 1 ;; esac; \
+    case "$target_platform" in linux/amd64|linux/arm64) ;; *) echo "Unsupported TARGET_PLATFORM: $target_platform" >&2; exit 1 ;; esac; \
+    if [ "$target_platform" != "linux/$TARGETARCH" ]; then \
+      echo "TARGET_PLATFORM must match TARGETARCH: TARGET_PLATFORM=$target_platform TARGETARCH=$TARGETARCH" >&2; \
+      exit 1; \
+    fi; \
     case "$PROGRAM" in ibgateway|tws) ;; *) echo "Unsupported PROGRAM: $PROGRAM" >&2; exit 1 ;; esac; \
     case "$RELEASE" in stable|latest|beta) ;; *) echo "Unsupported RELEASE: $RELEASE" >&2; exit 1 ;; esac; \
     if [ "$PROGRAM" = "tws" ] && [ "$TARGETARCH" != "amd64" ]; then \

@@ -2079,7 +2079,9 @@ def test_dockerfile_validates_build_args_before_downloads() -> None:
 
     assert first_validation < first_download
     assert "Unsupported TARGETARCH" in content
-    assert "Unsupported TARGETPLATFORM" in content
+    assert "Unsupported TARGET_PLATFORM" in content
+    assert "TARGET_PLATFORM must match TARGETARCH" in content
+    assert "TARGETPLATFORM" not in content
     assert "TWS images are only supported for linux/amd64" in content
     assert "Unsupported RELEASE" in content
     assert (
