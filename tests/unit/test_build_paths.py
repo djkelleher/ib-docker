@@ -2063,8 +2063,8 @@ def test_dockerfile_validates_build_args_before_downloads() -> None:
     assert first_validation < first_download
     assert "Unsupported RELEASE" in content
     assert "IB installer artifacts are only supported with ARCH=x64" in content
-    assert "VERSION must be NULL or a packaged IB version" in content
-    assert "VERSION must look like 10.45.1e or be NULL" in content
+    assert "IB_VERSION must be NULL or a packaged IB version" in content
+    assert "IB_VERSION must look like 10.45.1e or be NULL" in content
     assert "grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'" in content
     assert "'^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'" in content
     assert "IBC_VERSION must not be empty" in content
@@ -2077,8 +2077,8 @@ def test_dockerfile_build_arg_regexes_reject_embedded_newlines() -> None:
     """Docker build arg validation should consume the whole value, not one line."""
     version_result = run_bash_unchecked(
         """
-        VERSION=$'10.45.1e\\nbad'
-        printf '%s' "$VERSION" | grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'
+        IB_VERSION=$'10.45.1e\\nbad'
+        printf '%s' "$IB_VERSION" | grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'
         """
     )
     ibc_result = run_bash_unchecked(
@@ -2858,7 +2858,7 @@ def test_ci_build_image_uses_argv_and_expected_tags(
         "--build-arg",
         "RELEASE=latest",
         "--build-arg",
-        "VERSION=10.45.1e",
+        "IB_VERSION=10.45.1e",
         "-t",
         "demo/ib-gateway:latest",
         "-t",

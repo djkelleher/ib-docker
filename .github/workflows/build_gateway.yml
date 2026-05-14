@@ -73,7 +73,7 @@ jobs:
             build-args: |
                 PROGRAM=ibgateway
                 RELEASE=${{ steps.parse_release_name.outputs.release_type }}
-                VERSION=${{ steps.parse_release_name.outputs.version }}
+                IB_VERSION=${{ steps.parse_release_name.outputs.version }}
             tags: |
                 ${{ secrets.DOCKERHUB_USERNAME }}/ib-gateway:${{ steps.parse_release_name.outputs.release_type }}
                 ${{ secrets.DOCKERHUB_USERNAME }}/ib-gateway:${{ steps.parse_release_name.outputs.version }}

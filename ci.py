@@ -735,7 +735,7 @@ def build_image(params: tuple[str, str, str]) -> None:
         "--build-arg",
         f"RELEASE={release}",
         "--build-arg",
-        f"VERSION={version}",
+        f"IB_VERSION={version}",
     ]
     for tag in tags:
         cmd.extend(["-t", f"{image_name}:{tag}"])

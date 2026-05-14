@@ -62,13 +62,13 @@ docker compose exec ib-gateway supervisorctl tail -f ibc
 # Build gateway (stable)
 docker build -t danklabs/ib-gateway:stable \
   --build-arg PROGRAM=ibgateway --build-arg RELEASE=stable \
-  --build-arg VERSION=NULL --build-arg ARCH=x64 \
+  --build-arg IB_VERSION=NULL --build-arg ARCH=x64 \
   --build-arg IBC_VERSION=3.23.0 build/
 
 # Build TWS (stable)
 docker build -t danklabs/ib-tws:stable \
   --build-arg PROGRAM=tws --build-arg RELEASE=stable \
-  --build-arg VERSION=NULL --build-arg ARCH=x64 \
+  --build-arg IB_VERSION=NULL --build-arg ARCH=x64 \
   --build-arg IBC_VERSION=3.23.0 build/
 ```
 
@@ -77,7 +77,7 @@ Optional build args:
 |-----|--------|---------|
 | PROGRAM | ibgateway, tws | Select which app to install |
 | RELEASE | stable, latest, beta | IB upstream release channel |
-| VERSION | NULL or numeric | Use `NULL` for the current upstream channel installer, or a packaged release version from this project's GitHub releases |
+| IB_VERSION | NULL or numeric | Interactive Brokers release version. Use `NULL` for the current upstream channel installer, or a packaged release version from this project's GitHub releases |
 | ARCH | x64 | IB installer artifact architecture; keep `x64` |
 | IBC_VERSION | e.g. 3.23.0 | IBC release to bundle |
 

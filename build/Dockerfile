@@ -2,7 +2,7 @@
 # Stage 1: builder - download & install IB software and IBC
 FROM debian:bookworm-slim AS builder
 
-ARG VERSION=NULL
+ARG IB_VERSION=NULL
 # ibgateway | tws
 ARG PROGRAM=ibgateway
 # stable | latest | beta
@@ -14,12 +14,12 @@ ARG IBC_VERSION=3.23.0
 RUN set -eu; \
     case "$PROGRAM" in ibgateway|tws) ;; *) echo "Unsupported PROGRAM: $PROGRAM" >&2; exit 1 ;; esac; \
     case "$RELEASE" in stable|latest|beta) ;; *) echo "Unsupported RELEASE: $RELEASE" >&2; exit 1 ;; esac; \
-    if [ -z "$VERSION" ]; then \
-      echo "VERSION must be NULL or a packaged IB version" >&2; \
+    if [ -z "$IB_VERSION" ]; then \
+      echo "IB_VERSION must be NULL or a packaged IB version" >&2; \
       exit 1; \
     fi; \
-    if [ "$VERSION" != "NULL" ] && ! printf '%s' "$VERSION" | grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'; then \
-      echo "VERSION must look like 10.45.1e or be NULL: $VERSION" >&2; \
+    if [ "$IB_VERSION" != "NULL" ] && ! printf '%s' "$IB_VERSION" | grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'; then \
+      echo "IB_VERSION must look like 10.45.1e or be NULL: $IB_VERSION" >&2; \
       exit 1; \
     fi; \
     if [ -z "$IBC_VERSION" ]; then \
@@ -53,12 +53,12 @@ RUN set -eux; \
     mkdir -p "$IB_RELEASE_DIR"; \
     # Ensure target JRE container path exists (will hold bundled or external Java) \
     mkdir -p /opt/i4j_jres; \
-    if [ "$VERSION" = "NULL" ]; then \
+    if [ "$IB_VERSION" = "NULL" ]; then \
       URL="https://download2.interactivebrokers.com/installers/${PROGRAM}/${RELEASE}-standalone/${PROGRAM}-${RELEASE}-standalone-linux-${ARCH}.sh"; \
       wget -q -O /ib.sh "$URL"; \
     else \
-      FILE="${PROGRAM}-${RELEASE}-${VERSION}-standalone-linux-x64.sh"; \
-      URL="https://github.com/djkelleher/ib-docker/releases/download/${RELEASE}-${VERSION}/$FILE"; \
+      FILE="${PROGRAM}-${RELEASE}-${IB_VERSION}-standalone-linux-x64.sh"; \
+      URL="https://github.com/djkelleher/ib-docker/releases/download/${RELEASE}-${IB_VERSION}/$FILE"; \
       # download using original filename so the .sha256 file matches
       wget -q -O "/$FILE" "$URL"; \
       wget -q -O "/$FILE.sha256" "$URL.sha256"; \
@@ -118,18 +118,18 @@ RUN find "$IB_RELEASE_DIR" -type f -name "*.log" -delete || true
 FROM debian:bookworm-slim AS runtime
 ARG PROGRAM=ibgateway
 ARG RELEASE=stable
-ARG VERSION=NULL
+ARG IB_VERSION=NULL
 ARG IBC_VERSION=3.23.0
 
 RUN set -eu; \
     case "$PROGRAM" in ibgateway|tws) ;; *) echo "Unsupported PROGRAM: $PROGRAM" >&2; exit 1 ;; esac; \
     case "$RELEASE" in stable|latest|beta) ;; *) echo "Unsupported RELEASE: $RELEASE" >&2; exit 1 ;; esac; \
-    if [ -z "$VERSION" ]; then \
-      echo "VERSION must be NULL or a packaged IB version" >&2; \
+    if [ -z "$IB_VERSION" ]; then \
+      echo "IB_VERSION must be NULL or a packaged IB version" >&2; \
       exit 1; \
     fi; \
-    if [ "$VERSION" != "NULL" ] && ! printf '%s' "$VERSION" | grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'; then \
-      echo "VERSION must look like 10.45.1e or be NULL: $VERSION" >&2; \
+    if [ "$IB_VERSION" != "NULL" ] && ! printf '%s' "$IB_VERSION" | grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'; then \
+      echo "IB_VERSION must look like 10.45.1e or be NULL: $IB_VERSION" >&2; \
       exit 1; \
     fi; \
     if [ -z "$IBC_VERSION" ]; then \
@@ -144,7 +144,7 @@ RUN set -eu; \
 LABEL org.opencontainers.image.title="Interactive Brokers ${PROGRAM}" \
       org.opencontainers.image.description="Interactive Brokers ${PROGRAM} (${RELEASE}) with IBC ${IBC_VERSION}" \
       org.opencontainers.image.vendor="DankLabs" \
-      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.version="${IB_VERSION}" \
       org.opencontainers.image.source="https://github.com/djkelleher/ib-docker" \
       org.opencontainers.image.licenses="MIT"
 
@@ -182,7 +182,7 @@ ENV DISPLAY=:1 \
     IB_RELEASE_DIR=/opt/${PROGRAM}/${RELEASE} \
     PROGRAM=${PROGRAM} \
     IBC_VERSION=${IBC_VERSION} \
-    VERSION=${VERSION}
+    IB_VERSION=${IB_VERSION}
 
 # Create non-root user early so we can chown on COPY
 RUN groupadd -r ibuser && useradd -r -g ibuser -s /bin/bash -m ibuser \

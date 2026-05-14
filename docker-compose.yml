@@ -7,7 +7,7 @@ services:
       args:
         PROGRAM: ibgateway
         RELEASE: stable
-        VERSION: "NULL"
+        IB_VERSION: "NULL"
         ARCH: x64
         IBC_VERSION: 3.23.0
     container_name: gateway
@@ -82,7 +82,7 @@ services:
       args:
         PROGRAM: tws
         RELEASE: stable
-        VERSION: "NULL"
+        IB_VERSION: "NULL"
         ARCH: x64
         IBC_VERSION: 3.23.0
     container_name: tws
