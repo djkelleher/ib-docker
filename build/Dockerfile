@@ -1,19 +1,27 @@
 # Multi-stage, smaller image for IB Gateway/TWS + IBC
 # Stage 1: builder - download & install IB software and IBC
-FROM debian:bookworm-slim AS builder
+FROM debian:bookworm-slim@sha256:67b30a61dc87758f0caf819646104f29ecbda97d920aaf5edc834128ac8493d3 AS builder
 
+ARG TARGETARCH=amd64
+ARG TARGETPLATFORM=linux/amd64
 ARG IB_VERSION=NULL
 # ibgateway | tws
 ARG PROGRAM=ibgateway
 # stable | latest | beta
 ARG RELEASE=stable
-# x64 only effectively supported here
-ARG ARCH=x64
+# IB publishes x64 installer artifacts; arm64 builds run Gateway with external Java.
+ARG IB_INSTALLER_ARCH=x64
 ARG IBC_VERSION=3.23.0
 
 RUN set -eu; \
+    case "$TARGETARCH" in amd64|arm64) ;; *) echo "Unsupported TARGETARCH: $TARGETARCH" >&2; exit 1 ;; esac; \
+    case "$TARGETPLATFORM" in linux/amd64|linux/arm64) ;; *) echo "Unsupported TARGETPLATFORM: $TARGETPLATFORM" >&2; exit 1 ;; esac; \
     case "$PROGRAM" in ibgateway|tws) ;; *) echo "Unsupported PROGRAM: $PROGRAM" >&2; exit 1 ;; esac; \
     case "$RELEASE" in stable|latest|beta) ;; *) echo "Unsupported RELEASE: $RELEASE" >&2; exit 1 ;; esac; \
+    if [ "$PROGRAM" = "tws" ] && [ "$TARGETARCH" != "amd64" ]; then \
+      echo "TWS images are only supported for linux/amd64" >&2; \
+      exit 1; \
+    fi; \
     if [ -z "$IB_VERSION" ]; then \
       echo "IB_VERSION must be NULL or a packaged IB version" >&2; \
       exit 1; \
@@ -30,8 +38,8 @@ RUN set -eu; \
       echo "IBC_VERSION must look like 3.23.0: $IBC_VERSION" >&2; \
       exit 1; \
     fi; \
-    if [ "$ARCH" != "x64" ]; then \
-      echo "IB installer artifacts are only supported with ARCH=x64" >&2; \
+    if [ "$IB_INSTALLER_ARCH" != "x64" ]; then \
+      echo "IB installer artifacts are only supported with IB_INSTALLER_ARCH=x64" >&2; \
       exit 1; \
     fi
 
@@ -54,14 +62,14 @@ RUN set -eux; \
     # Ensure target JRE container path exists (will hold bundled or external Java) \
     mkdir -p /opt/i4j_jres; \
     if [ "$IB_VERSION" = "NULL" ]; then \
-      URL="https://download2.interactivebrokers.com/installers/${PROGRAM}/${RELEASE}-standalone/${PROGRAM}-${RELEASE}-standalone-linux-${ARCH}.sh"; \
-      wget -q -O /ib.sh "$URL"; \
+      URL="https://download2.interactivebrokers.com/installers/${PROGRAM}/${RELEASE}-standalone/${PROGRAM}-${RELEASE}-standalone-linux-${IB_INSTALLER_ARCH}.sh"; \
+      wget -nv --tries=3 --timeout=30 -O /ib.sh "$URL"; \
     else \
-      FILE="${PROGRAM}-${RELEASE}-${IB_VERSION}-standalone-linux-x64.sh"; \
+      FILE="${PROGRAM}-${RELEASE}-${IB_VERSION}-standalone-linux-${IB_INSTALLER_ARCH}.sh"; \
       URL="https://github.com/djkelleher/ib-docker/releases/download/${RELEASE}-${IB_VERSION}/$FILE"; \
       # download using original filename so the .sha256 file matches
-      wget -q -O "/$FILE" "$URL"; \
-      wget -q -O "/$FILE.sha256" "$URL.sha256"; \
+      wget -nv --tries=3 --timeout=30 -O "/$FILE" "$URL"; \
+      wget -nv --tries=3 --timeout=30 -O "/$FILE.sha256" "$URL.sha256"; \
       CHECKSUM_FILE="$(sed -E 's/^[^[:space:]]+[[:space:]]+[*]?//' "/$FILE.sha256")"; \
       if [ "$CHECKSUM_FILE" != "$FILE" ]; then \
         echo "Checksum sidecar does not reference expected file $FILE: $CHECKSUM_FILE" >&2; \
@@ -72,10 +80,10 @@ RUN set -eux; \
       rm -f "/$FILE.sha256"; \
     fi; \
     chmod +x /ib.sh; \
-    # For aarch64 supply external Java 17 (Zulu), otherwise use bundled Java \
-    if [ "$(uname -m)" = "aarch64" ]; then \
+    # For arm64 supply external Java 17 (Zulu), otherwise use bundled Java \
+    if [ "$TARGETARCH" = "arm64" ]; then \
       ZULU_NAME="zulu17.52.17-ca-jre17.0.12-linux_aarch64"; \
-      wget -q -O /tmp/zulu.tar.gz "https://cdn.azul.com/zulu/bin/${ZULU_NAME}.tar.gz"; \
+      wget -nv --tries=3 --timeout=30 -O /tmp/zulu.tar.gz "https://cdn.azul.com/zulu/bin/${ZULU_NAME}.tar.gz"; \
       tar -xzf /tmp/zulu.tar.gz -C /usr/local/; \
       ln -s /usr/local/${ZULU_NAME} /usr/local/zulu17; \
       app_java_home=/usr/local/zulu17 /ib.sh -q -dir "$IB_RELEASE_DIR"; \
@@ -100,7 +108,7 @@ RUN set -eux; \
 
 # Install IBC
 RUN set -eux; \
-    wget -q -O /tmp/IBC.zip "https://github.com/IbcAlpha/IBC/releases/download/${IBC_VERSION}/IBCLinux-${IBC_VERSION}.zip"; \
+    wget -nv --tries=3 --timeout=30 -O /tmp/IBC.zip "https://github.com/IbcAlpha/IBC/releases/download/${IBC_VERSION}/IBCLinux-${IBC_VERSION}.zip"; \
     unzip /tmp/IBC.zip -d "$IBC_PATH"; \
     find "$IBC_PATH" -type f -name "*.sh" -exec chmod u+x {} +; \
     test -x "$IBC_PATH/scripts/ibcstart.sh"; \
@@ -110,15 +118,23 @@ RUN set -eux; \
 RUN find "$IB_RELEASE_DIR" -type f -name "*.log" -delete || true
 
 # Stage 2: runtime - only runtime dependencies
-FROM debian:bookworm-slim AS runtime
+FROM debian:bookworm-slim@sha256:67b30a61dc87758f0caf819646104f29ecbda97d920aaf5edc834128ac8493d3 AS runtime
+ARG TARGETARCH=amd64
+ARG TARGETPLATFORM=linux/amd64
 ARG PROGRAM=ibgateway
 ARG RELEASE=stable
 ARG IB_VERSION=NULL
 ARG IBC_VERSION=3.23.0
 
 RUN set -eu; \
+    case "$TARGETARCH" in amd64|arm64) ;; *) echo "Unsupported TARGETARCH: $TARGETARCH" >&2; exit 1 ;; esac; \
+    case "$TARGETPLATFORM" in linux/amd64|linux/arm64) ;; *) echo "Unsupported TARGETPLATFORM: $TARGETPLATFORM" >&2; exit 1 ;; esac; \
     case "$PROGRAM" in ibgateway|tws) ;; *) echo "Unsupported PROGRAM: $PROGRAM" >&2; exit 1 ;; esac; \
     case "$RELEASE" in stable|latest|beta) ;; *) echo "Unsupported RELEASE: $RELEASE" >&2; exit 1 ;; esac; \
+    if [ "$PROGRAM" = "tws" ] && [ "$TARGETARCH" != "amd64" ]; then \
+      echo "TWS images are only supported for linux/amd64" >&2; \
+      exit 1; \
+    fi; \
     if [ -z "$IB_VERSION" ]; then \
       echo "IB_VERSION must be NULL or a packaged IB version" >&2; \
       exit 1; \
@@ -191,8 +207,6 @@ COPY --from=builder --chown=ibuser:ibuser /opt/ibc /opt/ibc
 # Copy bundled JRE directory created by installer (empty for gateway if not used but path exists)
 COPY --from=builder --chown=ibuser:ibuser /opt/i4j_jres /opt/i4j_jres
 
-RUN chown -R ibuser:ibuser /opt/${PROGRAM}
-
 # Copy configuration & scripts
 COPY --chown=ibuser:ibuser config/jts.ini ${HOME}/tws_settings/jts.ini
 COPY --chown=ibuser:ibuser config/jts.ini ${HOME}/tws_settings/jts.ini.template
@@ -209,15 +223,13 @@ COPY --chown=root:root programs/entrypoint.sh /usr/local/bin/entrypoint
 
 RUN chmod +x /usr/local/bin/init_container_settings /usr/local/bin/start_xvfb /usr/local/bin/start_vnc /usr/local/bin/start_ibc /usr/local/lib/ib_utils /usr/local/bin/entrypoint \
     && mkdir -p /var/log/supervisor /etc/supervisor/conf.d \
-    && chown -R ibuser:ibuser /var/log/supervisor /etc/supervisor
+    && chown -R ibuser:ibuser /var/log/supervisor
 
 USER ibuser
 WORKDIR /home/ibuser
 
 # Healthcheck: ensure supervised core services are running and Xvfb display is active
 HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 CMD supervisorctl status xvfb ibc | awk '/^xvfb[[:space:]]+RUNNING/{xvfb=1} /^ibc[[:space:]]+RUNNING/{ibc=1} END{exit !(xvfb && ibc)}' && xset q >/dev/null 2>&1 || exit 1
-
-EXPOSE 5900
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]

@@ -8,7 +8,7 @@ services:
         PROGRAM: ibgateway
         RELEASE: stable
         IB_VERSION: "NULL"
-        ARCH: x64
+        IB_INSTALLER_ARCH: x64
         IBC_VERSION: 3.23.0
     container_name: gateway
     restart: always
@@ -83,7 +83,7 @@ services:
         PROGRAM: tws
         RELEASE: stable
         IB_VERSION: "NULL"
-        ARCH: x64
+        IB_INSTALLER_ARCH: x64
         IBC_VERSION: 3.23.0
     container_name: tws
     restart: always

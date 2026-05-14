@@ -74,6 +74,7 @@ jobs:
                 PROGRAM=tws
                 RELEASE=${{ steps.parse_release_name.outputs.release_type }}
                 IB_VERSION=${{ steps.parse_release_name.outputs.version }}
+                IB_INSTALLER_ARCH=x64
             tags: |
                 ${{ secrets.DOCKERHUB_USERNAME }}/ib-tws:${{ steps.parse_release_name.outputs.release_type }}
                 ${{ secrets.DOCKERHUB_USERNAME }}/ib-tws:${{ steps.parse_release_name.outputs.version }}

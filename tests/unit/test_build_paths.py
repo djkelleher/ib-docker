@@ -2054,15 +2054,38 @@ def test_dockerfile_healthcheck_uses_supervisor_service_status() -> None:
     assert "pgrep -f supervisord" not in content
 
 
+def test_dockerfile_keeps_runtime_ownership_scoped() -> None:
+    """Runtime image should avoid expensive or unnecessary recursive chowns."""
+    content = DOCKERFILE_PATH.read_text()
+
+    assert "RUN chown -R ibuser:ibuser /opt/${PROGRAM}" not in content
+    assert "chown -R ibuser:ibuser /var/log/supervisor /etc/supervisor" not in content
+    assert "chown -R ibuser:ibuser /var/log/supervisor" in content
+    assert "COPY --chown=root:root config/supervisord.conf" in content
+
+
+def test_dockerfile_does_not_expose_runtime_selected_ports() -> None:
+    """Host-network images should not advertise a misleading fixed VNC port."""
+    content = DOCKERFILE_PATH.read_text()
+
+    assert "EXPOSE" not in content
+
+
 def test_dockerfile_validates_build_args_before_downloads() -> None:
     """Builds should reject invalid products/releases before installer downloads."""
     content = DOCKERFILE_PATH.read_text()
     first_validation = content.index("Unsupported PROGRAM")
-    first_download = content.index("wget -q -O /ib.sh")
+    first_download = content.index("wget -nv --tries=3 --timeout=30 -O /ib.sh")
 
     assert first_validation < first_download
+    assert "Unsupported TARGETARCH" in content
+    assert "Unsupported TARGETPLATFORM" in content
+    assert "TWS images are only supported for linux/amd64" in content
     assert "Unsupported RELEASE" in content
-    assert "IB installer artifacts are only supported with ARCH=x64" in content
+    assert (
+        "IB installer artifacts are only supported with IB_INSTALLER_ARCH=x64"
+        in content
+    )
     assert "IB_VERSION must be NULL or a packaged IB version" in content
     assert "IB_VERSION must look like 10.45.1e or be NULL" in content
     assert "grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'" in content
@@ -2098,10 +2121,25 @@ def test_dockerfile_arg_defaults_do_not_include_inline_comments() -> None:
 
     assert "ARG PROGRAM=ibgateway       #" not in content
     assert "ARG RELEASE=stable          #" not in content
-    assert "ARG ARCH=x64                #" not in content
+    assert "ARG IB_INSTALLER_ARCH=x64   #" not in content
     assert "\nARG PROGRAM=ibgateway\n" in content
     assert "\nARG RELEASE=stable\n" in content
-    assert "\nARG ARCH=x64\n" in content
+    assert "\nARG IB_INSTALLER_ARCH=x64\n" in content
+
+
+def test_dockerfile_pins_debian_base_and_uses_retrying_downloads() -> None:
+    """Runtime builds should use a pinned base image and non-quiet downloads."""
+    content = DOCKERFILE_PATH.read_text()
+
+    assert (
+        content.count(
+            "debian:bookworm-slim@sha256:"
+            "67b30a61dc87758f0caf819646104f29ecbda97d920aaf5edc834128ac8493d3"
+        )
+        == 2
+    )
+    assert "wget -q" not in content
+    assert content.count("wget -nv --tries=3 --timeout=30") == 5
 
 
 def test_dockerfile_verifies_ibc_start_script_during_build() -> None:
@@ -2859,6 +2897,8 @@ def test_ci_build_image_uses_argv_and_expected_tags(
         "RELEASE=latest",
         "--build-arg",
         "IB_VERSION=10.45.1e",
+        "--build-arg",
+        "IB_INSTALLER_ARCH=x64",
         "-t",
         "demo/ib-gateway:latest",
         "-t",
@@ -4128,6 +4168,23 @@ def test_compose_uses_distinct_vnc_ports_for_host_network_services() -> None:
 
     assert "VNC_PORT: ${VNC_PORT:-5900}" in content
     assert "VNC_PORT: ${TWS_VNC_PORT:-5901}" in content
+
+
+def test_compose_readme_and_workflows_use_installer_arch_arg() -> None:
+    """Build callers should use the explicit IB installer architecture arg."""
+    contents = [
+        DOCKER_COMPOSE_PATH.read_text(),
+        README_PATH.read_text(),
+        GATEWAY_WORKFLOW_PATH.read_text(),
+        TWS_WORKFLOW_PATH.read_text(),
+        CI_PATH.read_text(),
+    ]
+
+    for content in contents:
+        assert "IB_INSTALLER_ARCH" in content
+        assert "\n        ARCH: x64" not in content
+        assert "--build-arg ARCH=x64" not in content
+        assert "\n                ARCH=x64" not in content
 
 
 def test_compose_and_readme_are_host_network_only() -> None:
