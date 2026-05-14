@@ -822,6 +822,7 @@ def test_vnc_sigterm_exit_is_expected_by_supervisor() -> None:
     assert "exit 143" in start_vnc_content
     assert "autorestart=unexpected" in supervisor_content
     assert "exitcodes=0,143" in supervisor_content
+    assert "startsecs=0" in supervisor_content
 
 
 def test_vnc_startup_requires_home_before_xauth_setup() -> None:
@@ -886,6 +887,9 @@ def test_vnc_password_optional_under_strict_shell_mode() -> None:
     content = START_VNC_PATH.read_text()
 
     assert "if [[ -z ${VNC_PWD:-} ]]; then" in content
+    assert 'log "VNC password is not set (VNC_PWD). VNC is disabled."' in content
+    assert "exit 0" in content
+    assert "sleep infinity" not in content
 
 
 def test_shell_ibc_version_defaults_and_validates() -> None:
@@ -2049,7 +2053,8 @@ def test_supervisor_config_uses_condition_checks_instead_of_startup_padding() ->
     start_vnc_content = START_VNC_PATH.read_text()
     start_xvfb_content = START_XVFB_PATH.read_text()
 
-    assert supervisor_content.count("startsecs=1") == 3
+    assert supervisor_content.count("startsecs=1") == 2
+    assert supervisor_content.count("startsecs=0") == 1
     assert "startsecs=20" not in supervisor_content
     assert "startsecs=120" not in supervisor_content
     assert "startsecs=15" not in supervisor_content

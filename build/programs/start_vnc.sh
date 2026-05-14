@@ -34,7 +34,7 @@ start_vnc() {
 	file_env VNC_PWD
 	if [[ -z ${VNC_PWD:-} ]]; then
 		log "VNC password is not set (VNC_PWD). VNC is disabled."
-		exec sleep infinity
+		exit 0
 	fi
 	log "Found VNC password (VNC_PWD). Starting VNC."
 	ensure_absolute_path HOME
