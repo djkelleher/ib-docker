@@ -25,11 +25,14 @@ cd ib-docker
 cp .env.example .env
 # Edit .env with your IB username and password
 
-# 3. Start container
-docker compose up -d
+# 3. Start Gateway
+docker compose up -d ib-gateway
 
 # 4. Connect your trading app to localhost:4002 (paper) or localhost:4001 (live)
 ```
+
+To run TWS instead of Gateway, start `ib-tws`. The compose file defines both
+services for convenience, but start only the IB session you intend to use.
 
 View process status & logs:
 ```bash
@@ -43,7 +46,7 @@ docker compose exec ib-gateway supervisorctl tail -f ibc
 - **🖥️ Headless Operation** - [Xvfb](https://www.x.org/releases/X11R7.6/doc/man/man1/Xvfb.1.xhtml) virtual display + [x11vnc](https://wiki.archlinux.org/title/x11vnc) for remote GUI access
 - **📊 Process Management** - [Supervisord](http://supervisord.org/) with auto-recovery and per-process logs
 - **🌐 Host Networking** - Uses the host network stack only for direct IB API access
-- **📈 Production Ready** - Health checks, logging, and high-availability patterns
+- **📈 Production Ready** - Health checks, logging, and automatic process restart
 - **🐳 Multi-stage Build** - All install logic embedded in `build/Dockerfile` (legacy `install.sh` removed)
 
 ### Process Management with Supervisord
@@ -58,11 +61,15 @@ docker compose exec ib-gateway supervisorctl tail -f ibc
 ```bash
 # Build gateway (stable)
 docker build -t danklabs/ib-gateway:stable \
-  --build-arg PROGRAM=ibgateway --build-arg RELEASE=stable build/
+  --build-arg PROGRAM=ibgateway --build-arg RELEASE=stable \
+  --build-arg VERSION=NULL --build-arg ARCH=x64 \
+  --build-arg IBC_VERSION=3.23.0 build/
 
 # Build TWS (stable)
 docker build -t danklabs/ib-tws:stable \
-  --build-arg PROGRAM=tws --build-arg RELEASE=stable build/
+  --build-arg PROGRAM=tws --build-arg RELEASE=stable \
+  --build-arg VERSION=NULL --build-arg ARCH=x64 \
+  --build-arg IBC_VERSION=3.23.0 build/
 ```
 
 Optional build args:
@@ -70,7 +77,8 @@ Optional build args:
 |-----|--------|---------|
 | PROGRAM | ibgateway, tws | Select which app to install |
 | RELEASE | stable, latest, beta | IB upstream release channel |
-| VERSION | NULL or numeric | Specific packaged version (internal use) |
+| VERSION | NULL or numeric | Use `NULL` for the current upstream channel installer, or a packaged release version from this project's GitHub releases |
+| ARCH | x64 | IB installer artifact architecture; keep `x64` |
 | IBC_VERSION | e.g. 3.23.0 | IBC release to bundle |
 
 ## Host Networking Only
@@ -192,7 +200,8 @@ These variables map directly to settings in `build/config/ibc.ini`.
 | TWS VNC | 5901 | Remote desktop access in the provided compose file when `VNC_PWD` is set |
 
 ## 🔌 API Access (Summary)
-Same as Ports table above. Map or expose as required.
+Same as Ports table above. The compose file uses `network_mode: host`, so it
+does not define `ports` mappings; connect to the host API ports directly.
 
 ### JVM Tuning
 | Variable | Default | Description |

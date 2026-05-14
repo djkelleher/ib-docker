@@ -1,13 +1,15 @@
 services:
   ib-gateway:
-    image: ib-gateway
+    image: danklabs/ib-gateway:stable
     build:
       context: ./build
       dockerfile: Dockerfile
       args:
         PROGRAM: ibgateway
         RELEASE: stable
+        VERSION: "NULL"
         ARCH: x64
+        IBC_VERSION: 3.23.0
     container_name: gateway
     restart: always
     network_mode: host
@@ -73,14 +75,16 @@ services:
       IB_PASSWORD: ${IB_PASSWORD:-}
       IB_PASSWORD_FILE: ${IB_PASSWORD_FILE:-}
   ib-tws:
-    image: ib-tws
+    image: danklabs/ib-tws:stable
     build:
       context: ./build
       dockerfile: Dockerfile
       args:
         PROGRAM: tws
         RELEASE: stable
+        VERSION: "NULL"
         ARCH: x64
+        IBC_VERSION: 3.23.0
     container_name: tws
     restart: always
     network_mode: host
