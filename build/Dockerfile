@@ -105,6 +105,16 @@ RUN set -eux; \
     test -x "$IB_RELEASE_DIR/$PROGRAM"; \
     test -f "$IB_RELEASE_DIR/$PROGRAM.vmoptions"; \
     test -d "$IB_RELEASE_DIR/.install4j"; \
+    test -f "$IB_RELEASE_DIR/.install4j/i4jruntime.jar"; \
+    if [ -f "$IB_RELEASE_DIR/.install4j/pref_jre.cfg" ]; then \
+      java_home="$(head -n 1 "$IB_RELEASE_DIR/.install4j/pref_jre.cfg")"; \
+    elif [ -f "$IB_RELEASE_DIR/.install4j/inst_jre.cfg" ]; then \
+      java_home="$(head -n 1 "$IB_RELEASE_DIR/.install4j/inst_jre.cfg")"; \
+    else \
+      echo "IB installer did not write pref_jre.cfg or inst_jre.cfg" >&2; \
+      exit 1; \
+    fi; \
+    test -x "$java_home/bin/java"; \
     if [ "$PROGRAM" = "ibgateway" ]; then \
       test "$(dirname "$(dirname "$IB_RELEASE_DIR")")" = "/opt"; \
     else \
@@ -124,6 +134,7 @@ RUN set -eux; \
       echo "Failed to patch IBC vmoptions reader to preserve -D options" >&2; \
       exit 1; \
     fi; \
+    test -f "$IBC_PATH/IBC.jar"; \
     test -x "$IBC_PATH/scripts/ibcstart.sh"; \
     rm -f /tmp/IBC.zip
 

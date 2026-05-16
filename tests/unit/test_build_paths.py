@@ -115,7 +115,15 @@ def documented_runtime_env_names() -> set[str]:
 
 def create_ib_release_dir(path: Path, app_name: str) -> None:
     """Create the minimal installer layout required by runtime path checks."""
+    java_home = path / "java"
     (path / "jars").mkdir(parents=True)
+    (path / ".install4j").mkdir()
+    (path / ".install4j" / "i4jruntime.jar").write_text("runtime")
+    (path / ".install4j" / "inst_jre.cfg").write_text(f"{java_home}\n")
+    (java_home / "bin").mkdir(parents=True)
+    java_path = java_home / "bin" / "java"
+    java_path.write_text("#!/bin/sh\n")
+    java_path.chmod(0o755)
     executable_path = path / app_name
     executable_path.write_text("#!/bin/sh\n")
     executable_path.chmod(0o755)
@@ -131,6 +139,7 @@ def create_ibc_dir(path: Path) -> None:
     """Create the minimal IBC layout required by runtime path checks."""
     scripts_dir = path / "scripts"
     scripts_dir.mkdir(parents=True, exist_ok=True)
+    (path / "IBC.jar").write_text("ibc")
     ibc_start_path = scripts_dir / "ibcstart.sh"
     ibc_start_path.write_text("#!/bin/sh\n")
     ibc_start_path.chmod(0o755)
@@ -432,6 +441,44 @@ def test_release_dir_validation_rejects_incomplete_installer_layout(
 
     assert result.returncode == 1
     assert "Expected executable" in result.stdout
+
+
+def test_release_dir_validation_requires_ibc_classpath_runtime(tmp_path: Path) -> None:
+    """Runtime should fail before IBC builds a classpath with a missing jar."""
+    release_dir = tmp_path / "opt" / "ibgateway" / "stable"
+    create_ib_release_dir(release_dir, "ibgateway")
+    (release_dir / ".install4j" / "i4jruntime.jar").unlink()
+
+    result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        PROGRAM=ibgateway
+        IB_RELEASE_DIR="{release_dir}"
+        resolve_ib_release_dir
+        """
+    )
+
+    assert result.returncode == 1
+    assert "Expected IBC classpath jar" in result.stdout
+
+
+def test_release_dir_validation_requires_install4j_java_config(tmp_path: Path) -> None:
+    """Runtime should fail before IBC cannot find Java from install4j metadata."""
+    release_dir = tmp_path / "opt" / "ibgateway" / "stable"
+    create_ib_release_dir(release_dir, "ibgateway")
+    (release_dir / ".install4j" / "inst_jre.cfg").unlink()
+
+    result = run_bash_unchecked(
+        f"""
+        source "{IB_UTILS_PATH}"
+        PROGRAM=ibgateway
+        IB_RELEASE_DIR="{release_dir}"
+        resolve_ib_release_dir
+        """
+    )
+
+    assert result.returncode == 1
+    assert "pref_jre.cfg or .install4j/inst_jre.cfg" in result.stdout
 
 
 def test_gateway_release_dir_uses_gateway_vmoptions_only(tmp_path: Path) -> None:
@@ -950,6 +997,7 @@ def test_ibc_startup_requires_absolute_runtime_paths() -> None:
         'ensure_executable_file "${IBC_PATH}/scripts/ibcstart.sh" "IBC start script"'
         in content
     )
+    assert 'ensure_file "${IBC_PATH}/IBC.jar" "IBC jar"' in content
     assert 'ensure_file "$IBC_INI" "IBC config"' in content
     assert "ensure_absolute_path HOME" in content
     assert 'ensure_directory_path "$HOME" "HOME"' in content
@@ -1029,6 +1077,30 @@ def test_python_release_layout_accepts_ibc_renamed_launcher(
     rename_ib_launcher_for_ibc(release_dir, "tws")
 
     init_settings.validate_ib_release_layout("tws", release_dir)
+
+
+def test_python_release_layout_requires_ibc_classpath_runtime(
+    init_settings: ModuleType, tmp_path: Path
+) -> None:
+    """Python startup validation should match IBC's install4j classpath usage."""
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    create_ib_release_dir(release_dir, "tws")
+    (release_dir / ".install4j" / "i4jruntime.jar").unlink()
+
+    with pytest.raises(RuntimeError, match="expected IBC classpath jar"):
+        init_settings.validate_ib_release_layout("tws", release_dir)
+
+
+def test_python_release_layout_requires_install4j_java_config(
+    init_settings: ModuleType, tmp_path: Path
+) -> None:
+    """Python startup validation should match IBC's install4j Java discovery."""
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    create_ib_release_dir(release_dir, "tws")
+    (release_dir / ".install4j" / "inst_jre.cfg").unlink()
+
+    with pytest.raises(RuntimeError, match="pref_jre.cfg"):
+        init_settings.validate_ib_release_layout("tws", release_dir)
 
 
 def test_tws_vmoptions_updates_tws_file_only(
@@ -1128,7 +1200,9 @@ def test_vmoptions_generation_rejects_incomplete_release_layout(
     home = tmp_path / "home" / "ibuser"
     release_dir = tmp_path / "opt" / "tws" / "stable"
     home.mkdir(parents=True)
-    (release_dir / "jars").mkdir(parents=True)
+    create_ib_release_dir(release_dir, "tws")
+    (release_dir / "tws").unlink()
+    (release_dir / "tws.vmoptions").unlink()
     (home / "vmoptions.j2").write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
 
     monkeypatch.setenv("HOME", str(home))
@@ -1381,7 +1455,8 @@ def test_main_rejects_incomplete_release_layout_before_rendering_configs(
     home.mkdir(parents=True)
     settings_dir.mkdir()
     ibc_dir.mkdir()
-    (release_dir / "jars").mkdir(parents=True)
+    create_ib_release_dir(release_dir, "tws")
+    (release_dir / "tws").unlink()
 
     ibc_ini = ibc_dir / "ibc.ini"
     jts_ini = settings_dir / "jts.ini"
@@ -2145,6 +2220,16 @@ def test_dockerfile_copies_arm64_external_java_to_runtime() -> None:
     )
 
 
+def test_dockerfile_verifies_ib_install4j_runtime_used_by_ibc() -> None:
+    """Build validation should cover the classpath and Java files IBC reads."""
+    content = DOCKERFILE_PATH.read_text()
+
+    assert 'test -f "$IB_RELEASE_DIR/.install4j/i4jruntime.jar"' in content
+    assert 'test -x "$java_home/bin/java"' in content
+    assert "pref_jre.cfg" in content
+    assert "inst_jre.cfg" in content
+
+
 def test_dockerfile_pins_base_image_digest() -> None:
     """Both stages should use the reviewed Debian manifest digest."""
     content = DOCKERFILE_PATH.read_text()
@@ -2238,6 +2323,7 @@ def test_dockerfile_verifies_ibc_start_script_during_build() -> None:
     content = DOCKERFILE_PATH.read_text()
 
     assert 'find "$IBC_PATH" -type f -name "*.sh" -exec chmod u+x {} +' in content
+    assert 'test -f "$IBC_PATH/IBC.jar"' in content
     assert 'test -x "$IBC_PATH/scripts/ibcstart.sh"' in content
     assert (
         "chmod -R u+x ${IBC_PATH}/*.sh ${IBC_PATH}/scripts/*.sh || true" not in content

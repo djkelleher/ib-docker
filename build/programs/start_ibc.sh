@@ -17,6 +17,7 @@ start_ibc() {
 	ensure_absolute_path IBC_PATH
 	ensure_absolute_path IBC_INI
 	ensure_executable_file "${IBC_PATH}/scripts/ibcstart.sh" "IBC start script"
+	ensure_file "${IBC_PATH}/IBC.jar" "IBC jar"
 	ensure_file "$IBC_INI" "IBC config"
 	if [ "$app_name" = "ibgateway" ]; then
 		ibc_args+=("-g")

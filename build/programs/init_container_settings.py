@@ -314,10 +314,17 @@ def validate_ib_release_layout(program: str, ib_release_dir: Path) -> None:
         )
     executable_paths = ib_launcher_paths(program, ib_release_dir)
     jars_path = ib_release_dir / "jars"
+    install4j_path = ib_release_dir / ".install4j"
     expected_vmoptions_paths = vmoptions_paths(program, ib_release_dir)
 
     if not jars_path.is_dir():
         raise RuntimeError(f"IB release directory is invalid: expected {jars_path}")
+    if not (install4j_path / "i4jruntime.jar").is_file():
+        raise RuntimeError(
+            "IB release directory is invalid: "
+            f"expected IBC classpath jar {install4j_path / 'i4jruntime.jar'}"
+        )
+    validate_install4j_java_config(install4j_path)
     if not any(
         path.is_file() and os.access(path, os.X_OK) for path in executable_paths
     ):
@@ -333,11 +340,35 @@ def validate_ib_release_layout(program: str, ib_release_dir: Path) -> None:
             )
 
 
+def validate_install4j_java_config(install4j_path: Path) -> None:
+    """Validate the Java discovery files IBC reads from .install4j."""
+    for cfg_path in [install4j_path / "pref_jre.cfg", install4j_path / "inst_jre.cfg"]:
+        if not cfg_path.is_file():
+            continue
+        cfg_content = cfg_path.read_text()
+        java_home = cfg_content.splitlines()[0] if cfg_content else ""
+        java_path = Path(java_home) / "bin" / "java"
+        if java_path.is_file() and os.access(java_path, os.X_OK):
+            return
+        raise RuntimeError(
+            "IB release directory is invalid: "
+            f"expected Java executable from {cfg_path}: {java_path}"
+        )
+
+    raise RuntimeError(
+        "IB release directory is invalid: "
+        f"expected {install4j_path / 'pref_jre.cfg'} or {install4j_path / 'inst_jre.cfg'}"
+    )
+
+
 def validate_ibc_layout(ibc_path: Path) -> None:
     """Validate the installed IBC layout before mutating runtime config."""
     require_absolute_path(ibc_path, "IBC_PATH")
     if not ibc_path.is_dir():
         raise RuntimeError(f"IBC directory does not exist: {ibc_path}")
+    ibc_jar_path = ibc_path / "IBC.jar"
+    if not ibc_jar_path.is_file():
+        raise RuntimeError(f"IBC layout is invalid: expected {ibc_jar_path}")
     ibc_start_path = ibc_path / "scripts" / "ibcstart.sh"
     if not ibc_start_path.is_file():
         raise RuntimeError(f"IBC layout is invalid: expected {ibc_start_path}")

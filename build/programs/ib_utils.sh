@@ -149,6 +149,35 @@ ensure_ib_launcher() {
 	exit 1
 }
 
+ensure_install4j_runtime() {
+	local release_dir="$1"
+	local install4j_dir="${release_dir}/.install4j"
+	local cfg_path
+	local java_home
+
+	if [ ! -f "${install4j_dir}/i4jruntime.jar" ]; then
+		log "ERROR: IB release directory is invalid: ${release_dir}"
+		log "Expected IBC classpath jar ${install4j_dir}/i4jruntime.jar"
+		exit 1
+	fi
+
+	for cfg_path in "${install4j_dir}/pref_jre.cfg" "${install4j_dir}/inst_jre.cfg"; do
+		if [ -f "$cfg_path" ]; then
+			IFS= read -r java_home <"$cfg_path" || java_home=""
+			if [ -x "${java_home}/bin/java" ]; then
+				return 0
+			fi
+			log "ERROR: IB release directory is invalid: ${release_dir}"
+			log "Expected Java executable from ${cfg_path}: ${java_home}/bin/java"
+			exit 1
+		fi
+	done
+
+	log "ERROR: IB release directory is invalid: ${release_dir}"
+	log "Expected .install4j/pref_jre.cfg or .install4j/inst_jre.cfg for IBC Java discovery"
+	exit 1
+}
+
 ib_product_executable() {
 	case "${PROGRAM:-}" in
 	ibgateway)
@@ -236,6 +265,8 @@ resolve_ib_release_dir() {
 		log "Expected vmoptions file ${release_dir}/${app_name}.vmoptions"
 		exit 1
 	fi
+
+	ensure_install4j_runtime "$release_dir"
 
 	printf '%s\n' "$release_dir"
 }
