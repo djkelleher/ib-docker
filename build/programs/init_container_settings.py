@@ -269,9 +269,18 @@ def custom_jvm_opts() -> list[str]:
     """Parse custom JVM options from the environment."""
     custom_opts_env = os.getenv("CUSTOM_JVM_OPTS", "")
     try:
-        return shlex.split(custom_opts_env)
+        custom_opts = shlex.split(custom_opts_env)
     except ValueError as exc:
         raise ValueError(f"CUSTOM_JVM_OPTS is invalid: {exc}") from exc
+
+    for opt in custom_opts:
+        if any(char.isspace() for char in opt):
+            raise ValueError(
+                "CUSTOM_JVM_OPTS entries cannot contain whitespace because "
+                f"IBC expands vmoptions through its shell launcher: {opt}"
+            )
+
+    return custom_opts
 
 
 def validate_java_heap_size() -> None:

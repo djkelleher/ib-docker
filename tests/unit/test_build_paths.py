@@ -972,7 +972,9 @@ def test_gateway_vmoptions_updates_gateway_file_only(
     monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
     monkeypatch.setenv("TWS_SETTINGS_PATH", str(home / "custom_settings"))
     monkeypatch.setenv("JAVA_HEAP_SIZE", "1g")
-    monkeypatch.setenv("CUSTOM_JVM_OPTS", "-Dcustom=true '-Dquoted=value with spaces'")
+    monkeypatch.setenv(
+        "CUSTOM_JVM_OPTS", "-Dcustom=true '-Dquoted=value-without-spaces'"
+    )
 
     init_settings.set_java_vmoptions()
 
@@ -981,9 +983,19 @@ def test_gateway_vmoptions_updates_gateway_file_only(
     assert "-Xms512m" in primary_content
     assert f"-DjtsConfigDir={home / 'custom_settings'}" in primary_content
     assert "-Dcustom=true" in primary_content
-    assert "-Dquoted=value with spaces" in primary_content
+    assert "-Dquoted=value-without-spaces" in primary_content
     assert not (release_dir / "tws.vmoptions").exists()
     assert template_path.exists()
+
+
+def test_custom_jvm_opts_reject_entries_with_whitespace(
+    init_settings: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """IBC's shell launcher cannot preserve whitespace inside one JVM argument."""
+    monkeypatch.setenv("CUSTOM_JVM_OPTS", "'-Dquoted=value with spaces'")
+
+    with pytest.raises(ValueError, match="entries cannot contain whitespace"):
+        init_settings.custom_jvm_opts()
 
 
 def test_gateway_layout_validation_does_not_require_tws_vmoptions(
@@ -2230,6 +2242,18 @@ def test_dockerfile_verifies_ibc_start_script_during_build() -> None:
     assert (
         "chmod -R u+x ${IBC_PATH}/*.sh ${IBC_PATH}/scripts/*.sh || true" not in content
     )
+
+
+def test_dockerfile_patches_ibc_vmoptions_reader_to_keep_system_properties() -> None:
+    """Docker-rendered -D vmoptions must survive IBC's stock launcher filter."""
+    content = DOCKERFILE_PATH.read_text()
+
+    assert (
+        'sed -i \'s/ && ! "${line:0:2}" = "-D"//g\' '
+        '"$IBC_PATH/scripts/ibcstart.sh"' in content
+    )
+    assert "preserve -D options" in content
+    assert "Failed to patch IBC vmoptions reader" in content
 
 
 def test_dockerfile_does_not_create_gateway_tws_vmoptions_copy() -> None:

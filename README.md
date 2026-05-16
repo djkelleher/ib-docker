@@ -213,7 +213,7 @@ does not define `ports` mappings; connect to the host API ports directly.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `JAVA_HEAP_SIZE` | auto | Fixed maximum heap size. Supports whole MB values, `m`, or `g` suffixes |
-| `CUSTOM_JVM_OPTS` | - | Extra JVM options parsed with shell-style quoting |
+| `CUSTOM_JVM_OPTS` | - | Extra JVM options parsed with shell-style quoting; each option must not contain whitespace |
 
 ```bash
 # Set a fixed heap, or leave empty to auto-size from container memory.

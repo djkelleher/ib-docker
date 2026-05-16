@@ -116,6 +116,14 @@ RUN set -eux; \
     wget -nv --tries=3 --timeout=30 -O /tmp/IBC.zip "https://github.com/IbcAlpha/IBC/releases/download/${IBC_VERSION}/IBCLinux-${IBC_VERSION}.zip"; \
     unzip /tmp/IBC.zip -d "$IBC_PATH"; \
     find "$IBC_PATH" -type f -name "*.sh" -exec chmod u+x {} +; \
+    # IBC's stock launcher ignores every -D entry from the IB vmoptions file.
+    # This image renders a controlled vmoptions file at runtime, including
+    # container-specific system properties and CUSTOM_JVM_OPTS, so preserve them.
+    sed -i 's/ && ! "${line:0:2}" = "-D"//g' "$IBC_PATH/scripts/ibcstart.sh"; \
+    if grep -Fq '! "${line:0:2}" = "-D"' "$IBC_PATH/scripts/ibcstart.sh"; then \
+      echo "Failed to patch IBC vmoptions reader to preserve -D options" >&2; \
+      exit 1; \
+    fi; \
     test -x "$IBC_PATH/scripts/ibcstart.sh"; \
     rm -f /tmp/IBC.zip
 
