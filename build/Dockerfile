@@ -65,7 +65,7 @@ ENV IBC_PATH=/opt/ibc \
 RUN set -eux; \
     mkdir -p "$IB_RELEASE_DIR"; \
     # Ensure target JRE container path exists (will hold bundled or external Java) \
-    mkdir -p /opt/i4j_jres; \
+    mkdir -p /opt/i4j_jres /usr/local/zulu17; \
     if [ "$IB_VERSION" = "NULL" ]; then \
       URL="https://download2.interactivebrokers.com/installers/${PROGRAM}/${RELEASE}-standalone/${PROGRAM}-${RELEASE}-standalone-linux-${IB_INSTALLER_ARCH}.sh"; \
       wget -nv --tries=3 --timeout=30 -O /ib.sh "$URL"; \
@@ -90,7 +90,7 @@ RUN set -eux; \
       ZULU_NAME="zulu17.52.17-ca-jre17.0.12-linux_aarch64"; \
       wget -nv --tries=3 --timeout=30 -O /tmp/zulu.tar.gz "https://cdn.azul.com/zulu/bin/${ZULU_NAME}.tar.gz"; \
       tar -xzf /tmp/zulu.tar.gz -C /usr/local/; \
-      ln -s /usr/local/${ZULU_NAME} /usr/local/zulu17; \
+      cp -a /usr/local/${ZULU_NAME}/. /usr/local/zulu17/; \
       app_java_home=/usr/local/zulu17 /ib.sh -q -dir "$IB_RELEASE_DIR"; \
       rm -f /tmp/zulu.tar.gz; \
     else \
@@ -216,6 +216,8 @@ COPY --from=builder --chown=ibuser:ibuser /opt/${PROGRAM} /opt/${PROGRAM}
 COPY --from=builder --chown=ibuser:ibuser /opt/ibc /opt/ibc
 # Copy bundled JRE directory created by installer (empty for gateway if not used but path exists)
 COPY --from=builder --chown=ibuser:ibuser /opt/i4j_jres /opt/i4j_jres
+# Copy external arm64 JRE path; empty on amd64, populated when TARGETARCH=arm64.
+COPY --from=builder --chown=ibuser:ibuser /usr/local/zulu17 /usr/local/zulu17
 
 # Copy configuration & scripts
 COPY --chown=ibuser:ibuser config/jts.ini ${HOME}/tws_settings/jts.ini

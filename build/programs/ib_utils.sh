@@ -136,6 +136,19 @@ ensure_directory_path() {
 	fi
 }
 
+ensure_ib_launcher() {
+	local release_dir="$1"
+	local app_name="$2"
+
+	if [ -x "$release_dir/$app_name" ] || [ -x "$release_dir/${app_name}1" ]; then
+		return 0
+	fi
+
+	log "ERROR: IB release directory is invalid: ${release_dir}"
+	log "Expected executable ${release_dir}/${app_name} or IBC-renamed executable ${release_dir}/${app_name}1"
+	exit 1
+}
+
 ib_product_executable() {
 	case "${PROGRAM:-}" in
 	ibgateway)
@@ -216,11 +229,7 @@ resolve_ib_release_dir() {
 		exit 1
 	fi
 
-	if [ ! -x "$release_dir/$app_name" ]; then
-		log "ERROR: IB release directory is invalid: ${release_dir}"
-		log "Expected executable ${release_dir}/${app_name}"
-		exit 1
-	fi
+	ensure_ib_launcher "$release_dir" "$app_name"
 
 	if [ ! -f "$release_dir/${app_name}.vmoptions" ]; then
 		log "ERROR: IB release directory is invalid: ${release_dir}"

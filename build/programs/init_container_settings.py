@@ -249,6 +249,11 @@ def vmoptions_paths(program: str, ib_release_dir: Path) -> list[Path]:
     return [ib_release_dir / name for name in vmoptions_names(program)]
 
 
+def ib_launcher_paths(program: str, ib_release_dir: Path) -> list[Path]:
+    """Return valid IB launcher paths before and after IBC's startup rename."""
+    return [ib_release_dir / program, ib_release_dir / f"{program}1"]
+
+
 def resolve_ib_release_dir(program: str, install_root: Path = Path("/opt")) -> Path:
     """Return the configured or default IB release directory."""
     vmoptions_names(program)
@@ -298,19 +303,18 @@ def validate_ib_release_layout(program: str, ib_release_dir: Path) -> None:
             f"{program} release directory must be nested under {article} {program} "
             f"directory: {ib_release_dir}"
         )
-    executable_path = ib_release_dir / program
+    executable_paths = ib_launcher_paths(program, ib_release_dir)
     jars_path = ib_release_dir / "jars"
     expected_vmoptions_paths = vmoptions_paths(program, ib_release_dir)
 
     if not jars_path.is_dir():
         raise RuntimeError(f"IB release directory is invalid: expected {jars_path}")
-    if not executable_path.is_file():
+    if not any(
+        path.is_file() and os.access(path, os.X_OK) for path in executable_paths
+    ):
+        expected_paths = " or ".join(str(path) for path in executable_paths)
         raise RuntimeError(
-            f"IB release directory is invalid: expected executable {executable_path}"
-        )
-    if not os.access(executable_path, os.X_OK):
-        raise RuntimeError(
-            f"IB release directory is invalid: executable is not runnable {executable_path}"
+            "IB release directory is invalid: " f"expected executable {expected_paths}"
         )
     for vmoptions_path in expected_vmoptions_paths:
         if not vmoptions_path.is_file():

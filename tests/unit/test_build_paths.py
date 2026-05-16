@@ -122,6 +122,11 @@ def create_ib_release_dir(path: Path, app_name: str) -> None:
     (path / f"{app_name}.vmoptions").write_text("-Xmx256m\n")
 
 
+def rename_ib_launcher_for_ibc(path: Path, app_name: str) -> None:
+    """Mirror IBC's startup rename of the original IB launcher."""
+    (path / app_name).rename(path / f"{app_name}1")
+
+
 def create_ibc_dir(path: Path) -> None:
     """Create the minimal IBC layout required by runtime path checks."""
     scripts_dir = path / "scripts"
@@ -445,6 +450,24 @@ def test_gateway_release_dir_uses_gateway_vmoptions_only(tmp_path: Path) -> None
 
     assert result.stdout.strip() == str(release_dir)
     assert not (release_dir / "tws.vmoptions").exists()
+
+
+def test_release_dir_validation_accepts_ibc_renamed_launcher(tmp_path: Path) -> None:
+    """Runtime restarts should survive IBC's ibgateway -> ibgateway1 rename."""
+    release_dir = tmp_path / "opt" / "ibgateway" / "stable"
+    create_ib_release_dir(release_dir, "ibgateway")
+    rename_ib_launcher_for_ibc(release_dir, "ibgateway")
+
+    result = run_bash(
+        f"""
+        source "{IB_UTILS_PATH}"
+        PROGRAM=ibgateway
+        IB_RELEASE_DIR="{release_dir}"
+        resolve_ib_release_dir
+        """
+    )
+
+    assert result.stdout.strip() == str(release_dir)
 
 
 def test_shell_product_validation_rejects_unsupported_program() -> None:
@@ -983,6 +1006,17 @@ def test_gateway_layout_validation_does_not_require_tws_vmoptions(
 
     assert "-Xmx1024m" in (release_dir / "ibgateway.vmoptions").read_text()
     assert not (release_dir / "tws.vmoptions").exists()
+
+
+def test_python_release_layout_accepts_ibc_renamed_launcher(
+    init_settings: ModuleType, tmp_path: Path
+) -> None:
+    """Python startup validation should accept IBC's post-start launcher name."""
+    release_dir = tmp_path / "opt" / "tws" / "stable"
+    create_ib_release_dir(release_dir, "tws")
+    rename_ib_launcher_for_ibc(release_dir, "tws")
+
+    init_settings.validate_ib_release_layout("tws", release_dir)
 
 
 def test_tws_vmoptions_updates_tws_file_only(
@@ -2085,6 +2119,26 @@ def test_dockerfile_keeps_runtime_ownership_scoped() -> None:
     assert "chown -R ibuser:ibuser /var/log/supervisor /etc/supervisor" not in content
     assert "chown -R ibuser:ibuser /var/log/supervisor" in content
     assert "COPY --chown=root:root config/supervisord.conf" in content
+
+
+def test_dockerfile_copies_arm64_external_java_to_runtime() -> None:
+    """The arm64 Java path configured during install should exist at runtime."""
+    content = DOCKERFILE_PATH.read_text()
+
+    assert "mkdir -p /opt/i4j_jres /usr/local/zulu17" in content
+    assert "app_java_home=/usr/local/zulu17 /ib.sh" in content
+    assert (
+        "COPY --from=builder --chown=ibuser:ibuser /usr/local/zulu17 /usr/local/zulu17"
+        in content
+    )
+
+
+def test_dockerfile_pins_base_image_digest() -> None:
+    """Both stages should use the reviewed Debian manifest digest."""
+    content = DOCKERFILE_PATH.read_text()
+
+    assert content.count("FROM debian:bookworm-slim@sha256:") == 2
+    assert "FROM debian:bookworm-slim AS" not in content
 
 
 def test_dockerfile_does_not_expose_runtime_selected_ports() -> None:
