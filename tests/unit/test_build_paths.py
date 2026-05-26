@@ -2990,17 +2990,17 @@ def test_ci_shared_release_tags_require_both_products() -> None:
     assert "return created_releases" in content
 
 
-def test_ci_build_platforms_match_workflow_support() -> None:
+def test_ci_build_platforms_match_workflow_support(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Manual CI image builds should not attempt unsupported TWS arm64 builds."""
+    ci_module = load_ci_module(monkeypatch)
     ci_content = CI_PATH.read_text()
     gateway_workflow = GATEWAY_WORKFLOW_PATH.read_text()
     tws_workflow = TWS_WORKFLOW_PATH.read_text()
 
-    assert (
-        'if program == "ibgateway":\n        return "linux/amd64,linux/arm64"'
-        in ci_content
-    )
-    assert 'if program == "tws":\n        return "linux/amd64"' in ci_content
+    assert ci_module.docker_platforms("ibgateway") == "linux/amd64,linux/arm64"
+    assert ci_module.docker_platforms("tws") == "linux/amd64"
     assert '"--platform",\n        platforms,' in ci_content
     assert "platforms: linux/amd64,linux/arm64" in gateway_workflow
     assert "platforms: linux/amd64\n" in tws_workflow
@@ -4362,16 +4362,21 @@ def test_compose_uses_distinct_vnc_ports_for_host_network_services() -> None:
 
 def test_compose_readme_and_workflows_use_installer_arch_arg() -> None:
     """Build callers should use the explicit IB installer architecture arg."""
-    contents = [
-        DOCKER_COMPOSE_PATH.read_text(),
+    explicit_build_caller_contents = [
         README_PATH.read_text(),
         GATEWAY_WORKFLOW_PATH.read_text(),
         TWS_WORKFLOW_PATH.read_text(),
         CI_PATH.read_text(),
     ]
+    all_build_contents = explicit_build_caller_contents + [
+        DOCKER_COMPOSE_PATH.read_text(),
+        DOCKERFILE_PATH.read_text(),
+    ]
 
-    for content in contents:
+    for content in explicit_build_caller_contents:
         assert "IB_INSTALLER_ARCH" in content
+
+    for content in all_build_contents:
         assert "\n        ARCH: x64" not in content
         assert "--build-arg ARCH=x64" not in content
         assert "\n                ARCH=x64" not in content

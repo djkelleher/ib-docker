@@ -1,5 +1,12 @@
 .env
 downloads
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.venv/
+.vscode/
+.idea/
 
 # Python
 __pycache__/

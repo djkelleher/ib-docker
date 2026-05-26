@@ -9,31 +9,31 @@ This file provides guidance to Codex when working with code in this repository.
 pytest
 
 # Run single test file
-pytest tests/unit/test_repository.py
+pytest tests/unit/test_build_paths.py
 
 # Run single test
-pytest tests/unit/test_repository.py::test_function_name -v
+pytest tests/unit/test_build_paths.py::test_function_name -v
 
-# Run with coverage
-pytest --cov=src
+# Run pre-commit hooks
+pre-commit run --all-files
 
 # Format code
-black src/ tests/ --line-length 100
+black ci.py build/programs/init_container_settings.py tests/ --line-length 100
 
 # Sort imports
-isort src/ tests/ --profile black
+isort ci.py build/programs/init_container_settings.py tests/ --profile black
 
 # Lint
-flake8 src/ tests/ --max-complexity 10
+shfmt -w build/programs/*.sh
 ```
 
-use all python features up to python 3.12
+Use all Python features up to Python 3.12.
 
 ## Code Style
 
 - Formatter: black (100 char lines)
 - Import sorting: isort (black profile)
-- Linting: flake8 (max complexity 10)
+- Linting: pre-commit hooks
 - Type hints required on all function signatures
 - Docstrings: NumPy convention
 
