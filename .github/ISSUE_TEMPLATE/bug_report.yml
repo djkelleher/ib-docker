@@ -1,0 +1,31 @@
+name: Bug report
+description: Report a reproducible problem with the image, scripts, or CI.
+title: "Bug: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+    validations:
+      required: true
+  - type: input
+    id: image
+    attributes:
+      label: Image and tag
+      placeholder: danklabs/ib-gateway:stable
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Include compose overrides, commands, and redacted logs.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true

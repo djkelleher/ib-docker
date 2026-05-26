@@ -12,11 +12,12 @@ repos:
       - id: check-added-large-files
       - id: check-ast
 
-  # 2. detect-secrets (unchanged—v1.5.0 is still the latest)
-  #- repo: https://github.com/Yelp/detect-secrets
-  #  rev: v1.5.0
-  #  hooks:
-  #    - id: detect-secrets
+  # 2. detect-secrets
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
 
   # 3. Black formatter
   - repo: https://github.com/psf/black

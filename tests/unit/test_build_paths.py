@@ -21,6 +21,7 @@ ENTRYPOINT_PATH = REPO_ROOT / "build" / "programs" / "entrypoint.sh"
 START_VNC_PATH = REPO_ROOT / "build" / "programs" / "start_vnc.sh"
 START_XVFB_PATH = REPO_ROOT / "build" / "programs" / "start_xvfb.sh"
 START_IBC_PATH = REPO_ROOT / "build" / "programs" / "start_ibc.sh"
+HEALTHCHECK_PATH = REPO_ROOT / "build" / "programs" / "healthcheck.sh"
 DOCKERFILE_PATH = REPO_ROOT / "build" / "Dockerfile"
 BUILD_DOCKERIGNORE_PATH = REPO_ROOT / "build" / ".dockerignore"
 VMOPTIONS_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "vmoptions.j2"
@@ -31,6 +32,8 @@ IBC_TEMPLATE_PATH = REPO_ROOT / "build" / "config" / "ibc.ini"
 README_PATH = REPO_ROOT / "README.md"
 GATEWAY_WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "build_gateway.yml"
 TWS_WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "build_tws.yml"
+RELEASE_WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "release.yml"
+PRE_COMMIT_CONFIG_PATH = REPO_ROOT / ".pre-commit-config.yaml"
 ENV_VAR_PATTERN = re.compile(r"\$\{([A-Z0-9_]+)(?::-[^}]*)?\}")
 EXTRA_RUNTIME_ENV_NAMES = {
     "CUSTOM_JVM_OPTS",
@@ -43,9 +46,7 @@ EXTRA_RUNTIME_ENV_NAMES = {
 
 def load_init_settings() -> ModuleType:
     """Load init_container_settings.py from its runtime script location."""
-    spec = importlib.util.spec_from_file_location(
-        "init_container_settings", INIT_SETTINGS_PATH
-    )
+    spec = importlib.util.spec_from_file_location("init_container_settings", INIT_SETTINGS_PATH)
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -188,9 +189,7 @@ def test_env_substitution_uses_defaults_for_empty_values(
     monkeypatch.setenv("IB_USER", "")
 
     rendered = init_settings.sub_env_vars(
-        "TradingMode=${TRADING_MODE:-paper}\n"
-        "FIX=${FIX:-no}\n"
-        "IbLoginId=${IB_USER}\n"
+        "TradingMode=${TRADING_MODE:-paper}\n" "FIX=${FIX:-no}\n" "IbLoginId=${IB_USER}\n"
     )
 
     assert rendered == "TradingMode=paper\nFIX=no\nIbLoginId=\n"
@@ -993,10 +992,7 @@ def test_ibc_startup_requires_absolute_runtime_paths() -> None:
     assert 'IB_RELEASE="$(ib_release_version_from_dir "$IB_RELEASE_DIR")"' in content
     assert "ensure_absolute_path IBC_PATH" in content
     assert "ensure_absolute_path IBC_INI" in content
-    assert (
-        'ensure_executable_file "${IBC_PATH}/scripts/ibcstart.sh" "IBC start script"'
-        in content
-    )
+    assert 'ensure_executable_file "${IBC_PATH}/scripts/ibcstart.sh" "IBC start script"' in content
     assert 'ensure_file "${IBC_PATH}/IBC.jar" "IBC jar"' in content
     assert 'ensure_file "$IBC_INI" "IBC config"' in content
     assert "ensure_absolute_path HOME" in content
@@ -1020,9 +1016,7 @@ def test_gateway_vmoptions_updates_gateway_file_only(
     monkeypatch.setenv("IB_RELEASE_DIR", str(release_dir))
     monkeypatch.setenv("TWS_SETTINGS_PATH", str(home / "custom_settings"))
     monkeypatch.setenv("JAVA_HEAP_SIZE", "1g")
-    monkeypatch.setenv(
-        "CUSTOM_JVM_OPTS", "-Dcustom=true '-Dquoted=value-without-spaces'"
-    )
+    monkeypatch.setenv("CUSTOM_JVM_OPTS", "-Dcustom=true '-Dquoted=value-without-spaces'")
 
     init_settings.set_java_vmoptions()
 
@@ -1395,9 +1389,7 @@ def test_main_rejects_gateway_release_dir_shape_before_rendering_configs(
     monkeypatch.setenv("IB_PASSWORD", "paper-password")
     monkeypatch.setenv("TIME_ZONE", "America/New_York")
 
-    with pytest.raises(
-        RuntimeError, match="must be nested under an ibgateway directory"
-    ):
+    with pytest.raises(RuntimeError, match="must be nested under an ibgateway directory"):
         init_settings.main()
 
     assert ibc_ini.read_text() == "IbLoginId=old\n"
@@ -1578,9 +1570,7 @@ def test_main_rejects_invalid_trading_mode_before_rendering_configs(
     jts_ini = settings_dir / "jts.ini"
     ibc_ini.write_text("TradingMode=old\n")
     jts_ini.write_text("TimeZone=old\n")
-    ibc_ini.with_suffix(".ini.template").write_text(
-        "TradingMode=${TRADING_MODE:-paper}\n"
-    )
+    ibc_ini.with_suffix(".ini.template").write_text("TradingMode=${TRADING_MODE:-paper}\n")
     jts_ini.with_suffix(".ini.template").write_text("TimeZone=${TIME_ZONE:-UTC}\n")
     (home / "vmoptions.j2").write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
 
@@ -1876,9 +1866,7 @@ def test_main_defaults_tws_settings_path_to_home(
     ibc_ini = ibc_dir / "ibc.ini"
     ibc_ini.with_suffix(".ini.template").write_text("IbLoginId=${IB_USER}\n")
     default_settings_dir.mkdir()
-    (default_settings_dir / "jts.ini.template").write_text(
-        "TimeZone=${TIME_ZONE:-UTC}\n"
-    )
+    (default_settings_dir / "jts.ini.template").write_text("TimeZone=${TIME_ZONE:-UTC}\n")
     (home / "vmoptions.j2").write_text(VMOPTIONS_TEMPLATE_PATH.read_text())
 
     monkeypatch.setenv("HOME", str(home))
@@ -1894,9 +1882,7 @@ def test_main_defaults_tws_settings_path_to_home(
     init_settings.main()
 
     assert ibc_ini.read_text() == "IbLoginId=paper-user\n"
-    assert (
-        default_settings_dir / "jts.ini"
-    ).read_text() == "TimeZone=America/New_York\n"
+    assert (default_settings_dir / "jts.ini").read_text() == "TimeZone=America/New_York\n"
 
 
 def test_render_config_template_bootstraps_existing_placeholder_config(
@@ -2061,9 +2047,7 @@ def test_render_config_template_rejects_file_template_parent(
     output_path.write_text("IbLoginId=${IB_USER}\n")
     template_parent.write_text("not a directory")
 
-    with pytest.raises(
-        RuntimeError, match="ibc.ini template parent is not a directory"
-    ):
+    with pytest.raises(RuntimeError, match="ibc.ini template parent is not a directory"):
         init_settings.render_config_template(template_path, output_path, "ibc.ini")
 
     assert output_path.read_text() == "IbLoginId=${IB_USER}\n"
@@ -2080,9 +2064,7 @@ def test_render_config_template_rejects_file_template_ancestor(
     output_path.write_text("IbLoginId=${IB_USER}\n")
     template_ancestor.write_text("not a directory")
 
-    with pytest.raises(
-        RuntimeError, match="ibc.ini template parent is not a directory"
-    ):
+    with pytest.raises(RuntimeError, match="ibc.ini template parent is not a directory"):
         init_settings.render_config_template(template_path, output_path, "ibc.ini")
 
     assert output_path.read_text() == "IbLoginId=${IB_USER}\n"
@@ -2125,12 +2107,10 @@ def test_main_bootstraps_custom_config_paths_from_default_templates(
     assert custom_ibc_ini.read_text() == "IbLoginId=custom-user\n"
     assert custom_jts_ini.read_text() == "TimeZone=America/New_York\n"
     assert (
-        custom_ibc_ini.with_suffix(".ini.template").read_text()
-        == default_ibc_template.read_text()
+        custom_ibc_ini.with_suffix(".ini.template").read_text() == default_ibc_template.read_text()
     )
     assert (
-        custom_jts_ini.with_suffix(".ini.template").read_text()
-        == default_jts_template.read_text()
+        custom_jts_ini.with_suffix(".ini.template").read_text() == default_jts_template.read_text()
     )
     assert (release_dir / "ibgateway.vmoptions").exists()
 
@@ -2167,6 +2147,14 @@ def test_supervisor_config_uses_supported_startup_coordination() -> None:
     assert "serverurl=unix:///tmp/supervisor.sock" in content
 
 
+def test_supervisor_config_rotates_internal_log() -> None:
+    """Supervisord's own log should not grow without a bound on disk."""
+    content = SUPERVISORD_CONF_PATH.read_text()
+
+    assert re.search(r"^logfile_maxbytes=10MB", content, flags=re.MULTILINE)
+    assert not re.search(r"^logfile_maxbytes=0", content, flags=re.MULTILINE)
+
+
 def test_supervisor_config_uses_condition_checks_instead_of_startup_padding() -> None:
     """Supervisor should not use long fixed delays as readiness checks."""
     supervisor_content = SUPERVISORD_CONF_PATH.read_text()
@@ -2187,15 +2175,35 @@ def test_supervisor_config_uses_condition_checks_instead_of_startup_padding() ->
 
 def test_dockerfile_healthcheck_uses_supervisor_service_status() -> None:
     """Healthcheck should fail when IBC is not running under supervisord."""
+    dockerfile_content = DOCKERFILE_PATH.read_text()
+    healthcheck_content = HEALTHCHECK_PATH.read_text()
+
+    assert (
+        "COPY --chown=root:root programs/healthcheck.sh /usr/local/bin/healthcheck"
+        in dockerfile_content
+    )
+    assert "/usr/local/bin/healthcheck" in dockerfile_content
+    assert (
+        "HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3"
+        in dockerfile_content
+    )
+    assert "--start-period=180s" not in dockerfile_content
+    assert dockerfile_content.count("supervisorctl status xvfb ibc") == 0
+    assert healthcheck_content.count("supervisorctl status xvfb ibc") == 1
+    assert "awk '/^xvfb[[:space:]]+RUNNING/{xvfb=1}" in healthcheck_content
+    assert " /^ibc[[:space:]]+RUNNING/{ibc=1}" in healthcheck_content
+    assert "END{exit !(xvfb && ibc)}'" in healthcheck_content
+    assert "xset q" in healthcheck_content
+    assert "pgrep -f supervisord" not in dockerfile_content
+    assert "pgrep -f supervisord" not in healthcheck_content
+
+
+def test_dockerfile_declares_graceful_stop_signal() -> None:
+    """Docker should send SIGTERM so start_ibc can stop the IB process cleanly."""
     content = DOCKERFILE_PATH.read_text()
 
-    assert "--start-period=90s" in content
-    assert "--start-period=180s" not in content
-    assert content.count("supervisorctl status xvfb ibc") == 1
-    assert "awk '/^xvfb[[:space:]]+RUNNING/{xvfb=1}" in content
-    assert " /^ibc[[:space:]]+RUNNING/{ibc=1}" in content
-    assert "END{exit !(xvfb && ibc)}'" in content
-    assert "pgrep -f supervisord" not in content
+    assert "STOPSIGNAL SIGTERM" in content
+    assert content.index("STOPSIGNAL SIGTERM") < content.index("ENTRYPOINT")
 
 
 def test_dockerfile_keeps_runtime_ownership_scoped() -> None:
@@ -2215,8 +2223,7 @@ def test_dockerfile_copies_arm64_external_java_to_runtime() -> None:
     assert "mkdir -p /opt/i4j_jres /usr/local/zulu17" in content
     assert "app_java_home=/usr/local/zulu17 /ib.sh" in content
     assert (
-        "COPY --from=builder --chown=ibuser:ibuser /usr/local/zulu17 /usr/local/zulu17"
-        in content
+        "COPY --from=builder --chown=ibuser:ibuser /usr/local/zulu17 /usr/local/zulu17" in content
     )
 
 
@@ -2258,10 +2265,7 @@ def test_dockerfile_validates_build_args_before_downloads() -> None:
     assert "TARGETPLATFORM" not in content
     assert "TWS images are only supported for linux/amd64" in content
     assert "Unsupported RELEASE" in content
-    assert (
-        "IB installer artifacts are only supported with IB_INSTALLER_ARCH=x64"
-        in content
-    )
+    assert "IB installer artifacts are only supported with IB_INSTALLER_ARCH=x64" in content
     assert "IB_VERSION must be NULL or a packaged IB version" in content
     assert "IB_VERSION must look like 10.45.1e or be NULL" in content
     assert "grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+[a-z]?$'" in content
@@ -2325,9 +2329,7 @@ def test_dockerfile_verifies_ibc_start_script_during_build() -> None:
     assert 'find "$IBC_PATH" -type f -name "*.sh" -exec chmod u+x {} +' in content
     assert 'test -f "$IBC_PATH/IBC.jar"' in content
     assert 'test -x "$IBC_PATH/scripts/ibcstart.sh"' in content
-    assert (
-        "chmod -R u+x ${IBC_PATH}/*.sh ${IBC_PATH}/scripts/*.sh || true" not in content
-    )
+    assert "chmod -R u+x ${IBC_PATH}/*.sh ${IBC_PATH}/scripts/*.sh || true" not in content
 
 
 def test_dockerfile_patches_ibc_vmoptions_reader_to_keep_system_properties() -> None:
@@ -2335,8 +2337,7 @@ def test_dockerfile_patches_ibc_vmoptions_reader_to_keep_system_properties() -> 
     content = DOCKERFILE_PATH.read_text()
 
     assert (
-        'sed -i \'s/ && ! "${line:0:2}" = "-D"//g\' '
-        '"$IBC_PATH/scripts/ibcstart.sh"' in content
+        'sed -i \'s/ && ! "${line:0:2}" = "-D"//g\' ' '"$IBC_PATH/scripts/ibcstart.sh"' in content
     )
     assert "preserve -D options" in content
     assert "Failed to patch IBC vmoptions reader" in content
@@ -2462,17 +2463,38 @@ def test_release_workflows_run_after_release_assets_are_published() -> None:
     for workflow_path in [GATEWAY_WORKFLOW_PATH, TWS_WORKFLOW_PATH]:
         content = workflow_path.read_text()
 
-        assert "release:\n      types: [published]" in content
+        assert "release:\n    types: [published]" in content
         assert "types: [created]" not in content
+
+
+def test_build_workflows_use_cache_permissions_and_explicit_tag_source() -> None:
+    """Image build workflows should avoid ambiguous tags and use Buildx caching."""
+    for workflow_path in [GATEWAY_WORKFLOW_PATH, TWS_WORKFLOW_PATH]:
+        content = workflow_path.read_text()
+
+        assert "permissions:\n  contents: read" in content
+        assert "concurrency:" in content
+        assert "cancel-in-progress: true" in content
+        assert "cache-from: type=gha" in content
+        assert "cache-to: type=gha,mode=max" in content
+        assert "github.event_name == 'release'" in content
+        assert "github.event.release.tag_name }}${{ github.event.inputs.tag_name" not in content
+
+
+def test_release_workflow_documents_cron_timezone_and_limits_permissions() -> None:
+    """The scheduled release check should document UTC and run with read permissions."""
+    content = RELEASE_WORKFLOW_PATH.read_text()
+
+    assert "# Runs at 06:34 UTC." in content
+    assert "permissions:\n  contents: read" in content
+    assert "concurrency:" in content
 
 
 def test_ci_module_does_not_read_secrets_at_import_time() -> None:
     """CI helpers should be importable without runtime-only secret environment."""
     tree = ast.parse(CI_PATH.read_text())
     top_level_nodes = [
-        node
-        for node in tree.body
-        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.Expr))
+        node for node in tree.body if isinstance(node, (ast.Assign, ast.AnnAssign, ast.Expr))
     ]
 
     for node in top_level_nodes:
@@ -2493,10 +2515,7 @@ def test_ci_validates_release_tags_before_building() -> None:
     assert "latest|stable|beta" in content
     assert "def parse_release_tag(tag_name: str) -> GitHubRelease:" in content
     assert 'raise ValueError(f"Invalid release tag: {tag_name}")' in content
-    assert (
-        "releases: list[IBRelease | GitHubRelease] = [parse_release_tag(tag)]"
-        in content
-    )
+    assert "releases: list[IBRelease | GitHubRelease] = [parse_release_tag(tag)]" in content
 
 
 def test_ci_parse_release_tag_rejects_invalid_tags(
@@ -2539,10 +2558,7 @@ def test_ci_validates_upstream_build_versions_before_release_tags() -> None:
     """Release creation should reject unexpected upstream buildVersion strings."""
     content = CI_PATH.read_text()
 
-    assert (
-        "def release_meta_value(release_meta: dict[str, Any], key: str, source: str)"
-        in content
-    )
+    assert "def release_meta_value(release_meta: dict[str, Any], key: str, source: str)" in content
     assert "def parse_build_version(version: str, source: str) -> str:" in content
     assert "if not BUILD_VERSION_RE.fullmatch(version):" in content
     assert "Invalid IB build version from {source}: {version}" in content
@@ -2590,9 +2606,7 @@ def test_ci_parse_build_datetime_rejects_invalid_timestamps(
     parsed = ci_module.parse_build_datetime("2026-05-12T13:45:00", "test metadata")
 
     assert parsed.isoformat() == "2026-05-12T13:45:00"
-    with pytest.raises(
-        ValueError, match="Invalid IB build datetime from test metadata"
-    ):
+    with pytest.raises(ValueError, match="Invalid IB build datetime from test metadata"):
         ci_module.parse_build_datetime("not-a-date", "test metadata")
 
 
@@ -2600,10 +2614,7 @@ def test_ci_metadata_parser_rejects_missing_or_non_string_values() -> None:
     """Release metadata parsing should not assume upstream JSON shape blindly."""
     content = CI_PATH.read_text()
 
-    assert (
-        "def parse_release_meta(content: str, source: str) -> dict[str, Any]:"
-        in content
-    )
+    assert "def parse_release_meta(content: str, source: str) -> dict[str, Any]:" in content
     assert "return parse_release_meta(resp, url)" in content
     assert "except json.JSONDecodeError as exc:" in content
     assert "json.JSONDecoder().raw_decode(metadata_content)" in content
@@ -2622,9 +2633,9 @@ def test_ci_parse_release_meta_rejects_invalid_documents(
     """Upstream version metadata should fail clearly when the JSON is malformed."""
     ci_module = load_ci_module(monkeypatch)
 
-    assert ci_module.parse_release_meta(
-        'callback({"buildVersion": "10.45.1e"})', "test-url"
-    ) == {"buildVersion": "10.45.1e"}
+    assert ci_module.parse_release_meta('callback({"buildVersion": "10.45.1e"})', "test-url") == {
+        "buildVersion": "10.45.1e"
+    }
     assert ci_module.parse_release_meta(
         'ibgatewaystable_callback({"buildVersion":"10.45.1e",'
         '"buildDateTime":"20260507 05:00:06"});',
@@ -2635,9 +2646,7 @@ def test_ci_parse_release_meta_rejects_invalid_documents(
     with pytest.raises(RuntimeError, match="Invalid release metadata JSON"):
         ci_module.parse_release_meta('callback({"buildVersion": })', "test-url")
     with pytest.raises(RuntimeError, match="Unexpected trailing release metadata"):
-        ci_module.parse_release_meta(
-            'callback({"buildVersion": "10.45.1e"}); {}', "test-url"
-        )
+        ci_module.parse_release_meta('callback({"buildVersion": "10.45.1e"}); {}', "test-url")
     with pytest.raises(RuntimeError, match="must be a JSON object"):
         ci_module.parse_release_meta("[1, 2, 3]", "test-url")
 
@@ -2649,9 +2658,7 @@ def test_ci_release_meta_value_rejects_missing_or_non_string_values(
     ci_module = load_ci_module(monkeypatch)
 
     assert (
-        ci_module.release_meta_value(
-            {"buildVersion": " 10.45.1e "}, "buildVersion", "test"
-        )
+        ci_module.release_meta_value({"buildVersion": " 10.45.1e "}, "buildVersion", "test")
         == "10.45.1e"
     )
     with pytest.raises(RuntimeError, match="Missing buildVersion from test"):
@@ -2689,10 +2696,7 @@ def test_ci_find_latest_releases_skips_unsupported_and_beta_tags(
 
         def get_assets(self) -> list[FakeAsset]:
             release = ci_module.parse_release_tag(self.tag_name)
-            return [
-                FakeAsset(name)
-                for name in ci_module.expected_release_asset_names(release)
-            ]
+            return [FakeAsset(name) for name in ci_module.expected_release_asset_names(release)]
 
     class FakeRepo:
         def get_releases(self) -> list[FakeRelease]:
@@ -2737,15 +2741,9 @@ def test_ci_release_discovery_skips_releases_with_missing_assets(
 
     class FakeRepo:
         def get_releases(self) -> list[FakeRelease]:
-            stable_release = ci_module.GitHubRelease(
-                release="stable", build_version="10.45.1e"
-            )
-            latest_release = ci_module.GitHubRelease(
-                release="latest", build_version="10.46.1"
-            )
-            incomplete_stable_assets = {
-                "ibgateway-stable-10.45.1e-standalone-linux-x64.sh"
-            }
+            stable_release = ci_module.GitHubRelease(release="stable", build_version="10.45.1e")
+            latest_release = ci_module.GitHubRelease(release="latest", build_version="10.46.1")
+            incomplete_stable_assets = {"ibgateway-stable-10.45.1e-standalone-linux-x64.sh"}
             return [
                 FakeRelease("stable-10.45.1e", incomplete_stable_assets),
                 FakeRelease(
@@ -2787,10 +2785,7 @@ def test_ci_release_discovery_skips_mismatched_checksum_sidecars(
 
         def get_assets(self) -> list[FakeAsset]:
             release = ci_module.parse_release_tag(self.tag_name)
-            return [
-                FakeAsset(name)
-                for name in ci_module.expected_release_asset_names(release)
-            ]
+            return [FakeAsset(name) for name in ci_module.expected_release_asset_names(release)]
 
     class FakeRepo:
         def get_releases(self) -> list[FakeRelease]:
@@ -2835,10 +2830,7 @@ def test_ci_release_discovery_skips_stale_checksum_sidecars(
 
         def get_assets(self) -> list[FakeAsset]:
             release = ci_module.parse_release_tag(self.tag_name)
-            return [
-                FakeAsset(name)
-                for name in ci_module.expected_release_asset_names(release)
-            ]
+            return [FakeAsset(name) for name in ci_module.expected_release_asset_names(release)]
 
     class FakeRepo:
         def get_releases(self) -> list[FakeRelease]:
@@ -2883,10 +2875,7 @@ def test_ci_release_discovery_skips_unfetchable_installer_assets(
 
         def get_assets(self) -> list[FakeAsset]:
             release = ci_module.parse_release_tag(self.tag_name)
-            return [
-                FakeAsset(name)
-                for name in ci_module.expected_release_asset_names(release)
-            ]
+            return [FakeAsset(name) for name in ci_module.expected_release_asset_names(release)]
 
     class FakeRepo:
         def get_releases(self) -> list[FakeRelease]:
@@ -2898,10 +2887,7 @@ def test_ci_release_discovery_skips_unfetchable_installer_assets(
 
     def fake_fetch(url: str, as_text: bool = True) -> str | bytes:
         asset_name = Path(url).name
-        if (
-            asset_name == "ibgateway-latest-10.46.1-standalone-linux-x64.sh"
-            and not as_text
-        ):
+        if asset_name == "ibgateway-latest-10.46.1-standalone-linux-x64.sh" and not as_text:
             raise RuntimeError("download failed")
         return fake_release_asset_fetch(url, as_text=as_text)
 
@@ -2934,10 +2920,7 @@ def test_ci_release_discovery_skips_draft_releases(
 
         def get_assets(self) -> list[FakeAsset]:
             release = ci_module.parse_release_tag(self.tag_name)
-            return [
-                FakeAsset(name)
-                for name in ci_module.expected_release_asset_names(release)
-            ]
+            return [FakeAsset(name) for name in ci_module.expected_release_asset_names(release)]
 
     class FakeRepo:
         def get_releases(self) -> list[FakeRelease]:
@@ -2975,15 +2958,9 @@ def test_ci_shared_release_tags_require_both_products() -> None:
     content = CI_PATH.read_text()
 
     assert "created_releases = []" in content
-    assert (
-        "release_programs = {ib_release.program for ib_release in ib_releases}"
-        in content
-    )
+    assert "release_programs = {ib_release.program for ib_release in ib_releases}" in content
     assert 'release_programs != {"ibgateway", "tws"}' in content
-    assert (
-        "Skipping %s-%s release until both Gateway and TWS artifacts are available"
-        in content
-    )
+    assert "Skipping %s-%s release until both Gateway and TWS artifacts are available" in content
     assert "ThreadPoolExecutor(max_workers=len(ib_releases))" in content
     assert "ThreadPoolExecutor(max_workers=len(new_releases))" not in content
     assert "created_releases.extend(ib_releases)" in content
@@ -3023,17 +3000,14 @@ def test_ci_build_validates_release_channel_and_product_before_docker() -> None:
     """Manual CI builds should fail clearly for invalid direct-call build params."""
     content = CI_PATH.read_text()
 
-    assert (
-        "def parse_release_channel(release: str, source: str) -> ReleaseChannel:"
-        in content
-    )
+    assert "def parse_release_channel(release: str, source: str) -> ReleaseChannel:" in content
     assert "Invalid IB release channel from {source}: {release}" in content
     assert 'release = parse_release_channel(release, "Docker image build")' in content
     assert "image_repository = docker_image_repository(program)" in content
     assert "platforms = docker_platforms(program)" in content
-    assert content.index(
-        "image_repository = docker_image_repository(program)"
-    ) < content.index('dockerhub_username = require_env("DOCKERHUB_USERNAME")')
+    assert content.index("image_repository = docker_image_repository(program)") < content.index(
+        'dockerhub_username = require_env("DOCKERHUB_USERNAME")'
+    )
     assert 'raise ValueError(f"Unsupported PROGRAM: {program}")' in content
 
 
@@ -3145,9 +3119,7 @@ def test_ci_download_and_fetch_errors_are_fatal() -> None:
     content = CI_PATH.read_text()
 
     assert 'raise RuntimeError(f"Error fetching URL {url}: {exc}") from exc' in content
-    assert (
-        'raise RuntimeError(f"Error downloading file {url}: {exc}") from exc' in content
-    )
+    assert 'raise RuntimeError(f"Error downloading file {url}: {exc}") from exc' in content
     assert 'logger.info(f"Error fetching URL' not in content
     assert 'logger.info(f"Error downloading file' not in content
 
@@ -3156,19 +3128,14 @@ def test_ci_downloads_are_atomic_and_nonempty() -> None:
     """Release downloads should not reuse partial or empty cached assets."""
     content = CI_PATH.read_text()
 
-    assert (
-        "def download(url: str, save_path: Path, overwrite: bool = False) -> None:"
-        in content
-    )
+    assert "def download(url: str, save_path: Path, overwrite: bool = False) -> None:" in content
     assert "not overwrite and not os.getenv" in content
     assert "save_path.parent.mkdir(parents=True, exist_ok=True)" in content
     assert 'require_download_file(save_path, "Existing download path")' in content
     assert 'require_download_file(temporary_path, "Temporary download path")' in content
     assert "save_path.stat().st_size > 0" in content
     assert "Existing download is empty" in content
-    assert (
-        'temporary_path = save_path.with_suffix(save_path.suffix + ".tmp")' in content
-    )
+    assert 'temporary_path = save_path.with_suffix(save_path.suffix + ".tmp")' in content
     assert "urlretrieve(url, temporary_path)" in content
     assert 'raise RuntimeError("downloaded file is empty")' in content
     assert "temporary_path.replace(save_path)" in content
@@ -3225,9 +3192,7 @@ def test_ci_download_rejects_directory_targets_when_overwriting(
     monkeypatch.setattr(ci_module, "urlretrieve", fail_urlretrieve)
 
     with pytest.raises(RuntimeError, match="Existing download path is not a file"):
-        ci_module.download(
-            "https://example.test/installer.sh", save_path, overwrite=True
-        )
+        ci_module.download("https://example.test/installer.sh", save_path, overwrite=True)
 
 
 def test_ci_download_rejects_file_parent_path(
@@ -3311,9 +3276,7 @@ def test_ci_download_release_file_creates_nested_download_dir(
         build_version = "10.45.1e"
         program = "ibgateway"
         release = "stable"
-        download_url = (
-            "https://download.example/ibgateway-stable-standalone-linux-x64.sh"
-        )
+        download_url = "https://download.example/ibgateway-stable-standalone-linux-x64.sh"
 
     def fake_download(url: str, file: Path, overwrite: bool = False) -> None:
         captured["url"] = url
@@ -3328,10 +3291,7 @@ def test_ci_download_release_file_creates_nested_download_dir(
 
     assert captured["url"] == FakeIBRelease.download_url
     assert file_path == (
-        tmp_path
-        / "cache"
-        / "downloads"
-        / "ibgateway-stable-10.45.1e-standalone-linux-x64.sh"
+        tmp_path / "cache" / "downloads" / "ibgateway-stable-10.45.1e-standalone-linux-x64.sh"
     )
     assert captured["file"] == file_path
     assert captured["overwrite"] is True
@@ -3413,9 +3373,7 @@ def test_ci_download_release_file_rejects_file_downloads_ancestor(
     ci_module = load_ci_module(monkeypatch)
     downloads_ancestor = tmp_path / "cache"
     downloads_ancestor.write_text("not a directory")
-    monkeypatch.setattr(
-        ci_module, "downloads_dir", downloads_ancestor / "nested" / "downloads"
-    )
+    monkeypatch.setattr(ci_module, "downloads_dir", downloads_ancestor / "nested" / "downloads")
 
     class FakeIBRelease:
         build_version = "10.45.1e"
@@ -3505,8 +3463,7 @@ def test_ci_write_sha256_file_creates_sidecar(
 
     assert hash_path == asset_path.with_suffix(".sh.sha256")
     assert (
-        hash_path.read_text()
-        == "9c0d294c05fc1d88d698034609bb81c0c69196327594e4c69d2915c80fd9850c "
+        hash_path.read_text() == "9c0d294c05fc1d88d698034609bb81c0c69196327594e4c69d2915c80fd9850c "
         "ibgateway-stable-10.45.1e-standalone-linux-x64.sh\n"
     )
 
@@ -3556,9 +3513,7 @@ def test_ci_parse_sha256_sidecar_rejects_malformed_content(
         "test-url",
     ) == (digest, "tws-stable-10.45.1e-standalone-linux-x64.sh")
     with pytest.raises(RuntimeError, match="expected one line"):
-        ci_module.parse_sha256_sidecar(
-            f"{digest} file.sh\n{digest} other.sh\n", "test-url"
-        )
+        ci_module.parse_sha256_sidecar(f"{digest} file.sh\n{digest} other.sh\n", "test-url")
     with pytest.raises(RuntimeError, match="malformed checksum"):
         ci_module.parse_sha256_sidecar("not-a-digest file.sh\n", "test-url")
     with pytest.raises(RuntimeError, match="Invalid sha256 sidecar"):
@@ -3714,9 +3669,7 @@ def test_ci_invalid_checksum_assets_include_orphaned_sidecars(
 
     class FakeRelease:
         def get_assets(self) -> list[FakeAsset]:
-            return [
-                FakeAsset("ibgateway-stable-10.45.1e-standalone-linux-x64.sh.sha256")
-            ]
+            return [FakeAsset("ibgateway-stable-10.45.1e-standalone-linux-x64.sh.sha256")]
 
     monkeypatch.setattr(ci_module, "fetch", fake_release_asset_fetch)
 
@@ -3802,12 +3755,8 @@ def test_ci_create_github_releases_repairs_existing_incomplete_release(
             assert Path(path).name == name
             assert label == name
 
-        def update_release(
-            self, name: str, message: str, draft: bool
-        ) -> "FakeGitHubRelease":
-            raise AssertionError(
-                "published incomplete release should not be republished"
-            )
+        def update_release(self, name: str, message: str, draft: bool) -> "FakeGitHubRelease":
+            raise AssertionError("published incomplete release should not be republished")
 
     existing_release = FakeGitHubRelease(
         "stable-10.45.1e",
@@ -3835,8 +3784,7 @@ def test_ci_create_github_releases_repairs_existing_incomplete_release(
 
     def fake_download_release_file(ib_release: FakeIBRelease) -> Path:
         file_path = (
-            tmp_path
-            / f"{ib_release.program}-{ib_release.release}-{ib_release.build_version}"
+            tmp_path / f"{ib_release.program}-{ib_release.release}-{ib_release.build_version}"
             "-standalone-linux-x64.sh"
         )
         file_path.write_text(ib_release.description)
@@ -3853,9 +3801,7 @@ def test_ci_create_github_releases_repairs_existing_incomplete_release(
     monkeypatch.setattr(
         ci_module,
         "invalid_release_checksum_asset_names",
-        lambda gh_release, release: {
-            "ibgateway-stable-10.45.1e-standalone-linux-x64.sh.sha256"
-        },
+        lambda gh_release, release: {"ibgateway-stable-10.45.1e-standalone-linux-x64.sh.sha256"},
     )
 
     monkeypatch.setattr(
@@ -3872,8 +3818,7 @@ def test_ci_create_github_releases_repairs_existing_incomplete_release(
     created_releases = ci_module.create_github_releases()
 
     assert [
-        (release.program, release.release, release.build_version)
-        for release in created_releases
+        (release.program, release.release, release.build_version) for release in created_releases
     ] == [
         ("ibgateway", "stable", "10.45.1e"),
         ("tws", "stable", "10.45.1e"),
@@ -3917,9 +3862,7 @@ def test_ci_create_github_releases_publishes_after_asset_upload(
             assert Path(path).name == name
             assert label == name
 
-        def update_release(
-            self, name: str, message: str, draft: bool
-        ) -> "FakeGitHubRelease":
+        def update_release(self, name: str, message: str, draft: bool) -> "FakeGitHubRelease":
             expected_asset_names = ci_module.expected_release_asset_names(
                 ci_module.GitHubRelease(release="latest", build_version="10.46.1")
             )
@@ -3959,8 +3902,7 @@ def test_ci_create_github_releases_publishes_after_asset_upload(
 
     def fake_download_release_file(ib_release: FakeIBRelease) -> Path:
         file_path = (
-            tmp_path
-            / f"{ib_release.program}-{ib_release.release}-{ib_release.build_version}"
+            tmp_path / f"{ib_release.program}-{ib_release.release}-{ib_release.build_version}"
             "-standalone-linux-x64.sh"
         )
         file_path.write_text(ib_release.description)
@@ -3979,8 +3921,7 @@ def test_ci_create_github_releases_publishes_after_asset_upload(
     created_releases = ci_module.create_github_releases()
 
     assert [
-        (release.program, release.release, release.build_version)
-        for release in created_releases
+        (release.program, release.release, release.build_version) for release in created_releases
     ] == [
         ("ibgateway", "latest", "10.46.1"),
         ("tws", "latest", "10.46.1"),
@@ -4017,9 +3958,7 @@ def test_ci_create_github_releases_publishes_existing_complete_draft(
         def upload_asset(self, path: str, label: str, name: str) -> None:
             self.uploads.append(name)
 
-        def update_release(
-            self, name: str, message: str, draft: bool
-        ) -> "FakeGitHubRelease":
+        def update_release(self, name: str, message: str, draft: bool) -> "FakeGitHubRelease":
             assert name == self.tag_name
             assert "ibgateway latest 10.46.1" in message
             assert "tws latest 10.46.1" in message
@@ -4048,8 +3987,7 @@ def test_ci_create_github_releases_publishes_existing_complete_draft(
 
     def fake_download_release_file(ib_release: FakeIBRelease) -> Path:
         file_path = (
-            tmp_path
-            / f"{ib_release.program}-{ib_release.release}-{ib_release.build_version}"
+            tmp_path / f"{ib_release.program}-{ib_release.release}-{ib_release.build_version}"
             "-standalone-linux-x64.sh"
         )
         file_path.write_text(ib_release.description)
@@ -4068,8 +4006,7 @@ def test_ci_create_github_releases_publishes_existing_complete_draft(
     created_releases = ci_module.create_github_releases()
 
     assert [
-        (release.program, release.release, release.build_version)
-        for release in created_releases
+        (release.program, release.release, release.build_version) for release in created_releases
     ] == [
         ("ibgateway", "latest", "10.46.1"),
         ("tws", "latest", "10.46.1"),
@@ -4165,9 +4102,7 @@ def test_ci_build_images_expands_shared_releases_to_both_products(
 
     monkeypatch.setattr(ci_module, "build_image", fake_build_image)
 
-    ci_module.build_images(
-        [ci_module.GitHubRelease(release="stable", build_version="10.45.1e")]
-    )
+    ci_module.build_images([ci_module.GitHubRelease(release="stable", build_version="10.45.1e")])
 
     assert built_params == [
         ("ibgateway", "stable", "10.45.1e"),
@@ -4195,7 +4130,7 @@ def test_ci_build_images_parallel_consumes_worker_failures(
 
 def test_release_workflow_uses_only_release_check_requirements() -> None:
     """Daily release checks should not require unused DockerHub secrets."""
-    content = (REPO_ROOT / ".github" / "workflows" / "release.yml").read_text()
+    content = RELEASE_WORKFLOW_PATH.read_text()
 
     assert 'python-version: "3.12"' in content
     assert 'python-version: "3.11"' not in content
@@ -4204,6 +4139,48 @@ def test_release_workflow_uses_only_release_check_requirements() -> None:
     assert "GITHUB_TOKEN: ${{ secrets.GH_PAT }}" in content
     assert "DOCKERHUB_USERNAME" not in content
     assert "DOCKERHUB_TOKEN" not in content
+
+
+def test_pre_commit_scans_for_secrets() -> None:
+    """Trading credentials warrant a secrets scan in the default hook set."""
+    content = PRE_COMMIT_CONFIG_PATH.read_text()
+
+    assert "https://github.com/Yelp/detect-secrets" in content
+    assert "id: detect-secrets" in content
+    assert 'args: ["--baseline", ".secrets.baseline"]' in content
+    assert "#- repo: https://github.com/Yelp/detect-secrets" not in content
+
+
+def test_repository_hygiene_files_exist() -> None:
+    """Standard repository metadata should be present for contributors and users."""
+    for relative_path in [
+        "CHANGELOG.md",
+        "CODE_OF_CONDUCT.md",
+        "CONTRIBUTING.md",
+        "SECURITY.md",
+        ".editorconfig",
+        ".gitattributes",
+        "pyproject.toml",
+        "requirements-dev.txt",
+        ".github/dependabot.yml",
+        ".github/pull_request_template.md",
+        ".github/ISSUE_TEMPLATE/bug_report.yml",
+        ".github/ISSUE_TEMPLATE/feature_request.yml",
+        ".secrets.baseline",
+    ]:
+        assert (REPO_ROOT / relative_path).is_file()
+
+
+def test_pyproject_centralizes_tool_configuration() -> None:
+    """Local tool defaults should be discoverable without reading workflow files."""
+    content = (REPO_ROOT / "pyproject.toml").read_text()
+
+    assert "[tool.black]" in content
+    assert "line-length = 100" in content
+    assert "[tool.isort]" in content
+    assert 'profile = "black"' in content
+    assert "[tool.pytest.ini_options]" in content
+    assert 'testpaths = ["tests"]' in content
 
 
 def test_build_context_ignores_generated_python_artifacts() -> None:

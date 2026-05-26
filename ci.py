@@ -18,9 +18,7 @@ from urllib.request import urlopen, urlretrieve
 from github import Github
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="[%(asctime)s][%(levelname)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(levelname)s] %(message)s")
 logger = logging.getLogger("CI")
 
 downloads_dir = Path(__file__).parent / "downloads"
@@ -55,8 +53,7 @@ class IBRelease:
         self.release = release
         self.program = program
         self.base_url = (
-            "https://download2.interactivebrokers.com/installers/"
-            f"{program}/{release}-standalone"
+            "https://download2.interactivebrokers.com/installers/" f"{program}/{release}-standalone"
         )
 
     @property
@@ -180,9 +177,7 @@ def download(url: str, save_path: Path, overwrite: bool = False) -> None:
     require_creatable_directory_path(save_path.parent, "Download parent path")
     save_path.parent.mkdir(parents=True, exist_ok=True)
     require_download_file(save_path, "Existing download path")
-    should_reuse_download = not overwrite and not os.getenv(
-        "IB_DOCKER_OVERWRITE_DOWNLOADS"
-    )
+    should_reuse_download = not overwrite and not os.getenv("IB_DOCKER_OVERWRITE_DOWNLOADS")
     if should_reuse_download and save_path.exists():
         if save_path.stat().st_size > 0:
             logger.info(f"File already exists: {save_path}. Skipping download.")
@@ -290,9 +285,7 @@ def upload_release_asset(
             logger.info("Skipping existing release asset: %s", hash_file.name)
         else:
             logger.info(f"Uploading {hash_file}")
-            gh_release.upload_asset(
-                path=str(hash_file), label=hash_file.name, name=hash_file.name
-            )
+            gh_release.upload_asset(path=str(hash_file), label=hash_file.name, name=hash_file.name)
             asset_names.add(hash_file.name)
 
 
@@ -352,9 +345,7 @@ def parse_release_meta(content: str, source: str) -> dict[str, Any]:
     try:
         release_meta, content_end = json.JSONDecoder().raw_decode(metadata_content)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(
-            f"Invalid release metadata JSON from {source}: {exc}"
-        ) from exc
+        raise RuntimeError(f"Invalid release metadata JSON from {source}: {exc}") from exc
     trailing_content = metadata_content[content_end:].strip()
     if trailing_content not in ("", ")", ");", ";"):
         raise RuntimeError(
@@ -474,9 +465,7 @@ def release_checksum_asset_is_invalid(
     return False
 
 
-def invalid_release_checksum_asset_names(
-    gh_release: Any, release: GitHubRelease
-) -> set[str]:
+def invalid_release_checksum_asset_names(gh_release: Any, release: GitHubRelease) -> set[str]:
     """Return checksum asset names that are present but invalid."""
     assets = release_assets_by_name(gh_release)
     invalid_asset_names = set()
@@ -609,9 +598,7 @@ def find_latest_github_releases() -> list[GitHubRelease]:
         try:
             release = parse_release_tag(gh_release.tag_name)
         except ValueError:
-            logger.info(
-                "Skipping release with unsupported tag: %s", gh_release.tag_name
-            )
+            logger.info("Skipping release with unsupported tag: %s", gh_release.tag_name)
             continue
         if gh_release.draft:
             logger.info("Skipping draft release during scheduled release discovery")
@@ -757,9 +744,7 @@ def build_image(params: tuple[str, str, str]) -> None:
     logger.info("Finished running image build: %s", " ".join(cmd))
 
 
-def build_images(
-    releases: list[IBRelease | GitHubRelease], parallel: bool = False
-) -> None:
+def build_images(releases: list[IBRelease | GitHubRelease], parallel: bool = False) -> None:
     """Build Docker images for each release."""
     params = []
     for release in releases:
@@ -799,12 +784,8 @@ def main() -> None:
     # Release subcommand
     subparsers.add_parser("release", help="Create GitHub releases.")
     # Build subcommand
-    parser_build = subparsers.add_parser(
-        "build", help="Build release image from tag or latest."
-    )
-    parser_build.add_argument(
-        "tag", nargs="?", help="Tag in format <release>-<build_version>"
-    )
+    parser_build = subparsers.add_parser("build", help="Build release image from tag or latest.")
+    parser_build.add_argument("tag", nargs="?", help="Tag in format <release>-<build_version>")
 
     args = parser.parse_args()
     if args.command == "release":

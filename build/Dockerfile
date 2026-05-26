@@ -249,18 +249,20 @@ COPY --chown=root:root programs/init_container_settings.py /usr/local/bin/init_c
 COPY --chown=root:root programs/start_xvfb.sh /usr/local/bin/start_xvfb
 COPY --chown=root:root programs/start_vnc.sh /usr/local/bin/start_vnc
 COPY --chown=root:root programs/start_ibc.sh /usr/local/bin/start_ibc
+COPY --chown=root:root programs/healthcheck.sh /usr/local/bin/healthcheck
 COPY --chown=root:root programs/ib_utils.sh /usr/local/lib/ib_utils
 COPY --chown=root:root programs/entrypoint.sh /usr/local/bin/entrypoint
 
-RUN chmod +x /usr/local/bin/init_container_settings /usr/local/bin/start_xvfb /usr/local/bin/start_vnc /usr/local/bin/start_ibc /usr/local/lib/ib_utils /usr/local/bin/entrypoint \
+RUN chmod +x /usr/local/bin/init_container_settings /usr/local/bin/start_xvfb /usr/local/bin/start_vnc /usr/local/bin/start_ibc /usr/local/bin/healthcheck /usr/local/lib/ib_utils /usr/local/bin/entrypoint \
     && mkdir -p /var/log/supervisor /etc/supervisor/conf.d \
     && chown -R ibuser:ibuser /var/log/supervisor
 
 USER ibuser
 WORKDIR /home/ibuser
 
-# Healthcheck: ensure supervised core services are running and Xvfb display is active
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 CMD supervisorctl status xvfb ibc | awk '/^xvfb[[:space:]]+RUNNING/{xvfb=1} /^ibc[[:space:]]+RUNNING/{ibc=1} END{exit !(xvfb && ibc)}' && xset q >/dev/null 2>&1 || exit 1
+# Healthcheck: ensure supervised core services are running and Xvfb display is active.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 CMD ["/usr/local/bin/healthcheck"]
 
+STOPSIGNAL SIGTERM
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]

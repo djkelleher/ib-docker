@@ -31,9 +31,7 @@ def require_absolute_path(path: Path, label: str) -> None:
         raise RuntimeError(f"{label} must be an absolute path: {path}")
 
 
-def validate_env_choice(
-    name: str, allowed_values: tuple[str, ...], default: str
-) -> str:
+def validate_env_choice(name: str, allowed_values: tuple[str, ...], default: str) -> str:
     """Return a supported runtime choice, applying the same default as shell startup."""
     value = os.environ.get(name) or default
     if value not in allowed_values:
@@ -325,9 +323,7 @@ def validate_ib_release_layout(program: str, ib_release_dir: Path) -> None:
             f"expected IBC classpath jar {install4j_path / 'i4jruntime.jar'}"
         )
     validate_install4j_java_config(install4j_path)
-    if not any(
-        path.is_file() and os.access(path, os.X_OK) for path in executable_paths
-    ):
+    if not any(path.is_file() and os.access(path, os.X_OK) for path in executable_paths):
         expected_paths = " or ".join(str(path) for path in executable_paths)
         raise RuntimeError(
             "IB release directory is invalid: " f"expected executable {expected_paths}"
@@ -335,8 +331,7 @@ def validate_ib_release_layout(program: str, ib_release_dir: Path) -> None:
     for vmoptions_path in expected_vmoptions_paths:
         if not vmoptions_path.is_file():
             raise RuntimeError(
-                "IB release directory is invalid: "
-                f"expected vmoptions file {vmoptions_path}"
+                "IB release directory is invalid: " f"expected vmoptions file {vmoptions_path}"
             )
 
 
@@ -373,9 +368,7 @@ def validate_ibc_layout(ibc_path: Path) -> None:
     if not ibc_start_path.is_file():
         raise RuntimeError(f"IBC layout is invalid: expected {ibc_start_path}")
     if not os.access(ibc_start_path, os.X_OK):
-        raise RuntimeError(
-            f"IBC layout is invalid: start script is not runnable {ibc_start_path}"
-        )
+        raise RuntimeError(f"IBC layout is invalid: start script is not runnable {ibc_start_path}")
 
 
 def validate_runtime_environment() -> None:
@@ -404,15 +397,9 @@ def render_vmoptions(
 ) -> str:
     """Render the lightweight vmoptions template."""
     vmoptions_content = template_content.replace("{{ max_heap }}", java_heap_size)
-    vmoptions_content = vmoptions_content.replace(
-        "{{ initial_heap }}", str(initial_heap)
-    )
-    vmoptions_content = vmoptions_content.replace(
-        "{{ tws_settings_path }}", str(tws_settings_path)
-    )
-    custom_section = (
-        ("# Custom options\n" + "\n".join(custom_opts)) if custom_opts else ""
-    )
+    vmoptions_content = vmoptions_content.replace("{{ initial_heap }}", str(initial_heap))
+    vmoptions_content = vmoptions_content.replace("{{ tws_settings_path }}", str(tws_settings_path))
+    custom_section = ("# Custom options\n" + "\n".join(custom_opts)) if custom_opts else ""
     return vmoptions_content.replace(CUSTOM_OPTS_BLOCK, custom_section)
 
 

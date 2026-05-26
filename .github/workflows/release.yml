@@ -3,7 +3,15 @@ name: Daily Release Check
 on:
   workflow_dispatch:
   schedule:
+    # Runs at 06:34 UTC.
     - cron: "34 6 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-check-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   release-check:
