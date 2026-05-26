@@ -2256,7 +2256,7 @@ def test_dockerfile_validates_build_args_before_downloads() -> None:
     """Builds should reject invalid products/releases before installer downloads."""
     content = DOCKERFILE_PATH.read_text()
     first_validation = content.index("Unsupported PROGRAM")
-    first_download = content.index("wget -nv --tries=3 --timeout=30 -O /ib.sh")
+    first_download = content.index("curl -fsSL --retry 3 --retry-delay 5")
 
     assert first_validation < first_download
     assert "Unsupported TARGETARCH" in content
@@ -2274,6 +2274,8 @@ def test_dockerfile_validates_build_args_before_downloads() -> None:
     assert "IBC_VERSION must look like 3.23.0" in content
     assert "grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+$'" in content
     assert "'^[0-9]+[.][0-9]+[.][0-9]+$'" in content
+    assert "IBC_SHA256 must be a 64-character hex digest" in content
+    assert "ZULU_SHA256 must be a 64-character hex digest" in content
 
 
 def test_dockerfile_build_arg_regexes_reject_embedded_newlines() -> None:
@@ -2290,9 +2292,16 @@ def test_dockerfile_build_arg_regexes_reject_embedded_newlines() -> None:
         printf '%s' "$IBC_VERSION" | grep -Eqz '^[0-9]+[.][0-9]+[.][0-9]+$'
         """
     )
+    checksum_result = run_bash_unchecked(
+        """
+        IBC_SHA256=$'0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\nbad'
+        printf '%s' "$IBC_SHA256" | grep -Eqz '^[0-9a-fA-F]{64}$'
+        """
+    )
 
     assert version_result.returncode == 1
     assert ibc_result.returncode == 1
+    assert checksum_result.returncode == 1
 
 
 def test_dockerfile_arg_defaults_do_not_include_inline_comments() -> None:
@@ -2308,7 +2317,7 @@ def test_dockerfile_arg_defaults_do_not_include_inline_comments() -> None:
 
 
 def test_dockerfile_pins_debian_base_and_uses_retrying_downloads() -> None:
-    """Runtime builds should use a pinned base image and non-quiet downloads."""
+    """Runtime builds should use a pinned base image and strict retrying downloads."""
     content = DOCKERFILE_PATH.read_text()
 
     assert (
@@ -2318,8 +2327,28 @@ def test_dockerfile_pins_debian_base_and_uses_retrying_downloads() -> None:
         )
         == 2
     )
-    assert "wget -q" not in content
-    assert content.count("wget -nv --tries=3 --timeout=30") == 5
+    assert "wget" not in content
+    assert "curl ca-certificates unzip locales" in content
+    assert content.count("curl -fsSL --retry 3 --retry-delay 5 --connect-timeout 30") == 5
+
+
+def test_dockerfile_supports_optional_artifact_checksum_verification() -> None:
+    """IBC and external Java downloads should be hash-checkable by build arg."""
+    content = DOCKERFILE_PATH.read_text()
+
+    assert "ARG IBC_ZIP_URL=" in content
+    assert "ARG IBC_SHA256=" in content
+    assert "ARG ZULU_JRE_URL=" in content
+    assert "ARG ZULU_SHA256=" in content
+    assert (
+        'IBC_URL="${IBC_ZIP_URL:-https://github.com/IbcAlpha/IBC/releases/download/${IBC_VERSION}/IBCLinux-${IBC_VERSION}.zip}"'
+        in content
+    )
+    assert (
+        'ZULU_URL="${ZULU_JRE_URL:-https://cdn.azul.com/zulu/bin/${ZULU_NAME}.tar.gz}"' in content
+    )
+    assert 'echo "$IBC_SHA256  /tmp/IBC.zip" | sha256sum --strict --check -' in content
+    assert 'echo "$ZULU_SHA256  /tmp/zulu.tar.gz" | sha256sum --strict --check -' in content
 
 
 def test_dockerfile_verifies_ibc_start_script_during_build() -> None:
@@ -3033,17 +3062,13 @@ def test_ci_build_image_uses_argv_and_expected_tags(
 
     def fake_run(
         cmd: list[str],
-        capture_output: bool,
         check: bool,
-        text: bool,
         cwd: str,
     ) -> object:
         captured["cmd"] = cmd
-        captured["capture_output"] = capture_output
         captured["check"] = check
-        captured["text"] = text
         captured["cwd"] = cwd
-        return ci_module.CompletedProcess(cmd, 0, stdout="", stderr="")
+        return types.SimpleNamespace(returncode=0)
 
     monkeypatch.setenv("DOCKERHUB_USERNAME", "demo")
     monkeypatch.setattr(ci_module, "run", fake_run)
@@ -3075,9 +3100,7 @@ def test_ci_build_image_uses_argv_and_expected_tags(
         "--push",
         ".",
     ]
-    assert captured["capture_output"] is True
     assert captured["check"] is False
-    assert captured["text"] is True
     assert captured["cwd"] == str(REPO_ROOT / "build")
 
 

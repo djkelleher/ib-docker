@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from functools import cache, cached_property, partial
 from pathlib import Path
-from subprocess import CompletedProcess, run
+from subprocess import run
 from threading import Lock
 from typing import Any, Literal
 from urllib.request import urlopen, urlretrieve
@@ -734,13 +734,7 @@ def build_image(params: tuple[str, str, str]) -> None:
 
     logger.info("Building image: %s", " ".join(cmd))
     build_dir = Path(__file__).parent.joinpath("build").resolve()
-    res: CompletedProcess[str] = run(
-        cmd, capture_output=True, check=False, text=True, cwd=str(build_dir)
-    )
-    if info := res.stdout.strip():
-        logger.info(info)
-    if err := res.stderr.strip():
-        logger.error(err)
+    res = run(cmd, check=False, cwd=str(build_dir))
     if res.returncode != 0:
         raise RuntimeError(f"Docker image build failed with exit code {res.returncode}")
     logger.info("Finished running image build: %s", " ".join(cmd))

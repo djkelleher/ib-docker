@@ -12,6 +12,10 @@ ARG RELEASE=stable
 # IB publishes x64 installer artifacts; arm64 builds run Gateway with external Java.
 ARG IB_INSTALLER_ARCH=x64
 ARG IBC_VERSION=3.23.0
+ARG IBC_ZIP_URL=
+ARG IBC_SHA256=
+ARG ZULU_JRE_URL=
+ARG ZULU_SHA256=
 
 RUN set -eu; \
     target_platform="${TARGET_PLATFORM:-linux/$TARGETARCH}"; \
@@ -43,6 +47,14 @@ RUN set -eu; \
       echo "IBC_VERSION must look like 3.23.0: $IBC_VERSION" >&2; \
       exit 1; \
     fi; \
+    if [ -n "$IBC_SHA256" ] && ! printf '%s' "$IBC_SHA256" | grep -Eqz '^[0-9a-fA-F]{64}$'; then \
+      echo "IBC_SHA256 must be a 64-character hex digest" >&2; \
+      exit 1; \
+    fi; \
+    if [ -n "$ZULU_SHA256" ] && ! printf '%s' "$ZULU_SHA256" | grep -Eqz '^[0-9a-fA-F]{64}$'; then \
+      echo "ZULU_SHA256 must be a 64-character hex digest" >&2; \
+      exit 1; \
+    fi; \
     if [ "$IB_INSTALLER_ARCH" != "x64" ]; then \
       echo "IB installer artifacts are only supported with IB_INSTALLER_ARCH=x64" >&2; \
       exit 1; \
@@ -50,7 +62,7 @@ RUN set -eu; \
 
 # Keep only essential build deps in this stage
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    wget ca-certificates unzip locales \
+    curl ca-certificates unzip locales \
     && rm -rf /var/lib/apt/lists/*
 
 # Locale setup (needed by IB apps)
@@ -68,13 +80,13 @@ RUN set -eux; \
     mkdir -p /opt/i4j_jres /usr/local/zulu17; \
     if [ "$IB_VERSION" = "NULL" ]; then \
       URL="https://download2.interactivebrokers.com/installers/${PROGRAM}/${RELEASE}-standalone/${PROGRAM}-${RELEASE}-standalone-linux-${IB_INSTALLER_ARCH}.sh"; \
-      wget -nv --tries=3 --timeout=30 -O /ib.sh "$URL"; \
+      curl -fsSL --retry 3 --retry-delay 5 --connect-timeout 30 -o /ib.sh "$URL"; \
     else \
       FILE="${PROGRAM}-${RELEASE}-${IB_VERSION}-standalone-linux-${IB_INSTALLER_ARCH}.sh"; \
       URL="https://github.com/djkelleher/ib-docker/releases/download/${RELEASE}-${IB_VERSION}/$FILE"; \
       # download using original filename so the .sha256 file matches
-      wget -nv --tries=3 --timeout=30 -O "/$FILE" "$URL"; \
-      wget -nv --tries=3 --timeout=30 -O "/$FILE.sha256" "$URL.sha256"; \
+      curl -fsSL --retry 3 --retry-delay 5 --connect-timeout 30 -o "/$FILE" "$URL"; \
+      curl -fsSL --retry 3 --retry-delay 5 --connect-timeout 30 -o "/$FILE.sha256" "$URL.sha256"; \
       CHECKSUM_FILE="$(sed -E 's/^[^[:space:]]+[[:space:]]+[*]?//' "/$FILE.sha256")"; \
       if [ "$CHECKSUM_FILE" != "$FILE" ]; then \
         echo "Checksum sidecar does not reference expected file $FILE: $CHECKSUM_FILE" >&2; \
@@ -88,7 +100,11 @@ RUN set -eux; \
     # For arm64 supply external Java 17 (Zulu), otherwise use bundled Java \
     if [ "$TARGETARCH" = "arm64" ]; then \
       ZULU_NAME="zulu17.52.17-ca-jre17.0.12-linux_aarch64"; \
-      wget -nv --tries=3 --timeout=30 -O /tmp/zulu.tar.gz "https://cdn.azul.com/zulu/bin/${ZULU_NAME}.tar.gz"; \
+      ZULU_URL="${ZULU_JRE_URL:-https://cdn.azul.com/zulu/bin/${ZULU_NAME}.tar.gz}"; \
+      curl -fsSL --retry 3 --retry-delay 5 --connect-timeout 30 -o /tmp/zulu.tar.gz "$ZULU_URL"; \
+      if [ -n "$ZULU_SHA256" ]; then \
+        echo "$ZULU_SHA256  /tmp/zulu.tar.gz" | sha256sum --strict --check -; \
+      fi; \
       tar -xzf /tmp/zulu.tar.gz -C /usr/local/; \
       cp -a /usr/local/${ZULU_NAME}/. /usr/local/zulu17/; \
       app_java_home=/usr/local/zulu17 /ib.sh -q -dir "$IB_RELEASE_DIR"; \
@@ -123,7 +139,11 @@ RUN set -eux; \
 
 # Install IBC
 RUN set -eux; \
-    wget -nv --tries=3 --timeout=30 -O /tmp/IBC.zip "https://github.com/IbcAlpha/IBC/releases/download/${IBC_VERSION}/IBCLinux-${IBC_VERSION}.zip"; \
+    IBC_URL="${IBC_ZIP_URL:-https://github.com/IbcAlpha/IBC/releases/download/${IBC_VERSION}/IBCLinux-${IBC_VERSION}.zip}"; \
+    curl -fsSL --retry 3 --retry-delay 5 --connect-timeout 30 -o /tmp/IBC.zip "$IBC_URL"; \
+    if [ -n "$IBC_SHA256" ]; then \
+      echo "$IBC_SHA256  /tmp/IBC.zip" | sha256sum --strict --check -; \
+    fi; \
     unzip /tmp/IBC.zip -d "$IBC_PATH"; \
     find "$IBC_PATH" -type f -name "*.sh" -exec chmod u+x {} +; \
     # IBC's stock launcher ignores every -D entry from the IB vmoptions file.

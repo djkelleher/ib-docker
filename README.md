@@ -83,6 +83,10 @@ Optional build args:
 | IB_VERSION | NULL or numeric | Interactive Brokers release version. Use `NULL` for the current upstream channel installer, or a packaged release version from this project's GitHub releases |
 | IB_INSTALLER_ARCH | x64 | IB installer artifact architecture; keep `x64` |
 | IBC_VERSION | e.g. 3.23.0 | IBC release to bundle |
+| IBC_ZIP_URL | URL | Optional mirror/private-cache URL for the IBC zip |
+| IBC_SHA256 | sha256 hex digest | Optional checksum for the IBC zip |
+| ZULU_JRE_URL | URL | Optional mirror/private-cache URL for the arm64 Zulu JRE archive |
+| ZULU_SHA256 | sha256 hex digest | Optional checksum for the arm64 Zulu JRE archive |
 
 Gateway builds support `linux/amd64` and `linux/arm64` Docker platforms. TWS builds
 are limited to `linux/amd64`.
