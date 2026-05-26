@@ -14,8 +14,8 @@ services:
     restart: always
     network_mode: host
     environment:
-      # VNC is disabled unless VNC_PWD is set in .env.
-      VNC_PWD: ${VNC_PWD:-}
+      # VNC is disabled unless IB_VNC_PWD or VNC_PWD is set in .env.
+      VNC_PWD: ${IB_VNC_PWD:-${VNC_PWD:-}}
       VNC_PWD_FILE: ${VNC_PWD_FILE:-}
       VNC_PORT: ${VNC_PORT:-5900}
       VNC_SCREEN_DIMENSION: ${VNC_SCREEN_DIMENSION:-1600x1200x24}
@@ -92,8 +92,8 @@ services:
       - seccomp:unconfined
     shm_size: 2g
     environment:
-      # VNC is disabled unless VNC_PWD is set in .env.
-      VNC_PWD: ${VNC_PWD:-}
+      # VNC is disabled unless IB_VNC_PWD or VNC_PWD is set in .env.
+      VNC_PWD: ${IB_VNC_PWD:-${VNC_PWD:-}}
       VNC_PWD_FILE: ${VNC_PWD_FILE:-}
       VNC_PORT: ${TWS_VNC_PORT:-5901}
       VNC_SCREEN_DIMENSION: ${VNC_SCREEN_DIMENSION:-1600x1200x24}

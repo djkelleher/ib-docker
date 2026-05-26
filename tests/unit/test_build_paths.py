@@ -4357,6 +4357,7 @@ def test_compose_uses_distinct_vnc_ports_for_host_network_services() -> None:
 
     assert "VNC_PORT: ${VNC_PORT:-5900}" in content
     assert "VNC_PORT: ${TWS_VNC_PORT:-5901}" in content
+    assert content.count("VNC_PWD: ${IB_VNC_PWD:-${VNC_PWD:-}}") == 2
 
 
 def test_compose_readme_and_workflows_use_installer_arch_arg() -> None:

@@ -14,7 +14,8 @@ Reliable, high-performance Docker images for running Interactive Brokers Gateway
 
 **Images:** `danklabs/ib-gateway` • `danklabs/ib-tws`
 
-`IB_USER` and `IB_PASSWORD` must be provided. VNC is disabled unless `VNC_PWD` is set.
+`IB_USER` and `IB_PASSWORD` must be provided. VNC is disabled unless
+`IB_VNC_PWD` or `VNC_PWD` is set.
 
 ```bash
 # 1. Get the project
@@ -103,7 +104,7 @@ services:
 
 ## 🔐 Security Best Practices
 1. **Credentials**: Use `.env` files or `*_FILE` secrets, never commit passwords
-2. **VNC**: Set strong `VNC_PWD` if enabling VNC server
+2. **VNC**: Set strong `IB_VNC_PWD` or `VNC_PWD` if enabling VNC server
 3. **Monitoring**: Use `supervisorctl` inside the container for process status and logs
 4. **Updates**: Regularly update container images and dependencies
 
@@ -127,7 +128,7 @@ services:
 ### Display & VNC
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VNC_PWD` / `VNC_PWD_FILE` | - | VNC server password, directly or from a file. VNC is disabled if neither is set |
+| `IB_VNC_PWD` / `VNC_PWD` / `VNC_PWD_FILE` | - | VNC server password, directly or from a file. `IB_VNC_PWD` is preferred for shared env files. VNC is disabled if none are set |
 | `VNC_PORT` | `5900` | Gateway VNC listen port |
 | `TWS_VNC_PORT` | `5901` | TWS VNC listen port in the provided compose file |
 | `VNC_SCREEN_DIMENSION` | `1600x1200x24` | VNC/Xvfb screen resolution |
@@ -202,8 +203,8 @@ The Dockerfile does not declare `EXPOSE` metadata because this project runs with
 | Gateway Paper | 4002 | Paper trading API |
 | TWS Live | 7496 | Live trading API |
 | TWS Paper | 7497 | Paper trading API |
-| Gateway VNC | 5900 | Remote desktop access when `VNC_PWD` is set |
-| TWS VNC | 5901 | Remote desktop access in the provided compose file when `VNC_PWD` is set |
+| Gateway VNC | 5900 | Remote desktop access when `IB_VNC_PWD` or `VNC_PWD` is set |
+| TWS VNC | 5901 | Remote desktop access in the provided compose file when `IB_VNC_PWD` or `VNC_PWD` is set |
 
 ## 🔌 API Access (Summary)
 Same as Ports table above. The compose file uses `network_mode: host`, so it
