@@ -33,7 +33,9 @@ docker compose up -d ib-gateway
 ```
 
 To run TWS instead of Gateway, start `ib-tws`. The compose file defines both
-services for convenience, but start only the IB session you intend to use.
+services behind `gateway` and `tws` profiles so a bare `docker compose up` does
+not accidentally start both sessions. Start only the IB session you intend to
+use.
 
 View process status & logs:
 ```bash
@@ -91,6 +93,8 @@ This project supports the host network stack only. The IB Gateway and TWS API
 listeners are used directly on the host ports below, so each container should run
 one service and one trading mode. To run live and paper at the same time, start
 two containers with different service names and matching `TRADING_MODE` values.
+Host networking is Linux-oriented; Docker Desktop support depends on the Docker
+Desktop host-network implementation available on your platform.
 
 ```yaml
 services:
@@ -104,7 +108,9 @@ services:
 
 ## 🔐 Security Best Practices
 1. **Credentials**: Use `.env` files or `*_FILE` secrets, never commit passwords
-2. **VNC**: Set strong `IB_VNC_PWD` or `VNC_PWD` if enabling VNC server
+2. **VNC**: Set strong `IB_VNC_PWD` or `VNC_PWD` if enabling VNC server; use
+   SSH tunneling or set `BIND_ADDRESS=127.0.0.1` when remote desktop access
+   should stay local-only
 3. **Monitoring**: Use `supervisorctl` inside the container for process status and logs
 4. **Updates**: Regularly update container images and dependencies
 
@@ -161,6 +167,12 @@ services:
 | `ALLOW_BLIND_TRADING` | `no` | Dismiss blind-trading warning dialogs |
 | `OVERRIDE_TWS_MASTER_CLIENT_ID` | - | Override TWS/Gateway master client ID |
 
+### Read-Only Modes
+| Variable | Scope | Effect |
+|----------|-------|--------|
+| `READ_ONLY_LOGIN` | Login/session | Requests an IB read-only login session when supported by the upstream application |
+| `READ_ONLY_API` | API settings | Enables TWS/Gateway API read-only mode so API clients cannot place or modify orders |
+
 ### Advanced IBC Configuration
 These variables map directly to settings in `build/config/ibc.ini`.
 
@@ -192,6 +204,9 @@ These variables map directly to settings in `build/config/ibc.ini`.
 | `SUPPRESS_INFO_MESSAGES` | `yes` |
 | `LOG_STRUCTURE_SCOPE` | `known` |
 | `LOG_STRUCTURE_WHEN` | `never` |
+
+Set `FIX=yes` with `FIX_LOGIN_ID` and `FIX_PASSWORD` when using IBC's FIX
+Gateway path. Standard Gateway/TWS API users should leave `FIX=no`.
 
 ### Ports
 The Dockerfile does not declare `EXPOSE` metadata because this project runs with

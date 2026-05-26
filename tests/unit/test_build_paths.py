@@ -2978,6 +2978,8 @@ def test_ci_build_platforms_match_workflow_support(
 
     assert ci_module.docker_platforms("ibgateway") == "linux/amd64,linux/arm64"
     assert ci_module.docker_platforms("tws") == "linux/amd64"
+    assert "TODO why no arm for tws" not in ci_content
+    assert "TWS has additional GUI/native library surface" in ci_content
     assert '"--platform",\n        platforms,' in ci_content
     assert "platforms: linux/amd64,linux/arm64" in gateway_workflow
     assert "platforms: linux/amd64\n" in tws_workflow
@@ -4167,6 +4169,7 @@ def test_repository_hygiene_files_exist() -> None:
         ".github/ISSUE_TEMPLATE/bug_report.yml",
         ".github/ISSUE_TEMPLATE/feature_request.yml",
         ".secrets.baseline",
+        "Makefile",
     ]:
         assert (REPO_ROOT / relative_path).is_file()
 
@@ -4193,12 +4196,14 @@ def test_build_context_ignores_generated_python_artifacts() -> None:
 
 
 def test_compose_passes_documented_env_to_runtime_services() -> None:
-    """Documented .env settings should reach containers without requiring env_file."""
+    """Documented .env settings should reach containers through the shared env map."""
     content = DOCKER_COMPOSE_PATH.read_text()
 
     assert "env_file:" not in content
+    assert "x-ib-environment: &ib-environment" in content
+    assert content.count("<<: *ib-environment") == 2
     for env_name in sorted(documented_runtime_env_names()):
-        assert content.count(f"{env_name}: ${{{env_name}") == 2
+        assert content.count(f"{env_name}: ${{{env_name}") == 1
 
 
 def test_runtime_template_env_vars_are_documented() -> None:
@@ -4216,7 +4221,7 @@ def test_compose_timezone_default_matches_image_default() -> None:
     compose_content = DOCKER_COMPOSE_PATH.read_text()
     env_example_content = (REPO_ROOT / ".env.example").read_text()
 
-    assert compose_content.count("TIME_ZONE: ${TIME_ZONE:-UTC}") == 2
+    assert compose_content.count("TIME_ZONE: ${TIME_ZONE:-UTC}") == 1
     assert "TIME_ZONE=UTC" in env_example_content
 
 
@@ -4225,10 +4230,10 @@ def test_compose_requires_credentials_before_startup() -> None:
     content = DOCKER_COMPOSE_PATH.read_text()
     entrypoint = ENTRYPOINT_PATH.read_text()
 
-    assert content.count("IB_USER: ${IB_USER:-}") == 2
-    assert content.count("IB_USER_FILE: ${IB_USER_FILE:-}") == 2
-    assert content.count("IB_PASSWORD: ${IB_PASSWORD:-}") == 2
-    assert content.count("IB_PASSWORD_FILE: ${IB_PASSWORD_FILE:-}") == 2
+    assert content.count("IB_USER: ${IB_USER:-}") == 1
+    assert content.count("IB_USER_FILE: ${IB_USER_FILE:-}") == 1
+    assert content.count("IB_PASSWORD: ${IB_PASSWORD:-}") == 1
+    assert content.count("IB_PASSWORD_FILE: ${IB_PASSWORD_FILE:-}") == 1
     assert "file_env IB_USER" in entrypoint
     assert "file_env IB_PASSWORD" in entrypoint
 
@@ -4334,7 +4339,23 @@ def test_compose_uses_distinct_vnc_ports_for_host_network_services() -> None:
 
     assert "VNC_PORT: ${VNC_PORT:-5900}" in content
     assert "VNC_PORT: ${TWS_VNC_PORT:-5901}" in content
-    assert content.count("VNC_PWD: ${IB_VNC_PWD:-${VNC_PWD:-}}") == 2
+    assert content.count("VNC_PWD: ${IB_VNC_PWD:-${VNC_PWD:-}}") == 1
+
+
+def test_compose_uses_profiles_logging_and_basic_hardening() -> None:
+    """Compose should avoid accidental dual startup and unbounded JSON logs."""
+    content = DOCKER_COMPOSE_PATH.read_text()
+
+    assert "profiles:\n      - gateway" in content
+    assert "profiles:\n      - tws" in content
+    assert "container_name:" not in content
+    assert 'max-size: "10m"' in content
+    assert 'max-file: "5"' in content
+    assert "cap_drop:\n    - ALL" in content
+    assert "no-new-privileges:true" in content
+    assert "tmpfs:\n    - /tmp" in content
+    assert "gateway_settings:" in content
+    assert "tws_settings:" in content
 
 
 def test_compose_readme_and_workflows_use_installer_arch_arg() -> None:
@@ -4364,7 +4385,8 @@ def test_compose_and_readme_are_host_network_only() -> None:
     compose_content = DOCKER_COMPOSE_PATH.read_text()
     readme_content = README_PATH.read_text().lower()
 
-    assert compose_content.count("network_mode: host") == 2
+    assert compose_content.count("network_mode: host") == 1
+    assert "<<: *ib-service" in compose_content
     assert "ports:" not in compose_content
     assert "bridge" not in readme_content
     assert "socat" not in readme_content

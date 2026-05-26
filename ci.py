@@ -370,6 +370,8 @@ def docker_platforms(program: str) -> str:
     if program == "ibgateway":
         return "linux/amd64,linux/arm64"
     if program == "tws":
+        # IB's Linux TWS installer is only exercised here on x64. Gateway uses
+        # external Java for arm64; TWS has additional GUI/native library surface.
         return "linux/amd64"
     raise ValueError(f"Unsupported PROGRAM: {program}")
 
