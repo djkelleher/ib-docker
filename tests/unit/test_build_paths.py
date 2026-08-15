@@ -4365,6 +4365,15 @@ def test_compose_uses_distinct_vnc_ports_for_host_network_services() -> None:
     assert content.count("VNC_PWD: ${IB_VNC_PWD:-${VNC_PWD:-}}") == 1
 
 
+def test_compose_uses_distinct_x_displays_for_host_network_services() -> None:
+    """TWS should not collide with the Gateway or image X11 display default."""
+    compose_content = DOCKER_COMPOSE_PATH.read_text()
+    env_example_content = ENV_EXAMPLE_PATH.read_text()
+
+    assert "DISPLAY: ${TWS_DISPLAY:-:2}" in compose_content
+    assert "TWS_DISPLAY=:2" in env_example_content
+
+
 def test_compose_uses_profiles_logging_and_basic_hardening() -> None:
     """Compose should avoid accidental dual startup and unbounded JSON logs."""
     content = DOCKER_COMPOSE_PATH.read_text()

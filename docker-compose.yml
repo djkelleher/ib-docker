@@ -113,6 +113,7 @@ services:
     shm_size: 2g
     environment:
       <<: *ib-environment
+      DISPLAY: ${TWS_DISPLAY:-:2}
       VNC_PORT: ${TWS_VNC_PORT:-5901}
     volumes:
       - tws_settings:/home/ibuser/tws_settings

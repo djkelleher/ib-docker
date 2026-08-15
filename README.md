@@ -140,9 +140,10 @@ services:
 |----------|---------|-------------|
 | `IB_VNC_PWD` / `VNC_PWD` / `VNC_PWD_FILE` | - | VNC server password, directly or from a file. `IB_VNC_PWD` is preferred for shared env files. VNC is disabled if none are set |
 | `VNC_PORT` | `5900` | Gateway VNC listen port |
+| `TWS_DISPLAY` | `:2` | TWS X11 display number in the provided compose file; distinct from the image and Gateway default |
 | `TWS_VNC_PORT` | `5901` | TWS VNC listen port in the provided compose file |
 | `VNC_SCREEN_DIMENSION` | `1600x1200x24` | VNC/Xvfb screen resolution |
-| `DISPLAY` | `:1` | X11 display number |
+| `DISPLAY` | `:1` | Image-level X11 display default when running outside the provided compose file |
 
 ### Startup Hooks
 | Variable | Default | Description |
